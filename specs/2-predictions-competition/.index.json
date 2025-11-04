@@ -1,0 +1,23 @@
+{
+  "feature": "World Cup 2026 Prediction Competition",
+  "version": "0.1.0",
+  "files": [
+    "spec.md",
+    "impl-plan.md",
+    "research.md",
+    "data-model.md",
+    "contracts/openapi.yaml",
+    "tasks.md",
+    "README-snippet.md"
+  ],
+  "mvp_tasks": ["T033","T034","T035","T036","T037","T038","T039","T040","T041","T045","T046","T047","T048","T049","T050","T051","T052","T094","T099","T100"],
+  "locks": {
+    "group_predictions": "per-match kickoff",
+    "playoff_picks": "tournament kickoff"
+  },
+  "scoring": {
+    "group_outcome": 1,
+    "group_exact_bonus": 1,
+    "playoff": {"r16":1, "qf":3, "sf":5, "final":6, "champion":8}
+  }
+}

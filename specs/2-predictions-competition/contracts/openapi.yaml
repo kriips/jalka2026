@@ -1,0 +1,139 @@
+openapi: 3.0.3
+info:
+  title: World Cup 2026 Prediction API
+  version: 0.1.0
+paths:
+  /auth/register:
+    post:
+      summary: Register user (pre-kickoff only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, display_name, password]
+              properties:
+                email: { type: string, format: email }
+                display_name: { type: string, minLength: 2, maxLength: 40 }
+                password: { type: string, minLength: 8 }
+      responses:
+        '201': { description: Created }
+        '400': { description: Validation or cutoff passed }
+  /auth/login:
+    post:
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        '200': { description: Session established }
+        '401': { description: Invalid credentials }
+  /matches:
+    get:
+      summary: List group matches
+      responses:
+        '200':
+          description: OK
+  /predictions/group:
+    get:
+      summary: Get user group predictions
+      responses:
+        '200': { description: OK }
+    post:
+      summary: Create/update group prediction (unlocked only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [match_id, predicted_home, predicted_away]
+              properties:
+                match_id: { type: string }
+                predicted_home: { type: integer, minimum: 0, maximum: 20 }
+                predicted_away: { type: integer, minimum: 0, maximum: 20 }
+      responses:
+        '200': { description: Saved }
+        '400': { description: Validation or locked }
+  /playoff/picks:
+    get:
+      summary: Get user playoff picks
+      responses:
+        '200': { description: OK }
+    post:
+      summary: Submit playoff picks (global pre-kickoff lock)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [stage, team_ids]
+              properties:
+                stage:
+                  type: string
+                  enum: [r16, qf, sf, final, champion]
+                team_ids:
+                  type: array
+                  items: { type: string }
+      responses:
+        '200': { description: Saved }
+        '400': { description: Validation or locked }
+  /leaderboard:
+    get:
+      summary: Current leaderboard snapshot
+      responses:
+        '200': { description: OK }
+  /admin/match/{id}/result:
+    post:
+      summary: Set final match score
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [final_home_score, final_away_score]
+              properties:
+                final_home_score: { type: integer, minimum: 0, maximum: 20 }
+                final_away_score: { type: integer, minimum: 0, maximum: 20 }
+      responses:
+        '200': { description: Scored }
+        '404': { description: Not found }
+  /admin/playoff/advancement:
+    post:
+      summary: Record advancing team for a stage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [stage, team_id]
+              properties:
+                stage: { type: string, enum: [r16, qf, sf, final, champion] }
+                team_id: { type: string }
+      responses:
+        '200': { description: Recorded }
+        '400': { description: Validation error }
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: _session
+security:
+  - sessionCookie: []

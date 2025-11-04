@@ -1,0 +1,97 @@
+openapi: 3.0.3
+info:
+  title: Leaderboard Feed & Scoring API
+  version: 0.1.0
+paths:
+  /admin/feed/config:
+    get:
+      summary: Get feed configuration
+      responses:
+        '200': { description: OK }
+    post:
+      summary: Update feed configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                feed_enabled: { type: boolean }
+                polling_interval_seconds: { type: integer, minimum: 30 }
+                max_retries: { type: integer, minimum: 1, maximum: 10 }
+                api_endpoint: { type: string }
+      responses:
+        '200': { description: Updated }
+        '400': { description: Validation error }
+  /admin/feed/status:
+    get:
+      summary: Current ingestion status & metrics
+      responses:
+        '200': { description: OK }
+  /admin/conflicts:
+    get:
+      summary: List unresolved conflicts
+      responses:
+        '200': { description: OK }
+  /admin/conflicts/{id}/approve:
+    post:
+      summary: Approve conflict (overwrite scores)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Approved & rescored }
+        '404': { description: Not found }
+  /admin/conflicts/{id}/reject:
+    post:
+      summary: Reject conflict (keep existing scores)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Rejected }
+        '404': { description: Not found }
+  /admin/scoring/rescore:
+    post:
+      summary: Trigger full tournament rescore
+      responses:
+        '202': { description: Rescore started }
+  /admin/scoring/incremental/{match_id}:
+    post:
+      summary: Trigger incremental rescore for match
+      parameters:
+        - in: path
+          name: match_id
+          required: true
+          schema: { type: string }
+      responses:
+        '202': { description: Incremental rescore started }
+  /admin/ingest/simulate:
+    post:
+      summary: Simulate feed ingestion (non-production)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [match_id, home_score, away_score]
+              properties:
+                match_id: { type: string }
+                home_score: { type: integer, minimum: 0 }
+                away_score: { type: integer, minimum: 0 }
+      responses:
+        '200': { description: Simulated }
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: _session
+security:
+  - sessionCookie: []
