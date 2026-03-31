@@ -1,14 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme={if @current_user, do: @current_user.theme || "light", else: "light"}>
 <head>
     <title>S! jalkaennustus</title>
     <meta charset="utf-8"/>
     <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta name="csrf-token" content={get_csrf_token()} />
+    <script nonce={assigns[:csp_nonce]}>
+      (function() {
+        var theme = localStorage.getItem('theme');
+        if (theme === 'dark' || theme === 'light') {
+          document.documentElement.setAttribute('data-theme', theme);
+        }
+      })();
+    </script>
     <.live_title><%= assigns[:page_title] || "S! jalkaennustus 2026" %></.live_title>
-    <link phx-track-static rel="stylesheet" href={Routes.static_path(@conn, "/css/app.css")}/>
-    <script defer phx-track-static type="text/javascript" src={Routes.static_path(@conn, "/js/app.js")}></script>
+    <link phx-track-static rel="stylesheet" href={Routes.static_path(@conn, "/assets/app.css")}/>
+    <script defer phx-track-static type="text/javascript" src={Routes.static_path(@conn, "/assets/app.js")}></script>
 </head>
 <body>
 <main class="wrapper">
@@ -33,11 +41,23 @@
                 <% end %>
                 <li class="navigation-item"><%= @current_user.name %></li>
                 <li class="navigation-item"><%= link "Välju", to: Routes.user_session_path(@conn, :delete), method: :delete %></li>
+                <li class="navigation-item">
+                  <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" data-user-id={@current_user.id}>
+                    <span class="theme-icon-light">&#9790;</span>
+                    <span class="theme-icon-dark">&#9788;</span>
+                  </button>
+                </li>
               </ul>
             <% else %>
               <ul class="navigation-list float-right">
                 <li class="navigation-item"><%= link "Sisene", to: Routes.user_session_path(@conn, :new) %></li>
                 <li class="navigation-item"><%= link "Registreeri", to: Routes.user_registration_new_path(@conn, :new) %></li>
+                <li class="navigation-item">
+                  <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode">
+                    <span class="theme-icon-light">&#9790;</span>
+                    <span class="theme-icon-dark">&#9788;</span>
+                  </button>
+                </li>
               </ul>
             <% end %>
         </section>

@@ -52,9 +52,11 @@ defmodule Jalka2026Web.AdminLive.Predictions do
 
       # Validate
       group_valid = group_count == 72
-      playoff_valid = Enum.all?(expected_counts, fn {phase, expected} ->
-        Map.get(phase_counts, phase, 0) == expected
-      end)
+
+      playoff_valid =
+        Enum.all?(expected_counts, fn {phase, expected} ->
+          Map.get(phase_counts, phase, 0) == expected
+        end)
 
       incomplete_groups =
         group_predictions

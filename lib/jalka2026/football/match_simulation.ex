@@ -9,12 +9,18 @@ defmodule Jalka2026.Football.MatchSimulation do
   alias Jalka2026.Football
 
   @default_simulations 10_000
-  @base_goals_per_match 2.6  # Average goals per team in international football
-  @home_advantage 0.1  # 10% home advantage factor
-  @form_weight 0.3  # Weight of recent form in strength calculation
-  @h2h_weight 0.2   # Weight of head-to-head history
-  @wc_weight 0.3    # Weight of World Cup performance
-  @base_weight 0.2  # Weight of base team strength
+  # Average goals per team in international football
+  @base_goals_per_match 2.6
+  # 10% home advantage factor
+  @home_advantage 0.1
+  # Weight of recent form in strength calculation
+  @form_weight 0.3
+  # Weight of head-to-head history
+  @h2h_weight 0.2
+  # Weight of World Cup performance
+  @wc_weight 0.3
+  # Weight of base team strength
+  @base_weight 0.2
 
   @doc """
   Run a Monte Carlo simulation for a match between two teams.
@@ -65,9 +71,9 @@ defmodule Jalka2026.Football.MatchSimulation do
     # Weighted combination of all factors
     strength =
       @form_weight * form_strength +
-      @h2h_weight * h2h_strength +
-      @wc_weight * wc_strength +
-      @base_weight * base_strength
+        @h2h_weight * h2h_strength +
+        @wc_weight * wc_strength +
+        @base_weight * base_strength
 
     # Normalize to reasonable range (0.5 to 1.5)
     max(0.5, min(1.5, strength))
@@ -80,30 +86,34 @@ defmodule Jalka2026.Football.MatchSimulation do
     form = Football.get_team_recent_form(team_code, 10)
 
     if Enum.empty?(form) do
-      1.0  # Default neutral strength
+      # Default neutral strength
+      1.0
     else
       # Calculate points per game (3 for win, 1 for draw, 0 for loss)
-      total_points = Enum.reduce(form, 0, fn match, acc ->
-        case match.result do
-          "W" -> acc + 3
-          "D" -> acc + 1
-          "L" -> acc + 0
-        end
-      end)
+      total_points =
+        Enum.reduce(form, 0, fn match, acc ->
+          case match.result do
+            "W" -> acc + 3
+            "D" -> acc + 1
+            "L" -> acc + 0
+          end
+        end)
 
       # Calculate goal difference per game
-      {goals_for, goals_against} = Enum.reduce(form, {0, 0}, fn match, {gf, ga} ->
-        {gf + match.goals_for, ga + match.goals_against}
-      end)
+      {goals_for, goals_against} =
+        Enum.reduce(form, {0, 0}, fn match, {gf, ga} ->
+          {gf + match.goals_for, ga + match.goals_against}
+        end)
 
       matches = length(form)
-      ppg = total_points / (matches * 3)  # Normalized to 0-1
+      # Normalized to 0-1
+      ppg = total_points / (matches * 3)
       gd_per_match = (goals_for - goals_against) / matches
 
       # Combine PPG and goal difference
       # PPG gives base strength (0.6 - 1.4)
       # Goal difference adds adjustment
-      0.6 + (ppg * 0.8) + (gd_per_match * 0.05)
+      0.6 + ppg * 0.8 + gd_per_match * 0.05
     end
   end
 
@@ -114,7 +124,8 @@ defmodule Jalka2026.Football.MatchSimulation do
     stats = Football.get_historical_stats(team_code, opponent_code)
 
     if stats.total_matches == 0 do
-      1.0  # No history, neutral
+      # No history, neutral
+      1.0
     else
       # Win rate against this opponent
       win_rate = stats.team1_wins / stats.total_matches
@@ -124,10 +135,10 @@ defmodule Jalka2026.Football.MatchSimulation do
       gd_per_match = (stats.team1_goals - stats.team2_goals) / stats.total_matches
 
       # Combine win rate (with draws counting as 0.5) and goal difference
-      effective_win_rate = win_rate + (draw_rate * 0.5)
+      effective_win_rate = win_rate + draw_rate * 0.5
 
       # Scale to 0.6 - 1.4 range
-      0.6 + (effective_win_rate * 0.6) + (gd_per_match * 0.04)
+      0.6 + effective_win_rate * 0.6 + gd_per_match * 0.04
     end
   end
 
@@ -138,7 +149,8 @@ defmodule Jalka2026.Football.MatchSimulation do
     stats = Football.get_team_world_cup_stats(team_code)
 
     if stats.matches_played == 0 do
-      0.9  # Teams without WC history get slight penalty
+      # Teams without WC history get slight penalty
+      0.9
     else
       # Points per game in World Cups
       points = stats.wins * 3 + stats.draws * 1
@@ -151,7 +163,7 @@ defmodule Jalka2026.Football.MatchSimulation do
       experience_bonus = min(0.1, stats.matches_played * 0.002)
 
       # Scale to 0.6 - 1.5 range with experience
-      0.6 + (ppg * 0.7) + (gd_per_match * 0.03) + experience_bonus
+      0.6 + ppg * 0.7 + gd_per_match * 0.03 + experience_bonus
     end
   end
 
@@ -166,9 +178,10 @@ defmodule Jalka2026.Football.MatchSimulation do
       1.0
     else
       # Calculate average goals scored and conceded
-      {goals_for, goals_against} = Enum.reduce(form, {0, 0}, fn match, {gf, ga} ->
-        {gf + match.goals_for, ga + match.goals_against}
-      end)
+      {goals_for, goals_against} =
+        Enum.reduce(form, {0, 0}, fn match, {gf, ga} ->
+          {gf + match.goals_for, ga + match.goals_against}
+        end)
 
       matches = length(form)
       avg_gf = goals_for / matches
@@ -213,6 +226,7 @@ defmodule Jalka2026.Football.MatchSimulation do
   Uses the inverse transform method.
   """
   def poisson_random(lambda) when lambda <= 0, do: 0
+
   def poisson_random(lambda) do
     l = :math.exp(-lambda)
     poisson_random_loop(l, 1.0, 0)
@@ -222,6 +236,7 @@ defmodule Jalka2026.Football.MatchSimulation do
     u = :rand.uniform()
     poisson_random_loop(l, p * u, k + 1)
   end
+
   defp poisson_random_loop(_l, _p, k), do: k
 
   @doc """
@@ -229,21 +244,23 @@ defmodule Jalka2026.Football.MatchSimulation do
   """
   def aggregate_results(results, num_simulations, team1_strength, team2_strength) do
     # Count outcomes
-    {home_wins, draws, away_wins} = Enum.reduce(results, {0, 0, 0}, fn {home, away}, {hw, d, aw} ->
-      cond do
-        home > away -> {hw + 1, d, aw}
-        home == away -> {hw, d + 1, aw}
-        true -> {hw, d, aw + 1}
-      end
-    end)
+    {home_wins, draws, away_wins} =
+      Enum.reduce(results, {0, 0, 0}, fn {home, away}, {hw, d, aw} ->
+        cond do
+          home > away -> {hw + 1, d, aw}
+          home == away -> {hw, d + 1, aw}
+          true -> {hw, d, aw + 1}
+        end
+      end)
 
     # Score distribution
     score_counts = Enum.frequencies(results)
 
     # Calculate averages
-    {total_home, total_away} = Enum.reduce(results, {0, 0}, fn {home, away}, {th, ta} ->
-      {th + home, ta + away}
-    end)
+    {total_home, total_away} =
+      Enum.reduce(results, {0, 0}, fn {home, away}, {th, ta} ->
+        {th + home, ta + away}
+      end)
 
     # Get most likely scores
     most_likely =
@@ -284,6 +301,7 @@ defmodule Jalka2026.Football.MatchSimulation do
     for home <- 0..5 do
       for away <- 0..5 do
         count = Map.get(score_counts, {home, away}, 0)
+
         %{
           home_goals: home,
           away_goals: away,
@@ -306,9 +324,9 @@ defmodule Jalka2026.Football.MatchSimulation do
 
     overall =
       @form_weight * form_strength +
-      @h2h_weight * h2h_strength +
-      @wc_weight * wc_strength +
-      @base_weight * base_strength
+        @h2h_weight * h2h_strength +
+        @wc_weight * wc_strength +
+        @base_weight * base_strength
 
     %{
       form: %{

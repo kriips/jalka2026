@@ -1,41 +1,184 @@
-<main role="main" class="container" aria-label="Edetabel">
+<main role="main" class="container" aria-label="Edetabel" id="leaderboard-container" phx-hook="LeaderboardUpdates">
     <div class="prediction-page-header">
         <h1 id="page-title">Edetabel</h1>
         <p class="page-subtitle">Ennustajate paremusjärjestus</p>
     </div>
     <div class="container" id="main-content">
+        <!-- Filter Controls -->
+        <div class="leaderboard-filters">
+            <form phx-change="filter_change" class="filter-form">
+                <div class="filter-group">
+                    <label for="points_filter">Punktide filter:</label>
+                    <select name="points_filter" id="points_filter" class="filter-select">
+                        <%= for {value, label} <- @points_filter_options do %>
+                            <option value={value} selected={@points_filter == value}><%= label %></option>
+                        <% end %>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="sort_by">Sorteeri:</label>
+                    <select name="sort_by" id="sort_by" class="filter-select">
+                        <%= for {value, label} <- @sort_options do %>
+                            <option value={value} selected={@sort_by == value}><%= label %></option>
+                        <% end %>
+                    </select>
+                </div>
+            </form>
+        </div>
+
+        <div class="scroll-hint" aria-hidden="true">← Keri horisontaalselt →</div>
         <div class="data-table-card">
             <table role="table" aria-label="Edetabeli tabel">
                 <thead>
                     <tr>
                         <th scope="col">Koht</th>
                         <th scope="col">Nimi</th>
-                        <th scope="col">Grupi punktid</th>
-                        <th scope="col">Playoffi punktid</th>
-                        <th scope="col">Kokku</th>
+                        <%= if @points_filter == "all" do %>
+                            <th scope="col">Grupi punktid</th>
+                            <th scope="col">Playoffi punktid</th>
+                            <th scope="col">Boonus</th>
+                            <th scope="col" title="Praegune seeria / Pikim seeria">Seeria</th>
+                            <th scope="col">Kokku</th>
+                        <% else %>
+                            <th scope="col"><%= if @points_filter == "group", do: "Grupi punktid", else: "Playoffi punktid" %></th>
+                        <% end %>
                     </tr>
                 </thead>
-                <tbody>
-                    <%= for {id, rank, name, gpoints, ppoints, points} <- @leaderboard do %>
-                    <tr>
+                <tbody id="leaderboard-body" phx-update="stream">
+                    <tr :for={{dom_id, row} <- @streams.leaderboard_rows} id={dom_id} class={if row.flash_updates and row.rank_change != 0 and row.rank_change != :new, do: "leaderboard-row-updated", else: ""}>
                         <td>
-                            <span class={"rank-badge #{cond do rank == 1 -> "gold"; rank == 2 -> "silver"; rank == 3 -> "bronze"; true -> "default" end}"}>
-                                <%= rank %>
+                            <span class={"rank-badge #{cond do row.rank == 1 -> "gold"; row.rank == 2 -> "silver"; row.rank == 3 -> "bronze"; true -> "default" end}"}>
+                                <%= row.rank %>
                             </span>
+                            <%= if row.flash_updates and row.rank_change != 0 and row.rank_change != :new do %>
+                                <span class={"rank-change #{if row.rank_change > 0, do: "rank-up", else: "rank-down"}"}>
+                                    <%= if row.rank_change > 0 do %>
+                                        ▲<%= row.rank_change %>
+                                    <% else %>
+                                        ▼<%= abs(row.rank_change) %>
+                                    <% end %>
+                                </span>
+                            <% end %>
                         </td>
                         <td>
-                            <.link navigate={Routes.football_user_path(@socket, :view, id)} class="user-link"><%= name %></.link>
+                            <.link navigate={Routes.football_user_path(@socket, :view, row.user_id)} class="user-link"><%= row.name %></.link>
+                            <%= if row.favorite_team do %>
+                                <%= if row.favorite_team.flag do %>
+                                    <img class="fan-badge-flag" src={row.favorite_team.flag} alt={"#{row.favorite_team.name} lipp"} title={"Toetab: #{row.favorite_team.name}"} />
+                                <% end %>
+                            <% end %>
+                            <%= for badge <- row.badges do %>
+                                <% info = Jalka2026.Football.UserBadge.badge_info(badge.badge_type) %>
+                                <span class="leaderboard-badge-icon" title={"#{info.name}: #{info.description}"}><%= info.icon %></span>
+                            <% end %>
                         </td>
-                        <td class="points-secondary"><%= gpoints %></td>
-                        <td class="points-secondary"><%= ppoints %></td>
-                        <td class="points-total"><%= points %></td>
+                        <%= if @points_filter == "all" do %>
+                            <td class="points-secondary"><%= row.gpoints %></td>
+                            <td class="points-secondary"><%= row.ppoints %></td>
+                            <td class="points-secondary"><%= row.bpoints %></td>
+                            <td class="streak-cell">
+                                <span class={"streak-current #{if row.current_streak >= 5, do: "streak-hot", else: ""}"} title="Praegune seeria">
+                                    <%= row.current_streak %>
+                                </span>
+                                <span class="streak-separator">/</span>
+                                <span class="streak-longest" title="Pikim seeria"><%= row.longest_streak %></span>
+                            </td>
+                            <td class="points-total">
+                                <%= row.points %>
+                                <%= if row.flash_updates and row.points_change > 0 do %>
+                                    <span class="points-change">+<%= row.points_change %></span>
+                                <% end %>
+                            </td>
+                        <% else %>
+                            <td class="points-total">
+                                <%= if @points_filter == "group", do: row.gpoints, else: row.ppoints %>
+                                <%= if row.flash_updates and row.points_change > 0 do %>
+                                    <span class="points-change">+<%= row.points_change %></span>
+                                <% end %>
+                            </td>
+                        <% end %>
                     </tr>
-                    <% end %>
                 </tbody>
             </table>
         </div>
 
-        <div class="back-button-container">
+        <!-- Rivalry Leaderboard Section -->
+        <%= if @has_current_user && is_map(@rivalry_leaderboard) && @rivalry_leaderboard.rivals != [] do %>
+            <div class="section-card rivalry-leaderboard-section">
+                <div class="section-card-header">
+                    <h2 class="section-card-title">Rivaalide edetabel</h2>
+                    <.link navigate={Routes.user_rivalries_path(@socket, :edit)} class="button button-small button-outline">Halda rivaale</.link>
+                </div>
+                <div class="rivalry-mini-table">
+                    <table role="table" aria-label="Rivaalide edetabel">
+                        <thead>
+                            <tr>
+                                <th scope="col">Koht</th>
+                                <th scope="col">Nimi</th>
+                                <th scope="col">Punktid</th>
+                                <th scope="col">vs Sina</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Current user row -->
+                            <%= if @rivalry_leaderboard.current_user do %>
+                            <% cu = @rivalry_leaderboard.current_user %>
+                            <tr class="current-user-row">
+                                <td><span class="rank-badge"><%= cu.rank %></span></td>
+                                <td><strong><%= cu.name %> (Sina)</strong></td>
+                                <td class="points-total"><%= cu.total_points %></td>
+                                <td>-</td>
+                            </tr>
+                            <% end %>
+                            <!-- Rival rows -->
+                            <%= for rival_data <- @rivalry_leaderboard.rivals do %>
+                            <% rival = rival_data.user %>
+                            <% stats = rival_data.stats %>
+                            <% row_class = cond do
+                                stats.rival_total_points > stats.user_total_points -> "rival-ahead"
+                                stats.rival_total_points < stats.user_total_points -> "rival-behind"
+                                true -> "rival-tied"
+                            end %>
+                            <% status_class = cond do
+                                stats.rival_total_points > stats.user_total_points -> "losing"
+                                stats.rival_total_points < stats.user_total_points -> "winning"
+                                true -> "tied"
+                            end %>
+                            <tr class={"rivalry-row #{row_class}"}>
+                                <td><span class="rank-badge"><%= rival.rank %></span></td>
+                                <td>
+                                    <.link navigate={Routes.football_user_path(@socket, :view, rival.id)} class="user-link"><%= rival.name %></.link>
+                                </td>
+                                <td class="points-total"><%= rival.total_points %></td>
+                                <td class="rivalry-comparison">
+                                    <span class={"rivalry-status #{status_class}"}>
+                                        <%= cond do
+                                            stats.user_total_points > stats.rival_total_points -> "+#{stats.user_total_points - stats.rival_total_points}"
+                                            stats.user_total_points < stats.rival_total_points -> "#{stats.user_total_points - stats.rival_total_points}"
+                                            true -> "0"
+                                        end %>
+                                    </span>
+                                    <span class="rivalry-record" title="Võidud-Viigid-Kaotused">
+                                        (<%= stats.matches_user_won %>-<%= stats.matches_tied %>-<%= stats.matches_rival_won %>)
+                                    </span>
+                                </td>
+                            </tr>
+                            <% end %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        <% else %>
+            <%= if @has_current_user do %>
+                <div class="section-card rivalry-cta">
+                    <p>Lisa rivaale, et jälgida omavahelist võistlust!</p>
+                    <.link navigate={Routes.user_rivalries_path(@socket, :edit)} class="button button-small button-main">Lisa rivaal</.link>
+                </div>
+            <% end %>
+        <% end %>
+
+        <div class="back-button-container leaderboard-actions">
+            <.link navigate={Routes.football_compare_path(@socket, :view)} class="button button-large button-outline" aria-label="Võrdle ennustusi">Võrdle ennustusi</.link>
             <.link navigate={Routes.page_path(@socket, :index)} class="button button-large button-main" aria-label="Tagasi avalehele">Tagasi</.link>
         </div>
     </div>

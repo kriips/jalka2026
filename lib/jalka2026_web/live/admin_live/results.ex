@@ -14,6 +14,7 @@ defmodule Jalka2026Web.AdminLive.Results do
   def handle_params(%{"type" => "groups"}, _url, socket) do
     matches = FootballResolver.list_matches()
     groups = group_matches_by_group(matches)
+    selected_group = "A"
 
     {:noreply,
      socket
@@ -21,7 +22,8 @@ defmodule Jalka2026Web.AdminLive.Results do
      |> assign(:type, :groups)
      |> assign(:groups, groups)
      |> assign(:matches, matches)
-     |> assign(:selected_group, "A")}
+     |> assign(:selected_group, selected_group)
+     |> stream(:match_rows, matches_to_stream_items(Map.get(groups, selected_group, [])), reset: true)}
   end
 
   @impl true
@@ -37,7 +39,8 @@ defmodule Jalka2026Web.AdminLive.Results do
      |> assign(:teams, teams)
      |> assign(:teams_by_group, teams_by_group)
      |> assign(:playoff_results, playoff_results)
-     |> assign(:selected_phase, 32)}
+     |> assign(:selected_phase, 32)
+     |> stream(:match_rows, [], reset: true)}
   end
 
   @impl true
@@ -47,7 +50,10 @@ defmodule Jalka2026Web.AdminLive.Results do
 
   @impl true
   def handle_event("select_group", %{"group" => group}, socket) do
-    {:noreply, assign(socket, :selected_group, group)}
+    {:noreply,
+     socket
+     |> assign(:selected_group, group)
+     |> stream(:match_rows, matches_to_stream_items(Map.get(socket.assigns.groups, group, [])), reset: true)}
   end
 
   @impl true
@@ -56,23 +62,32 @@ defmodule Jalka2026Web.AdminLive.Results do
   end
 
   @impl true
-  def handle_event("save_result", %{"match_id" => match_id, "home_score" => home_score, "away_score" => away_score}, socket) do
+  def handle_event(
+        "save_result",
+        %{"match_id" => match_id, "home_score" => home_score, "away_score" => away_score},
+        socket
+      ) do
     case {parse_score(home_score), parse_score(away_score)} do
       {{:ok, h}, {:ok, a}} ->
-        FootballResolver.update_match(%{
-          "game_id" => match_id,
-          "home_score" => Integer.to_string(h),
-          "away_score" => Integer.to_string(a)
-        })
+        case FootballResolver.update_match(%{
+               "game_id" => match_id,
+               "home_score" => Integer.to_string(h),
+               "away_score" => Integer.to_string(a)
+             }) do
+          {:ok, _results} ->
+            matches = FootballResolver.list_matches()
+            groups = group_matches_by_group(matches)
 
-        matches = FootballResolver.list_matches()
-        groups = group_matches_by_group(matches)
+            {:noreply,
+             socket
+             |> put_flash(:info, "Tulemus salvestatud")
+             |> assign(:matches, matches)
+             |> assign(:groups, groups)
+             |> stream(:match_rows, matches_to_stream_items(Map.get(groups, socket.assigns.selected_group, [])), reset: true)}
 
-        {:noreply,
-         socket
-         |> put_flash(:info, "Tulemus salvestatud")
-         |> assign(:matches, matches)
-         |> assign(:groups, groups)}
+          {:error, failed_step, reason, _changes} ->
+            {:noreply, put_flash(socket, :error, "Viga sammus #{failed_step}: #{inspect(reason)}")}
+        end
 
       _ ->
         {:noreply, put_flash(socket, :error, "Vigane skoor")}
@@ -81,23 +96,33 @@ defmodule Jalka2026Web.AdminLive.Results do
 
   @impl true
   def handle_event("save_playoff_result", %{"team_name" => team_name, "phase" => phase}, socket) do
-    FootballResolver.update_playoff_result(%{
-      "team_name" => team_name,
-      "phase" => phase
-    })
+    case FootballResolver.update_playoff_result(%{
+           "team_name" => team_name,
+           "phase" => phase
+         }) do
+      {:ok, _results} ->
+        playoff_results = FootballResolver.list_playoff_results()
 
-    playoff_results = FootballResolver.list_playoff_results()
+        {:noreply,
+         socket
+         |> put_flash(:info, "Playoff-tulemus salvestatud")
+         |> assign(:playoff_results, playoff_results)}
 
-    {:noreply,
-     socket
-     |> put_flash(:info, "Playoff-tulemus salvestatud")
-     |> assign(:playoff_results, playoff_results)}
+      {:error, failed_step, reason, _changes} ->
+        {:noreply, put_flash(socket, :error, "Viga sammus #{failed_step}: #{inspect(reason)}")}
+    end
   end
 
   @impl true
   def handle_event("recalc_leaderboard", _params, socket) do
     Leaderboard.recalc_leaderboard()
     {:noreply, put_flash(socket, :info, "Edetabel uuendatud")}
+  end
+
+  defp matches_to_stream_items(matches) do
+    Enum.map(matches, fn match ->
+      %{id: "match-row-#{match.id}", match: match}
+    end)
   end
 
   defp group_matches_by_group(matches) do

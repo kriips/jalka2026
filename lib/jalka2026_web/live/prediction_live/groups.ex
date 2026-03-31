@@ -6,42 +6,59 @@ defmodule Jalka2026Web.UserPredictionLive.Groups do
   alias Jalka2026.Football.{Match}
   alias Jalka2026.Football.MatchSimulation, as: Simulator
   alias Jalka2026.Football.GroupScenarios
+  alias Jalka2026.PredictionSync
+  alias Jalka2026Web.TelemetryHooks
 
   @groups ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"]
 
   @impl true
   def mount(params, session, socket) do
-    group = Map.get(params, "group")
-    socket = Jalka2026Web.LiveHelpers.assign_defaults(session, socket)
+    TelemetryHooks.with_mount_telemetry(__MODULE__, socket, fn ->
+      group = Map.get(params, "group")
+      socket = Jalka2026Web.LiveHelpers.assign_defaults(session, socket)
 
-    predictions =
-      FootballResolver.list_matches_by_group(group)
-      |> Enum.map(fn match -> add_score(match, socket) end)
+      # Subscribe to prediction sync for multi-device updates
+      if connected?(socket) and socket.assigns[:current_user] do
+        PredictionSync.subscribe(socket.assigns.current_user.id)
+      end
 
-    # Load historical matchup data for each match
-    historical_data = load_historical_data(predictions)
+      predictions =
+        FootballResolver.list_matches_by_group(group)
+        |> Enum.map(fn match -> add_score(match, socket) end)
 
-    {:ok,
-     assign(socket,
-       group: group,
-       predictions: predictions,
-       predictions_done: predictions_done_count(predictions),
-       focused_match_index: 0,
-       focused_side: "home",
-       prev_group: get_prev_group(group),
-       next_group: get_next_group(group),
-       historical_data: historical_data,
-       # New state for match analysis dropdown
-       expanded_match_id: nil,
-       active_analysis_tab: nil,
-       simulation_data: nil,
-       detailed_history: nil,
-       simulating: false,
-       # Group scenarios state
-       show_scenarios: false,
-       scenario_data: nil,
-       team_requirements: nil
-     )}
+      # Load historical matchup data for each match
+      historical_data = load_historical_data(predictions)
+
+      # Calculate predicted standings from user predictions
+      predicted_standings = GroupScenarios.calculate_predicted_standings(predictions)
+
+      # Build stream items with match ID as the DOM id
+      prediction_items =
+        Enum.map(predictions, fn {match, scores} ->
+          %{id: "match-#{match.id}", match: match, scores: scores}
+        end)
+
+      {:ok,
+       socket
+       |> assign(
+         group: group,
+         predictions: predictions,
+         predictions_done: predictions_done_count(predictions),
+         focused_match_index: 0,
+         focused_side: "home",
+         prev_group: get_prev_group(group),
+         next_group: get_next_group(group),
+         historical_data: historical_data,
+         # State for match analysis dropdown
+         expanded_match_id: nil,
+         simulation_data: nil,
+         detailed_history: nil,
+         simulating: false,
+         # Predicted standings from user predictions
+         predicted_standings: predicted_standings
+       )
+       |> stream(:prediction_items, prediction_items)}
+    end)
   end
 
   defp get_prev_group(group) do
@@ -69,20 +86,28 @@ defmodule Jalka2026Web.UserPredictionLive.Groups do
 
     case key do
       "ArrowUp" ->
-        handle_event("inc-score", %{
-          "match" => match_id,
-          "side" => side,
-          "home-score" => home_score,
-          "away-score" => away_score
-        }, socket)
+        handle_event(
+          "inc-score",
+          %{
+            "match" => match_id,
+            "side" => side,
+            "home-score" => home_score,
+            "away-score" => away_score
+          },
+          socket
+        )
 
       "ArrowDown" ->
-        handle_event("dec-score", %{
-          "match" => match_id,
-          "side" => side,
-          "home-score" => home_score,
-          "away-score" => away_score
-        }, socket)
+        handle_event(
+          "dec-score",
+          %{
+            "match" => match_id,
+            "side" => side,
+            "home-score" => home_score,
+            "away-score" => away_score
+          },
+          socket
+        )
 
       _ ->
         {:noreply, socket}
@@ -92,26 +117,42 @@ defmodule Jalka2026Web.UserPredictionLive.Groups do
   @impl true
   def handle_event("inc-score", user_params, socket) do
     if Jalka2026Web.LiveHelpers.predictions_open?() do
-      changed_score =
-        case user_params["side"] do
-          "home" ->
-            {inc_score(user_params["home-score"]), nullify_hyphen(user_params["away-score"])}
+      case Jalka2026Web.LiveRateLimiter.check_prediction_rate(socket.assigns.current_user.id) do
+        :ok ->
+          changed_score =
+            case user_params["side"] do
+              "home" ->
+                {inc_score(user_params["home-score"]), nullify_hyphen(user_params["away-score"])}
 
-          "away" ->
-            {nullify_hyphen(user_params["home-score"]), inc_score(user_params["away-score"])}
-        end
+              "away" ->
+                {nullify_hyphen(user_params["home-score"]), inc_score(user_params["away-score"])}
+            end
 
-      match_id = String.to_integer(user_params["match"])
+          match_id = String.to_integer(user_params["match"])
 
-      updated_prediction =
-        FootballResolver.change_prediction_score(%{
-          match_id: match_id,
-          user_id: socket.assigns.current_user.id,
-          side: user_params["side"],
-          score: changed_score
-        })
+          updated_prediction =
+            FootballResolver.change_prediction_score(%{
+              match_id: match_id,
+              user_id: socket.assigns.current_user.id,
+              side: user_params["side"],
+              score: changed_score
+            })
 
-      {:noreply, socket |> update_prediction(match_id, updated_prediction)}
+          # Broadcast to other devices
+          {home_score, away_score} = {updated_prediction.home_score, updated_prediction.away_score}
+          PredictionSync.broadcast_group_prediction(
+            socket.assigns.current_user.id,
+            match_id,
+            home_score,
+            away_score,
+            self()
+          )
+
+          {:noreply, socket |> update_prediction(match_id, updated_prediction)}
+
+        {:error, :rate_limited} ->
+          {:noreply, socket |> put_flash(:error, "Liiga palju muudatusi. Oota veidi.")}
+      end
     else
       {:noreply,
        socket
@@ -122,26 +163,42 @@ defmodule Jalka2026Web.UserPredictionLive.Groups do
 
   def handle_event("dec-score", user_params, socket) do
     if Jalka2026Web.LiveHelpers.predictions_open?() do
-      changed_score =
-        case user_params["side"] do
-          "home" ->
-            {dec_score(user_params["home-score"]), nullify_hyphen(user_params["away-score"])}
+      case Jalka2026Web.LiveRateLimiter.check_prediction_rate(socket.assigns.current_user.id) do
+        :ok ->
+          changed_score =
+            case user_params["side"] do
+              "home" ->
+                {dec_score(user_params["home-score"]), nullify_hyphen(user_params["away-score"])}
 
-          "away" ->
-            {nullify_hyphen(user_params["home-score"]), dec_score(user_params["away-score"])}
-        end
+              "away" ->
+                {nullify_hyphen(user_params["home-score"]), dec_score(user_params["away-score"])}
+            end
 
-      match_id = String.to_integer(user_params["match"])
+          match_id = String.to_integer(user_params["match"])
 
-      updated_prediction =
-        FootballResolver.change_prediction_score(%{
-          match_id: match_id,
-          user_id: socket.assigns.current_user.id,
-          side: user_params["side"],
-          score: changed_score
-        })
+          updated_prediction =
+            FootballResolver.change_prediction_score(%{
+              match_id: match_id,
+              user_id: socket.assigns.current_user.id,
+              side: user_params["side"],
+              score: changed_score
+            })
 
-      {:noreply, socket |> update_prediction(match_id, updated_prediction)}
+          # Broadcast to other devices
+          {home_score, away_score} = {updated_prediction.home_score, updated_prediction.away_score}
+          PredictionSync.broadcast_group_prediction(
+            socket.assigns.current_user.id,
+            match_id,
+            home_score,
+            away_score,
+            self()
+          )
+
+          {:noreply, socket |> update_prediction(match_id, updated_prediction)}
+
+        {:error, :rate_limited} ->
+          {:noreply, socket |> put_flash(:error, "Liiga palju muudatusi. Oota veidi.")}
+      end
     else
       {:noreply,
        socket
@@ -156,83 +213,103 @@ defmodule Jalka2026Web.UserPredictionLive.Groups do
 
     if socket.assigns.expanded_match_id == match_id do
       # Close the dropdown
-      {:noreply, assign(socket,
-        expanded_match_id: nil,
-        active_analysis_tab: nil,
-        simulation_data: nil,
-        detailed_history: nil,
-        simulating: false
-      )}
+      {:noreply,
+       assign(socket,
+         expanded_match_id: nil,
+         simulation_data: nil,
+         detailed_history: nil,
+         simulating: false
+       )}
     else
-      # Open the dropdown, default to simulation tab
-      {:noreply, assign(socket,
-        expanded_match_id: match_id,
-        active_analysis_tab: "simulation",
-        simulation_data: nil,
-        detailed_history: nil,
-        simulating: false
-      )}
-    end
-  end
+      # Open the dropdown and load all data
+      {match, _} = Enum.find(socket.assigns.predictions, fn {m, _} -> m.id == match_id end)
+      send(self(), {:load_analysis_data, match.home_team.code, match.away_team.code})
 
-  def handle_event("select_analysis_tab", %{"tab" => tab, "match-id" => match_id_str}, socket) do
-    match_id = String.to_integer(match_id_str)
-
-    socket = assign(socket, active_analysis_tab: tab)
-
-    # Lazy load data based on tab
-    case tab do
-      "simulation" ->
-        if socket.assigns.simulation_data == nil do
-          {match, _} = Enum.find(socket.assigns.predictions, fn {m, _} -> m.id == match_id end)
-          send(self(), {:load_simulation, match.home_team.code, match.away_team.code})
-          {:noreply, assign(socket, simulating: true)}
-        else
-          {:noreply, socket}
-        end
-
-      "history" ->
-        if socket.assigns.detailed_history == nil do
-          {match, _} = Enum.find(socket.assigns.predictions, fn {m, _} -> m.id == match_id end)
-          send(self(), {:load_history, match.home_team.code, match.away_team.code})
-          {:noreply, socket}
-        else
-          {:noreply, socket}
-        end
-
-      _ ->
-        {:noreply, socket}
+      {:noreply,
+       assign(socket,
+         expanded_match_id: match_id,
+         simulation_data: nil,
+         detailed_history: nil,
+         simulating: true
+       )}
     end
   end
 
   def handle_event("close_analysis", _params, socket) do
-    {:noreply, assign(socket,
-      expanded_match_id: nil,
-      active_analysis_tab: nil,
-      simulation_data: nil,
-      detailed_history: nil,
-      simulating: false
-    )}
+    {:noreply,
+     assign(socket,
+       expanded_match_id: nil,
+       simulation_data: nil,
+       detailed_history: nil,
+       simulating: false
+     )}
   end
 
-  # Group scenarios events
-  def handle_event("toggle_scenarios", _params, socket) do
-    if socket.assigns.show_scenarios do
-      {:noreply, assign(socket, show_scenarios: false)}
+  # Simulate a random score and apply it to the prediction
+  def handle_event("simulate_random_score", %{"match-id" => match_id_str}, socket) do
+    if Jalka2026Web.LiveHelpers.predictions_open?() do
+      match_id = String.to_integer(match_id_str)
+      {match, _} = Enum.find(socket.assigns.predictions, fn {m, _} -> m.id == match_id end)
+
+      # If simulation data is already loaded, use it; otherwise run a quick simulation
+      {home_score, away_score} =
+        if socket.assigns.simulation_data && socket.assigns.expanded_match_id == match_id do
+          pick_weighted_random_score(socket.assigns.simulation_data.results.score_distribution)
+        else
+          # Run a single simulation to get a random score
+          results =
+            Simulator.simulate_match(match.home_team.code, match.away_team.code, simulations: 1)
+
+          # Get the single result from score_distribution
+          [{score, _count}] = Map.to_list(results.score_distribution)
+          score
+        end
+
+      # Save the prediction
+      updated_prediction =
+        FootballResolver.change_prediction_score(%{
+          match_id: match_id,
+          user_id: socket.assigns.current_user.id,
+          side: "home",
+          score: {home_score, away_score}
+        })
+
+      # Broadcast to other devices
+      PredictionSync.broadcast_group_prediction(
+        socket.assigns.current_user.id,
+        match_id,
+        updated_prediction.home_score,
+        updated_prediction.away_score,
+        self()
+      )
+
+      {:noreply, socket |> update_prediction(match_id, updated_prediction)}
     else
-      # Lazy load scenarios data
-      if socket.assigns.scenario_data == nil do
-        scenario_data = GroupScenarios.calculate_scenarios(socket.assigns.group)
-        team_requirements = GroupScenarios.analyze_team_requirements(socket.assigns.group)
-        {:noreply, assign(socket,
-          show_scenarios: true,
-          scenario_data: scenario_data,
-          team_requirements: team_requirements
-        )}
-      else
-        {:noreply, assign(socket, show_scenarios: true)}
-      end
+      {:noreply,
+       socket
+       |> put_flash(:error, "Ennustamine on suletud - turniir on alanud")
+       |> redirect(to: "/")}
     end
+  end
+
+  # Toggle predicted standings visibility (always visible, kept for potential future use)
+
+  # Pick a weighted random score from the score distribution
+  defp pick_weighted_random_score(score_distribution) do
+    total = score_distribution |> Map.values() |> Enum.sum()
+    random_value = :rand.uniform(total)
+
+    score_distribution
+    |> Enum.reduce_while({0, nil}, fn {score, count}, {acc, _} ->
+      new_acc = acc + count
+
+      if new_acc >= random_value do
+        {:halt, {new_acc, score}}
+      else
+        {:cont, {new_acc, nil}}
+      end
+    end)
+    |> elem(1)
   end
 
   defp add_score(%Match{} = match, socket) do
@@ -281,8 +358,19 @@ defmodule Jalka2026Web.UserPredictionLive.Groups do
         end
       end)
 
+    # Recalculate predicted standings based on updated predictions
+    predicted_standings = GroupScenarios.calculate_predicted_standings(predictions)
+
+    # Find the updated match and stream_insert only that item
+    {match, new_scores} = Enum.find(predictions, fn {m, _} -> m.id == match_id end)
+
     socket
-    |> assign(predictions: predictions, predictions_done: predictions_done_count(predictions))
+    |> assign(
+      predictions: predictions,
+      predictions_done: predictions_done_count(predictions),
+      predicted_standings: predicted_standings
+    )
+    |> stream_insert(:prediction_items, %{id: "match-#{match.id}", match: match, scores: new_scores})
   end
 
   defp predictions_done_count(predictions) do
@@ -303,10 +391,11 @@ defmodule Jalka2026Web.UserPredictionLive.Groups do
       stats = Football.get_historical_stats(home_code, away_code)
       world_cup_matches = Football.get_world_cup_matchup(home_code, away_code)
 
-      {match.id, %{
-        stats: stats,
-        world_cup_matches: world_cup_matches
-      }}
+      {match.id,
+       %{
+         stats: stats,
+         world_cup_matches: world_cup_matches
+       }}
     end)
     |> Map.new()
   end
@@ -315,24 +404,47 @@ defmodule Jalka2026Web.UserPredictionLive.Groups do
     Calendar.strftime(date, "%d.%m.%Y")
   end
 
-  # Handle async data loading
+  # Handle prediction sync from other devices
   @impl true
-  def handle_info({:load_simulation, team1_code, team2_code}, socket) do
+  def handle_info({:prediction_sync, :group_prediction_changed, %{source_pid: source_pid} = data}, socket)
+      when source_pid != self() do
+    # Update the local state with the change from another device
+    match_id = data.match_id
+    home_score = data.home_score
+    away_score = data.away_score
+
+    # Check if this match is in our current view
+    match_in_view = Enum.any?(socket.assigns.predictions, fn {match, _} -> match.id == match_id end)
+
+    if match_in_view do
+      # Create a pseudo-prediction struct to update the UI
+      updated_prediction = %{home_score: home_score, away_score: away_score}
+      {:noreply, socket |> update_prediction(match_id, updated_prediction)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  # Ignore sync messages from self
+  def handle_info({:prediction_sync, :group_prediction_changed, %{source_pid: source_pid}}, socket)
+      when source_pid == self() do
+    {:noreply, socket}
+  end
+
+  # Ignore playoff sync messages in Groups view (they're handled in Playoffs view)
+  def handle_info({:prediction_sync, :playoff_prediction_changed, _data}, socket) do
+    {:noreply, socket}
+  end
+
+  # Handle async data loading - load all analysis data together
+  @impl true
+  def handle_info({:load_analysis_data, team1_code, team2_code}, socket) do
+    # Load simulation data
     results = Simulator.simulate_match(team1_code, team2_code, simulations: 10_000)
     team1_breakdown = Simulator.get_strength_breakdown(team1_code, team2_code)
     team2_breakdown = Simulator.get_strength_breakdown(team2_code, team1_code)
 
-    {:noreply, assign(socket,
-      simulation_data: %{
-        results: results,
-        team1_breakdown: team1_breakdown,
-        team2_breakdown: team2_breakdown
-      },
-      simulating: false
-    )}
-  end
-
-  def handle_info({:load_history, team1_code, team2_code}, socket) do
+    # Load history data
     matches = Football.get_historical_matchup(team1_code, team2_code)
     world_cup_matches = Football.get_world_cup_matchup(team1_code, team2_code)
     stats = Football.get_historical_stats(team1_code, team2_code)
@@ -340,18 +452,37 @@ defmodule Jalka2026Web.UserPredictionLive.Groups do
     team2_form = Football.get_team_recent_form(team2_code, 5)
     team1_wc_stats = Football.get_team_world_cup_stats(team1_code)
     team2_wc_stats = Football.get_team_world_cup_stats(team2_code)
+    team1_wc_by_tournament = Football.get_team_world_cup_stats_by_tournament(team1_code)
+    team2_wc_by_tournament = Football.get_team_world_cup_stats_by_tournament(team2_code)
+    team1_wc_positions = Football.get_team_world_cup_positions(team1_code)
+    team2_wc_positions = Football.get_team_world_cup_positions(team2_code)
+    team1_wc_eliminations = Football.get_team_world_cup_eliminations(team1_code)
+    team2_wc_eliminations = Football.get_team_world_cup_eliminations(team2_code)
 
-    {:noreply, assign(socket,
-      detailed_history: %{
-        matches: matches,
-        world_cup_matches: world_cup_matches,
-        stats: stats,
-        team1_form: team1_form,
-        team2_form: team2_form,
-        team1_wc_stats: team1_wc_stats,
-        team2_wc_stats: team2_wc_stats
-      }
-    )}
+    {:noreply,
+     assign(socket,
+       simulation_data: %{
+         results: results,
+         team1_breakdown: team1_breakdown,
+         team2_breakdown: team2_breakdown
+       },
+       detailed_history: %{
+         matches: matches,
+         world_cup_matches: world_cup_matches,
+         stats: stats,
+         team1_form: team1_form,
+         team2_form: team2_form,
+         team1_wc_stats: team1_wc_stats,
+         team2_wc_stats: team2_wc_stats,
+         team1_wc_by_tournament: team1_wc_by_tournament,
+         team2_wc_by_tournament: team2_wc_by_tournament,
+         team1_wc_positions: team1_wc_positions,
+         team2_wc_positions: team2_wc_positions,
+         team1_wc_eliminations: team1_wc_eliminations,
+         team2_wc_eliminations: team2_wc_eliminations
+       },
+       simulating: false
+     )}
   end
 
   # Helper functions for templates
@@ -378,11 +509,6 @@ defmodule Jalka2026Web.UserPredictionLive.Groups do
     :erlang.float_to_binary(value, decimals: 1)
   end
 
-  def result_class("W"), do: "result-win"
-  def result_class("D"), do: "result-draw"
-  def result_class("L"), do: "result-loss"
-  def result_class(_), do: ""
-
   def home_away_indicator(true), do: "(K)"
   def home_away_indicator(false), do: "(V)"
 
@@ -403,4 +529,28 @@ defmodule Jalka2026Web.UserPredictionLive.Groups do
 
   def format_goal_diff(gd) when gd > 0, do: "+#{gd}"
   def format_goal_diff(gd), do: "#{gd}"
+
+  # Get position medal/icon for a specific year from positions data
+  def get_position_for_year(positions_data, year) do
+    case Enum.find(positions_data.finishes, fn f -> f.year == year end) do
+      nil -> nil
+      finish -> finish.position
+    end
+  end
+
+  def position_icon(1), do: "🥇"
+  def position_icon(2), do: "🥈"
+  def position_icon(3), do: "🥉"
+  def position_icon(4), do: "4."
+  def position_icon(_), do: nil
+
+  # Get elimination stage for a specific year from eliminations data
+  def get_elimination_for_year(eliminations_data, year) do
+    Map.get(eliminations_data, year)
+  end
+
+  # Get stage short name for display
+  def stage_short(stage) do
+    Football.stage_short_name(stage)
+  end
 end

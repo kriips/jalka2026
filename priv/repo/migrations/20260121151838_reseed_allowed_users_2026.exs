@@ -11,7 +11,7 @@ defmodule Jalka2026.Repo.Migrations.ReseedAllowedUsers2026 do
     end
 
     # Load the updated 2026 allowed users list
-    users_file = '#{prefix}/priv/repo/data/allowed_users.json'
+    users_file = "#{prefix}/priv/repo/data/allowed_users.json"
     users = Jason.decode!(File.read!(users_file))
 
     Logger.info("Reseeding allowed_users with #{length(users)} users for 2026 tournament...")

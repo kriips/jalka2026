@@ -41,7 +41,65 @@ defmodule Jalka2026Web.Telemetry do
       summary("vm.memory.total", unit: {:byte, :kilobyte}),
       summary("vm.total_run_queue_lengths.total"),
       summary("vm.total_run_queue_lengths.cpu"),
-      summary("vm.total_run_queue_lengths.io")
+      summary("vm.total_run_queue_lengths.io"),
+
+      # Prediction Submission Metrics
+      summary("jalka2026.prediction.group.stop.duration",
+        unit: {:native, :millisecond},
+        tags: [:user_id, :match_id],
+        description: "Time taken to save a group prediction"
+      ),
+      counter("jalka2026.prediction.group.count.count",
+        tags: [],
+        description: "Total number of group predictions submitted"
+      ),
+      summary("jalka2026.prediction.playoff.stop.duration",
+        unit: {:native, :millisecond},
+        tags: [:user_id, :phase, :action],
+        description: "Time taken to save a playoff prediction"
+      ),
+      counter("jalka2026.prediction.playoff.count.count",
+        tags: [],
+        description: "Total number of playoff predictions submitted"
+      ),
+
+      # Leaderboard Calculation Metrics
+      summary("jalka2026.leaderboard.calculation.stop.duration",
+        unit: {:native, :millisecond},
+        tags: [:user_count, :match_count],
+        description: "Time taken to recalculate the full leaderboard"
+      ),
+
+      # LiveView Page Load Metrics
+      summary("jalka2026.live_view.mount.stop.duration",
+        unit: {:native, :millisecond},
+        tags: [:view, :connected],
+        description: "Time taken to mount a LiveView"
+      ),
+      counter("jalka2026.page.view.count",
+        tags: [:view],
+        description: "Page views by LiveView module"
+      ),
+
+      # LiveView Event Handling Metrics
+      summary("jalka2026.live_view.handle_event.stop.duration",
+        unit: {:native, :millisecond},
+        tags: [:view, :event],
+        description: "Time taken to handle a LiveView event"
+      ),
+
+      # Match Simulation Metrics
+      summary("jalka2026.simulation.match.stop.duration",
+        unit: {:native, :millisecond},
+        tags: [:home_team, :away_team, :simulation_count],
+        description: "Time taken to run match simulations"
+      ),
+
+      # Performance Alert Metrics
+      counter("jalka2026.performance.alert.count",
+        tags: [:key, :type],
+        description: "Performance alerts triggered"
+      )
     ]
   end
 

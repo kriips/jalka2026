@@ -4,7 +4,7 @@ defmodule Jalka2026Web.UserSettingsController do
   alias Jalka2026.Accounts
   alias Jalka2026Web.UserAuth
 
-  plug(:assign_email_and_password_changesets)
+  plug :assign_email_and_password_changesets when action not in [:update_theme]
 
   def edit(conn, _params) do
     render(conn, "edit.html")
@@ -48,6 +48,28 @@ defmodule Jalka2026Web.UserSettingsController do
       {:error, changeset} ->
         render(conn, "edit.html", password_changeset: changeset)
     end
+  end
+
+  def update_theme(conn, %{"theme" => theme}) when theme in ["light", "dark"] do
+    user = conn.assigns.current_user
+
+    case Accounts.update_user_theme(user, theme) do
+      {:ok, _user} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(%{ok: true, theme: theme}))
+
+      {:error, _changeset} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(422, Jason.encode!(%{error: "invalid theme"}))
+    end
+  end
+
+  def update_theme(conn, _params) do
+    conn
+    |> put_resp_content_type("application/json")
+    |> send_resp(422, Jason.encode!(%{error: "invalid theme"}))
   end
 
   def confirm_email(conn, %{"token" => token}) do

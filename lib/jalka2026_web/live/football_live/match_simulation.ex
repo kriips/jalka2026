@@ -3,22 +3,26 @@ defmodule Jalka2026Web.FootballLive.MatchSimulation do
 
   alias Jalka2026.Football
   alias Jalka2026.Football.MatchSimulation, as: Simulator
+  alias Jalka2026Web.TelemetryHooks
+  alias Jalka2026.Telemetry.Events, as: TelemetryEvents
 
   @impl true
   def mount(_params, _session, socket) do
-    teams = Football.get_teams() |> Enum.sort_by(& &1.name)
+    TelemetryHooks.with_mount_telemetry(__MODULE__, socket, fn ->
+      teams = Football.get_teams() |> Enum.sort_by(& &1.name)
 
-    {:ok,
-     assign(socket,
-       teams: teams,
-       team1: nil,
-       team2: nil,
-       simulation_results: nil,
-       team1_breakdown: nil,
-       team2_breakdown: nil,
-       simulating: false,
-       num_simulations: 10_000
-     )}
+      {:ok,
+       assign(socket,
+         teams: teams,
+         team1: nil,
+         team2: nil,
+         simulation_results: nil,
+         team1_breakdown: nil,
+         team2_breakdown: nil,
+         simulating: false,
+         num_simulations: 10_000
+       )}
+    end)
   end
 
   @impl true
@@ -59,9 +63,24 @@ defmodule Jalka2026Web.FootballLive.MatchSimulation do
 
   @impl true
   def handle_info({:run_simulation, team1_code, team2_code}, socket) do
-    results = Simulator.simulate_match(team1_code, team2_code, simulations: socket.assigns.num_simulations)
-    team1_breakdown = Simulator.get_strength_breakdown(team1_code, team2_code)
-    team2_breakdown = Simulator.get_strength_breakdown(team2_code, team1_code)
+    metadata = %{
+      home_team: team1_code,
+      away_team: team2_code,
+      simulation_count: socket.assigns.num_simulations
+    }
+
+    {results, team1_breakdown, team2_breakdown} =
+      TelemetryEvents.span_match_simulation(metadata, fn ->
+        results =
+          Simulator.simulate_match(team1_code, team2_code,
+            simulations: socket.assigns.num_simulations
+          )
+
+        team1_breakdown = Simulator.get_strength_breakdown(team1_code, team2_code)
+        team2_breakdown = Simulator.get_strength_breakdown(team2_code, team1_code)
+
+        {results, team1_breakdown, team2_breakdown}
+      end)
 
     {:noreply,
      assign(socket,

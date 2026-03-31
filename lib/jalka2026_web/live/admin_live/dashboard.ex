@@ -2,7 +2,7 @@ defmodule Jalka2026Web.AdminLive.Dashboard do
   use Jalka2026Web, :live_view
 
   alias Jalka2026Web.Resolvers.{AccountsResolver, FootballResolver}
-  alias Jalka2026.Leaderboard
+  alias Jalka2026.{Leaderboard, Competitions}
 
   @impl true
   def mount(_params, session, socket) do
@@ -43,15 +43,23 @@ defmodule Jalka2026Web.AdminLive.Dashboard do
     # System health checks
     leaderboard = Leaderboard.get_leaderboard()
 
+    current_competition = Competitions.current()
+    competitions = Competitions.list()
+
     socket
     |> assign(:user_count, length(users))
     |> assign(:match_count, length(matches))
     |> assign(:finished_match_count, length(finished_matches))
     |> assign(:total_predictions, total_predictions)
     |> assign(:expected_predictions, expected_predictions)
-    |> assign(:prediction_completion, calculate_completion(total_predictions, expected_predictions))
+    |> assign(
+      :prediction_completion,
+      calculate_completion(total_predictions, expected_predictions)
+    )
     |> assign(:leaderboard_size, length(leaderboard))
     |> assign(:predictions_open, Jalka2026Web.LiveHelpers.predictions_open?())
+    |> assign(:current_competition, current_competition)
+    |> assign(:competitions, competitions)
   end
 
   defp count_total_predictions(users) do

@@ -11,6 +11,8 @@ defmodule Jalka2026.Accounts.User do
     field(:hashed_password, :string)
     field(:confirmed_at, :naive_datetime)
     field(:is_admin, :boolean, default: false)
+    field(:competition_id, :string, default: "wc-2026")
+    field(:theme, :string, default: "light")
 
     timestamps()
   end
@@ -39,8 +41,11 @@ defmodule Jalka2026.Accounts.User do
       Defaults to `true`.
   """
   def registration_changeset(user, attrs, opts \\ []) do
+    competition_id = Jalka2026.Competitions.current_id()
+
     user
     |> cast(attrs, [:name, :password, :email])
+    |> put_change(:competition_id, competition_id)
     |> validate_name()
     |> validate_password(opts)
     |> validate_optional_email()
@@ -50,15 +55,15 @@ defmodule Jalka2026.Accounts.User do
   def changeset(user, attrs) do
     user
     |> cast(attrs, [:name, :password, :group_score, :playoff_score])
-    |> unique_constraint(:name)
+    |> unique_constraint([:name, :competition_id])
     |> validate_required([:name, :password])
   end
 
   defp validate_name(changeset) do
     changeset
     |> validate_required([:name])
-    |> unsafe_validate_unique(:name, Jalka2026.Repo)
-    |> unique_constraint(:name)
+    |> unsafe_validate_unique([:name, :competition_id], Jalka2026.Repo)
+    |> unique_constraint([:name, :competition_id])
     |> check_whitelist
   end
 
@@ -73,11 +78,17 @@ defmodule Jalka2026.Accounts.User do
 
   defp validate_optional_email(changeset) do
     case get_change(changeset, :email) do
-      nil -> changeset
-      "" -> changeset
+      nil ->
+        changeset
+
+      "" ->
+        changeset
+
       _email ->
         changeset
-        |> validate_format(:email, ~r/^[^\s]+@[^\s]+$/, message: "peab sisaldama @ märki ja mitte tühikuid")
+        |> validate_format(:email, ~r/^[^\s]+@[^\s]+$/,
+          message: "peab sisaldama @ märki ja mitte tühikuid"
+        )
         |> validate_length(:email, max: 160)
         |> unsafe_validate_unique(:email, Jalka2026.Repo)
         |> unique_constraint(:email)
@@ -108,10 +119,21 @@ defmodule Jalka2026.Accounts.User do
   end
 
   defp check_whitelist(changeset) do
-    case Accounts.get_allowed_users_exactly_by_name(get_field(changeset, :name)) do
+    competition_id = Jalka2026.Competitions.current_id()
+
+    case Accounts.get_allowed_users_exactly_by_name(get_field(changeset, :name), competition_id) do
       [] -> add_error(changeset, :name, "ei kuulu nimekirja")
       _ -> changeset
     end
+  end
+
+  @doc """
+  A user changeset for changing the theme preference.
+  """
+  def theme_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:theme])
+    |> validate_inclusion(:theme, ["light", "dark"])
   end
 
   @doc """

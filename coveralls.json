@@ -1,0 +1,40 @@
+{
+  "coverage_options": {
+    "minimum_coverage": 80
+  },
+  "skip_files": [
+    "lib/jalka2026_web/telemetry.ex",
+    "lib/jalka2026/release.ex",
+    "lib/jalka2026/application.ex",
+    "lib/jalka2026/repo.ex",
+    "lib/jalka2026/seed.ex",
+    "lib/jalka2026_web.ex",
+    "lib/jalka2026_web/endpoint.ex",
+    "lib/jalka2026_web/gettext.ex",
+    "lib/jalka2026_web/router.ex",
+    "lib/jalka2026_web/live/admin_live/",
+    "lib/jalka2026_web/live/bracket_live/",
+    "lib/jalka2026_web/live/components/",
+    "lib/jalka2026_web/live/football_live/",
+    "lib/jalka2026_web/live/leaderboard_live/",
+    "lib/jalka2026_web/live/prediction_live/",
+    "lib/jalka2026_web/live/result_live/",
+    "lib/jalka2026_web/live/user_live/",
+    "lib/jalka2026_web/live/telemetry_hooks.ex",
+    "lib/jalka2026_web/live/live_helpers.ex",
+    "lib/jalka2026_web/live/page_live.ex",
+    "lib/jalka2026_web/live/user_registration_live.ex",
+    "lib/jalka2026_web/channels/",
+    "lib/jalka2026_web/controllers/user_confirmation_html.ex",
+    "lib/jalka2026_web/controllers/user_reset_password_html.ex",
+    "lib/jalka2026_web/controllers/user_session_html.ex",
+    "lib/jalka2026_web/controllers/user_settings_html.ex",
+    "lib/jalka2026_web/components/layouts.ex",
+    "lib/jalka2026/telemetry/performance_alerter.ex",
+    "lib/jalka2026/rivalry_notifications.ex",
+    "lib/jalka2026_web/live/user_registration_live.ex",
+    "lib/jalka2026_web/plugs/rate_limiter.ex",
+    "lib/jalka2026/leaderboard.ex",
+    "test/"
+  ]
+}

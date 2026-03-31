@@ -4,12 +4,12 @@ defmodule Jalka2026Web.Layouts do
   """
   use Jalka2026Web, :html
 
-  embed_templates "layouts/*"
+  embed_templates("layouts/*")
 
   @doc """
   Renders flash notices.
   """
-  attr :flash, :map, required: true
+  attr(:flash, :map, required: true)
 
   def flash_group(assigns) do
     ~H"""

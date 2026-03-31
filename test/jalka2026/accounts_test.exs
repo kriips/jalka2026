@@ -76,7 +76,9 @@ defmodule Jalka2026.AccountsTest do
     end
 
     test "validates name must be in whitelist" do
-      {:error, changeset} = Accounts.register_user(%{name: "NotInWhitelist", password: "hello world!"})
+      {:error, changeset} =
+        Accounts.register_user(%{name: "NotInWhitelist", password: "hello world!"})
+
       assert "ei kuulu nimekirja" in errors_on(changeset).name
     end
 
@@ -133,7 +135,9 @@ defmodule Jalka2026.AccountsTest do
     setup do
       user = user_fixture()
       # Update user to have an email for these tests
-      {:ok, user_with_email} = Repo.update(Ecto.Changeset.change(user, email: unique_user_email()))
+      {:ok, user_with_email} =
+        Repo.update(Ecto.Changeset.change(user, email: unique_user_email()))
+
       %{user: user_with_email}
     end
 
@@ -167,7 +171,10 @@ defmodule Jalka2026.AccountsTest do
 
     test "applies the email without persisting it", %{user: user} do
       email = unique_user_email()
-      {:ok, updated_user} = Accounts.apply_user_email(user, valid_user_password(), %{email: email})
+
+      {:ok, updated_user} =
+        Accounts.apply_user_email(user, valid_user_password(), %{email: email})
+
       assert updated_user.email == email
       assert Accounts.get_user!(user.id).email != email
     end
@@ -177,7 +184,9 @@ defmodule Jalka2026.AccountsTest do
     setup do
       user = user_fixture()
       # Update user to have an email for these tests
-      {:ok, user_with_email} = Repo.update(Ecto.Changeset.change(user, email: unique_user_email()))
+      {:ok, user_with_email} =
+        Repo.update(Ecto.Changeset.change(user, email: unique_user_email()))
+
       %{user: user_with_email}
     end
 
@@ -205,7 +214,11 @@ defmodule Jalka2026.AccountsTest do
 
       token =
         extract_user_token(fn url ->
-          Accounts.deliver_update_email_instructions(%{user_with_email | email: email}, user_with_email.email, url)
+          Accounts.deliver_update_email_instructions(
+            %{user_with_email | email: email},
+            user_with_email.email,
+            url
+          )
         end)
 
       %{user: user_with_email, token: token, email: email}
@@ -371,7 +384,9 @@ defmodule Jalka2026.AccountsTest do
     setup do
       user = user_fixture()
       # Update user to have an email for these tests
-      {:ok, user_with_email} = Repo.update(Ecto.Changeset.change(user, email: unique_user_email()))
+      {:ok, user_with_email} =
+        Repo.update(Ecto.Changeset.change(user, email: unique_user_email()))
+
       %{user: user_with_email}
     end
 
@@ -393,7 +408,8 @@ defmodule Jalka2026.AccountsTest do
     setup do
       user = user_fixture()
       # Update user to have an email for these tests
-      {:ok, user_with_email} = Repo.update(Ecto.Changeset.change(user, email: unique_user_email()))
+      {:ok, user_with_email} =
+        Repo.update(Ecto.Changeset.change(user, email: unique_user_email()))
 
       token =
         extract_user_token(fn url ->
@@ -429,7 +445,9 @@ defmodule Jalka2026.AccountsTest do
     setup do
       user = user_fixture()
       # Update user to have an email for these tests
-      {:ok, user_with_email} = Repo.update(Ecto.Changeset.change(user, email: unique_user_email()))
+      {:ok, user_with_email} =
+        Repo.update(Ecto.Changeset.change(user, email: unique_user_email()))
+
       %{user: user_with_email}
     end
 
@@ -451,7 +469,8 @@ defmodule Jalka2026.AccountsTest do
     setup do
       user = user_fixture()
       # Update user to have an email for these tests
-      {:ok, user_with_email} = Repo.update(Ecto.Changeset.change(user, email: unique_user_email()))
+      {:ok, user_with_email} =
+        Repo.update(Ecto.Changeset.change(user, email: unique_user_email()))
 
       token =
         extract_user_token(fn url ->

@@ -1,13 +1,13 @@
 defmodule Jalka2026Web.Endpoint do
   use Phoenix.Endpoint, otp_app: :jalka2026
 
-  # The session will be stored in the cookie and signed,
-  # this means its contents can be read but not tampered with.
-  # Set :encryption_salt if you would also like to encrypt it.
+  # The session will be stored in the cookie and signed + encrypted.
   @session_options [
     store: :cookie,
     key: "_jalka2026_key",
-    signing_salt: "7wI/Ag8D"
+    signing_salt: "7wI/Ag8D",
+    encryption_salt: "kR9pM3xN",
+    same_site: "Lax"
   ]
 
   socket("/socket", Jalka2026Web.UserSocket,
@@ -25,7 +25,7 @@ defmodule Jalka2026Web.Endpoint do
     at: "/",
     from: :jalka2026,
     gzip: false,
-    only: ~w(css fonts images js favicon.ico robots.txt)
+    only: ~w(assets fonts images favicon.ico robots.txt)
   )
 
   # Code reloading can be explicitly enabled under the
@@ -54,5 +54,6 @@ defmodule Jalka2026Web.Endpoint do
   plug(Plug.MethodOverride)
   plug(Plug.Head)
   plug(Plug.Session, @session_options)
+  plug(Jalka2026Web.Plugs.SecurityHeaders)
   plug(Jalka2026Web.Router)
 end

@@ -20,7 +20,16 @@ defmodule Jalka2026Web.AdminLive.Users do
      |> assign(:users, users)
      |> assign(:search_query, "")
      |> assign(:sort_by, :name)
-     |> assign(:sort_dir, :asc)}
+     |> assign(:sort_dir, :asc)
+     |> stream(:user_rows, users_to_stream_items(users), reset: true)}
+  end
+
+  defp users_to_stream_items(users) do
+    Enum.map(users, fn user ->
+      user
+      |> Map.put(:user_id, user.id)
+      |> Map.put(:id, "user-row-#{user.id}")
+    end)
   end
 
   @impl true
@@ -33,7 +42,8 @@ defmodule Jalka2026Web.AdminLive.Users do
     {:noreply,
      socket
      |> assign(:users, users)
-     |> assign(:search_query, query)}
+     |> assign(:search_query, query)
+     |> stream(:user_rows, users_to_stream_items(users), reset: true)}
   end
 
   @impl true
@@ -57,7 +67,8 @@ defmodule Jalka2026Web.AdminLive.Users do
      socket
      |> assign(:users, users)
      |> assign(:sort_by, field)
-     |> assign(:sort_dir, new_dir)}
+     |> assign(:sort_dir, new_dir)
+     |> stream(:user_rows, users_to_stream_items(users), reset: true)}
   end
 
   @impl true
@@ -85,7 +96,8 @@ defmodule Jalka2026Web.AdminLive.Users do
       {:noreply,
        socket
        |> put_flash(:info, message)
-       |> assign(:users, users)}
+       |> assign(:users, users)
+       |> stream(:user_rows, users_to_stream_items(users), reset: true)}
     end
   end
 
@@ -132,7 +144,10 @@ defmodule Jalka2026Web.AdminLive.Users do
 
   defp compare_values(nil, _), do: true
   defp compare_values(_, nil), do: false
-  defp compare_values(a, b) when is_binary(a) and is_binary(b), do: String.downcase(a) <= String.downcase(b)
+
+  defp compare_values(a, b) when is_binary(a) and is_binary(b),
+    do: String.downcase(a) <= String.downcase(b)
+
   defp compare_values(a, b), do: a <= b
 
   def sort_indicator(current_field, sort_by, sort_dir) do

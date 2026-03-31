@@ -1,5 +1,32 @@
 {
   "devDependencies": {
     "@playwright/test": "^1.58.0"
-  }
+  },
+  "name": "jalka2026",
+  "version": "1.0.0",
+  "description": "To start your Phoenix server:",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "dependencies": {
+    "playwright": "^1.58.0",
+    "playwright-core": "^1.58.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kriips/jalka2024.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/kriips/jalka2024/issues"
+  },
+  "homepage": "https://github.com/kriips/jalka2024#readme"
 }

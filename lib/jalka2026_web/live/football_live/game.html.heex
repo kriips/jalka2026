@@ -1,6 +1,6 @@
-<main role="main" class="container" aria-label={"Mäng: #{@match.home_team.name} vs #{@match.away_team.name}"}>
+<main role="main" class="container" aria-label={"Mäng: #{TeamTranslations.translate(@match.home_team.name)} vs #{TeamTranslations.translate(@match.away_team.name)}"}>
     <div class="prediction-page-header">
-        <h1 id="page-title"><%= @match.home_team.name %> - <%= @match.away_team.name %></h1>
+        <h1 id="page-title"><%= TeamTranslations.translate(@match.home_team.name) %> - <%= TeamTranslations.translate(@match.away_team.name) %></h1>
         <%= if @match.finished do %>
             <p class="page-subtitle match-final-score">Lõpptulemus: <%= @match.home_score %>:<%= @match.away_score %></p>
         <% else %>
@@ -10,9 +10,54 @@
     <div class="container" id="main-content">
         <div class="section-card">
             <h2 class="section-card-title">Ennustused</h2>
+
+            <!-- Crowd Confidence Section -->
+            <%= if @crowd_confidence.total > 0 do %>
+                <div class="crowd-confidence-section">
+                    <p class="confidence-subtitle">Kasutajate ennustuste jaotus (<%= @crowd_confidence.total %> ennustust)</p>
+                    <div class="confidence-bars">
+                        <div class="confidence-bar-item">
+                            <div class="confidence-bar-label">
+                                <span class="confidence-outcome">1</span>
+                                <span class="confidence-team"><%= TeamTranslations.translate(@match.home_team.name) %></span>
+                            </div>
+                            <div class="confidence-bar-container">
+                                <div class="confidence-bar confidence-home" style={"width: #{@crowd_confidence.home}%"}></div>
+                            </div>
+                            <span class="confidence-percentage"><%= @crowd_confidence.home %>%</span>
+                            <span class="confidence-count">(<%= @crowd_confidence.counts.home %>)</span>
+                        </div>
+                        <div class="confidence-bar-item">
+                            <div class="confidence-bar-label">
+                                <span class="confidence-outcome">X</span>
+                                <span class="confidence-team">Viik</span>
+                            </div>
+                            <div class="confidence-bar-container">
+                                <div class="confidence-bar confidence-draw" style={"width: #{@crowd_confidence.draw}%"}></div>
+                            </div>
+                            <span class="confidence-percentage"><%= @crowd_confidence.draw %>%</span>
+                            <span class="confidence-count">(<%= @crowd_confidence.counts.draw %>)</span>
+                        </div>
+                        <div class="confidence-bar-item">
+                            <div class="confidence-bar-label">
+                                <span class="confidence-outcome">2</span>
+                                <span class="confidence-team"><%= TeamTranslations.translate(@match.away_team.name) %></span>
+                            </div>
+                            <div class="confidence-bar-container">
+                                <div class="confidence-bar confidence-away" style={"width: #{@crowd_confidence.away}%"}></div>
+                            </div>
+                            <span class="confidence-percentage"><%= @crowd_confidence.away %>%</span>
+                            <span class="confidence-count">(<%= @crowd_confidence.counts.away %>)</span>
+                        </div>
+                    </div>
+                </div>
+            <% else %>
+                <p class="no-predictions">Ennustusi pole veel tehtud</p>
+            <% end %>
+
             <div class="predictions-group">
                 <div class="prediction-column">
-                    <h3 class="prediction-column-title"><%= @match.home_team.name %> võidab</h3>
+                    <h3 class="prediction-column-title"><%= TeamTranslations.translate(@match.home_team.name) %> võidab</h3>
                     <%= if @predictions["home"] do %>
                         <%= for prediction <- @predictions["home"] do %>
                         <div class="prediction-item">
@@ -38,7 +83,7 @@
                     <% end %>
                 </div>
                 <div class="prediction-column">
-                    <h3 class="prediction-column-title"><%= @match.away_team.name %> võidab</h3>
+                    <h3 class="prediction-column-title"><%= TeamTranslations.translate(@match.away_team.name) %> võidab</h3>
                     <%= if @predictions["away"] do %>
                         <%= for prediction <- @predictions["away"] do %>
                         <div class="prediction-item">
@@ -51,6 +96,215 @@
                     <% end %>
                 </div>
             </div>
+        </div>
+
+        <!-- Group Scenarios Section -->
+        <%= if @group_letter && @scenario_data do %>
+            <div class="section-card">
+                <div class="section-card-header">
+                    <h2 class="section-card-title">Alagrupp <%= @group_letter %> - Stsenaariumid</h2>
+                </div>
+
+                <!-- Team Status Cards -->
+                <%= if @team_requirements do %>
+                    <div class="scenarios-team-list">
+                        <%= for req <- @team_requirements do %>
+                            <div class={"scenario-team-card #{status_class(req.status)}"}>
+                                <div class="scenario-team-header">
+                                    <span class="scenario-team-name"><%= TeamTranslations.translate(req.team.name) %></span>
+                                    <span class={"scenario-status-badge #{status_class(req.status)}"}><%= status_label(req.status) %></span>
+                                </div>
+                                <%= if Map.has_key?(req, :current_stats) do %>
+                                    <div class="scenario-team-stats">
+                                        <span class="stat-item-inline">
+                                            <span class="stat-label-small">Punktid:</span>
+                                            <span class="stat-value-small"><%= req.current_stats.points %></span>
+                                        </span>
+                                        <span class="stat-item-inline">
+                                            <span class="stat-label-small">VV:</span>
+                                            <span class="stat-value-small"><%= format_goal_diff(req.current_stats.goal_difference) %></span>
+                                        </span>
+                                        <%= if Map.has_key?(req, :percentage) do %>
+                                            <span class="stat-item-inline">
+                                                <span class="stat-label-small">Edasi:</span>
+                                                <span class="stat-value-small"><%= req.percentage %>%</span>
+                                            </span>
+                                        <% end %>
+                                    </div>
+                                <% end %>
+                                <%= if Map.has_key?(req, :message) do %>
+                                    <p class="scenario-team-message"><%= req.message %></p>
+                                <% end %>
+                            </div>
+                        <% end %>
+                    </div>
+                <% end %>
+
+                <!-- Current Standings Table -->
+                <div class="data-table-card">
+                    <h3 class="section-card-subtitle">Hetkeseisutabel</h3>
+                    <table role="table" aria-label="Alagrupi tabel">
+                        <thead>
+                            <tr>
+                                <th scope="col">#</th>
+                                <th scope="col">Meeskond</th>
+                                <th scope="col">M</th>
+                                <th scope="col">V</th>
+                                <th scope="col">Vi</th>
+                                <th scope="col">K</th>
+                                <th scope="col">VV</th>
+                                <th scope="col">P</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <%= case @scenario_data.status do %>
+                                <% :completed -> %>
+                                    <%= for {team_stats, idx} <- Enum.with_index(@scenario_data.final_standings, 1) do %>
+                                        <tr class={if idx <= 2, do: "qualified-row", else: ""}>
+                                            <td><span class={"rank-badge #{rank_class(idx)}"}><%= idx %></span></td>
+                                            <td class="team-name-cell"><%= TeamTranslations.translate(team_stats.team.name) %></td>
+                                            <td><%= team_stats.played %></td>
+                                            <td><%= team_stats.won %></td>
+                                            <td><%= team_stats.drawn %></td>
+                                            <td><%= team_stats.lost %></td>
+                                            <td><%= format_goal_diff(team_stats.goal_difference) %></td>
+                                            <td class="points-cell"><%= team_stats.points %></td>
+                                        </tr>
+                                    <% end %>
+                                <% :in_progress -> %>
+                                    <%= for {team_stats, idx} <- Enum.with_index(@scenario_data.current_standings, 1) do %>
+                                        <tr>
+                                            <td><span class="rank-badge default"><%= idx %></span></td>
+                                            <td class="team-name-cell"><%= TeamTranslations.translate(team_stats.team.name) %></td>
+                                            <td><%= team_stats.played %></td>
+                                            <td><%= team_stats.won %></td>
+                                            <td><%= team_stats.drawn %></td>
+                                            <td><%= team_stats.lost %></td>
+                                            <td><%= format_goal_diff(team_stats.goal_difference) %></td>
+                                            <td class="points-cell"><%= team_stats.points %></td>
+                                        </tr>
+                                    <% end %>
+                            <% end %>
+                        </tbody>
+                    </table>
+                    <p class="table-legend">M = mängud, V = võidud, Vi = viigid, K = kaotused, VV = väravatevahe, P = punktid</p>
+                </div>
+
+                <!-- Remaining Matches -->
+                <%= if @scenario_data.status == :in_progress and length(@scenario_data.remaining_matches) > 0 do %>
+                    <div class="remaining-matches-section">
+                        <h3 class="section-card-subtitle">Järelejäänud mängud</h3>
+                        <div class="remaining-matches-list">
+                            <%= for match <- @scenario_data.remaining_matches do %>
+                                <div class="remaining-match-item">
+                                    <span class="match-home-team"><%= TeamTranslations.translate(match.home_team.name) %></span>
+                                    <span class="match-vs">vs</span>
+                                    <span class="match-away-team"><%= TeamTranslations.translate(match.away_team.name) %></span>
+                                </div>
+                            <% end %>
+                        </div>
+                    </div>
+                <% end %>
+
+                <!-- Scenario Explorer -->
+                <%= if @scenario_data.status == :in_progress and length(@scenario_data.scenarios) > 0 do %>
+                    <div class="scenario-explorer-section">
+                        <h3 class="section-card-subtitle">Stsenaariumide uurija</h3>
+                        <p class="scenario-info">
+                            Kokku <%= length(@scenario_data.scenarios) %> võimalikku stsenaariumi.
+                            Vali stsenaarium, et näha, kuidas tabel selle korral välja näeks.
+                        </p>
+
+                        <%= if @selected_scenario do %>
+                            <div class="selected-scenario-card">
+                                <div class="scenario-header">
+                                    <h4>Valitud stsenaarium</h4>
+                                    <button type="button" class="clear-btn" phx-click="clear_scenario">Tühjenda</button>
+                                </div>
+
+                                <div class="scenario-outcomes">
+                                    <%= for {match, outcome} <- @selected_scenario.outcomes do %>
+                                        <div class="scenario-outcome-item">
+                                            <span class="outcome-teams">
+                                                <%= TeamTranslations.translate(match.home_team.name) %> vs <%= TeamTranslations.translate(match.away_team.name) %>
+                                            </span>
+                                            <span class={"outcome-result outcome-#{outcome}"}>
+                                                <%= outcome_label(outcome) %>
+                                            </span>
+                                        </div>
+                                    <% end %>
+                                </div>
+
+                                <h4>Lõpptabel selle stsenaariumi korral:</h4>
+                                <div class="data-table-card">
+                                    <table role="table">
+                                        <thead>
+                                            <tr>
+                                                <th scope="col">#</th>
+                                                <th scope="col">Meeskond</th>
+                                                <th scope="col">P</th>
+                                                <th scope="col">VV</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <%= for {team_stats, idx} <- Enum.with_index(@selected_scenario.standings, 1) do %>
+                                                <tr class={if idx <= 2, do: "qualified-row", else: ""}>
+                                                    <td><span class={"rank-badge #{rank_class(idx)}"}><%= idx %></span></td>
+                                                    <td><%= TeamTranslations.translate(team_stats.team.name) %></td>
+                                                    <td class="points-cell"><%= team_stats.points %></td>
+                                                    <td><%= format_goal_diff(team_stats.goal_difference) %></td>
+                                                </tr>
+                                            <% end %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        <% end %>
+
+                        <div class="scenarios-grid">
+                            <%= for {scenario, idx} <- Enum.with_index(@scenario_data.scenarios) |> Enum.take(27) do %>
+                                <button
+                                    type="button"
+                                    class={"scenario-btn #{if @selected_scenario == scenario, do: "active", else: ""}"}
+                                    phx-click="select_scenario"
+                                    phx-value-index={idx}
+                                    aria-label={"Stsenaarium #{idx + 1}"}
+                                >
+                                    <span class="scenario-number"><%= idx + 1 %></span>
+                                    <span class="scenario-outcomes-mini">
+                                        <%= for {_match, outcome} <- scenario.outcomes do %>
+                                            <span class={"outcome-mini outcome-#{outcome}"}><%= outcome_label(outcome) %></span>
+                                        <% end %>
+                                    </span>
+                                </button>
+                            <% end %>
+                        </div>
+
+                        <%= if length(@scenario_data.scenarios) > 27 do %>
+                            <p class="scenarios-note">
+                                Näidatakse esimest 27 stsenaariumi <%= length(@scenario_data.scenarios) %>-st.
+                            </p>
+                        <% end %>
+                    </div>
+                <% end %>
+
+                <!-- Link to full scenarios page -->
+                <div class="scenarios-link-container">
+                    <.link navigate={Routes.football_group_scenarios_path(@socket, :view, @group_letter)} class="button button-secondary">
+                        Vaata kõiki stsenaariume →
+                    </.link>
+                </div>
+            </div>
+        <% end %>
+
+        <!-- Match Chat Section -->
+        <div class="section-card">
+            <.live_component
+              module={Jalka2026Web.Live.Components.MatchChat}
+              id="match-chat"
+              match_id={@match.id}
+              current_user={@current_user}
+            />
         </div>
 
         <div class="back-button-container">

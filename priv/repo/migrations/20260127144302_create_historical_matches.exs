@@ -2,7 +2,7 @@ defmodule Jalka2026.Repo.Migrations.CreateHistoricalMatches do
   use Ecto.Migration
 
   def change do
-    create table(:historical_matches) do
+    create_if_not_exists table(:historical_matches) do
       add(:home_team_code, :string, null: false)
       add(:away_team_code, :string, null: false)
       add(:home_team_name, :string, null: false)
@@ -18,10 +18,10 @@ defmodule Jalka2026.Repo.Migrations.CreateHistoricalMatches do
       timestamps()
     end
 
-    create(index(:historical_matches, [:home_team_code]))
-    create(index(:historical_matches, [:away_team_code]))
-    create(index(:historical_matches, [:competition]))
-    create(index(:historical_matches, [:is_world_cup]))
-    create(index(:historical_matches, [:date]))
+    create_if_not_exists(index(:historical_matches, [:home_team_code]))
+    create_if_not_exists(index(:historical_matches, [:away_team_code]))
+    create_if_not_exists(index(:historical_matches, [:competition]))
+    create_if_not_exists(index(:historical_matches, [:is_world_cup]))
+    create_if_not_exists(index(:historical_matches, [:date]))
   end
 end

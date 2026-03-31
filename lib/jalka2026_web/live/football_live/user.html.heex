@@ -2,8 +2,38 @@
     <div class="prediction-page-header">
         <h1 id="page-title"><%= @user.name %></h1>
         <p class="page-subtitle">Kasutaja ennustused ja tulemused</p>
+        <%= if @favorite_teams != [] do %>
+            <div class="fan-allegiance">
+                <span class="fan-allegiance-label">Toetab:</span>
+                <div class="fan-allegiance-teams">
+                    <%= for fav <- @favorite_teams do %>
+                        <span class={"fan-team-badge #{if fav.is_primary, do: "", else: "secondary"}"}>
+                            <%= if fav.team.flag do %>
+                                <img class="team-flag" src={fav.team.flag} alt={"#{TeamTranslations.translate(fav.team.name)} lipp"} />
+                            <% end %>
+                            <span class="team-name"><%= TeamTranslations.translate(fav.team.name) %></span>
+                        </span>
+                    <% end %>
+                </div>
+            </div>
+        <% end %>
     </div>
     <div class="container" id="main-content">
+        <%= if @user_badges != [] do %>
+        <div class="section-card" id="user-badges-section">
+            <h2 class="section-card-title">Saavutused</h2>
+            <div class="achievement-badges-grid">
+                <%= for badge <- @user_badges do %>
+                    <% info = Jalka2026.Football.UserBadge.badge_info(badge.badge_type) %>
+                    <div class={"achievement-badge achievement-badge-#{badge.badge_type}"} title={info.description}>
+                        <span class="achievement-badge-icon"><%= info.icon %></span>
+                        <span class="achievement-badge-name"><%= info.name %></span>
+                    </div>
+                <% end %>
+            </div>
+        </div>
+        <% end %>
+
         <div class="section-card">
             <h2 class="section-card-title">Alagrupid</h2>
             <div class="data-table-card" style="box-shadow: none; margin-bottom: 0;">
@@ -16,27 +46,25 @@
                             <th scope="col">Õige skoor</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <%= for {%{away_score: away_score, home_score: home_score, match: match}, correct_result, correct_score} <- @predictions do %>
-                        <tr>
-                            <td class="match-teams"><%= match.home_team.name %> - <%= match.away_team.name %></td>
-                            <td><span class="prediction-score"><%= home_score %> - <%= away_score %></span></td>
+                    <tbody id="user-predictions-body" phx-update="stream">
+                        <tr :for={{dom_id, row} <- @streams.prediction_rows} id={dom_id}>
+                            <td class="match-teams"><%= TeamTranslations.translate(row.prediction.match.home_team.name) %> - <%= TeamTranslations.translate(row.prediction.match.away_team.name) %></td>
+                            <td><span class="prediction-score"><%= row.prediction.home_score %> - <%= row.prediction.away_score %></span></td>
                             <td>
-                                <%= if correct_result do %>
+                                <%= if row.correct_result do %>
                                 <svg class="result-indicator correct" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-label="Õige">
                                     <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
                                 </svg>
                                 <% end %>
                             </td>
                             <td>
-                                <%= if correct_score do %>
+                                <%= if row.correct_score do %>
                                 <svg class="result-indicator correct" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-label="Õige">
                                     <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
                                 </svg>
                                 <% end %>
                             </td>
                         </tr>
-                        <% end %>
                     </tbody>
                 </table>
             </div>
@@ -88,8 +116,70 @@
             </div>
         </div>
 
-        <div class="back-button-container">
-            <.link navigate={Routes.leaderboard_leaderboard_path(@socket, :view)} class="button button-large button-main" aria-label="Tagasi edetabelisse">Tagasi</.link>
+        <%= if @bias_stats.has_favorites and (@bias_stats.favorite_predictions > 0 or @bias_stats.other_predictions > 0) do %>
+        <div class="section-card bias-stats-card">
+            <h2 class="section-card-title">Ennustuste kallutatus</h2>
+            <p class="section-description">Võrdlus lemmikmeeskondade ja teiste mängude ennustamisel</p>
+
+            <div class="bias-stats-grid">
+                <div class="bias-stat-group">
+                    <h4>Lemmikmeeskondade mängud</h4>
+                    <div class="bias-stat-row">
+                        <span class="bias-stat-label">Ennustusi</span>
+                        <span class="bias-stat-value"><%= @bias_stats.favorite_predictions %></span>
+                    </div>
+                    <div class="bias-stat-row">
+                        <span class="bias-stat-label">Õige tulemus</span>
+                        <span class="bias-stat-value">
+                            <%= @bias_stats.favorite_correct_results %>
+                            <%= if @bias_stats.favorite_predictions > 0 do %>
+                                (<%= Float.round(@bias_stats.favorite_correct_results / @bias_stats.favorite_predictions * 100, 1) %>%)
+                            <% end %>
+                        </span>
+                    </div>
+                    <div class="bias-stat-row">
+                        <span class="bias-stat-label">Õige skoor</span>
+                        <span class="bias-stat-value">
+                            <%= @bias_stats.favorite_correct_scores %>
+                            <%= if @bias_stats.favorite_predictions > 0 do %>
+                                (<%= Float.round(@bias_stats.favorite_correct_scores / @bias_stats.favorite_predictions * 100, 1) %>%)
+                            <% end %>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="bias-stat-group">
+                    <h4>Teised mängud</h4>
+                    <div class="bias-stat-row">
+                        <span class="bias-stat-label">Ennustusi</span>
+                        <span class="bias-stat-value"><%= @bias_stats.other_predictions %></span>
+                    </div>
+                    <div class="bias-stat-row">
+                        <span class="bias-stat-label">Õige tulemus</span>
+                        <span class="bias-stat-value">
+                            <%= @bias_stats.other_correct_results %>
+                            <%= if @bias_stats.other_predictions > 0 do %>
+                                (<%= Float.round(@bias_stats.other_correct_results / @bias_stats.other_predictions * 100, 1) %>%)
+                            <% end %>
+                        </span>
+                    </div>
+                    <div class="bias-stat-row">
+                        <span class="bias-stat-label">Õige skoor</span>
+                        <span class="bias-stat-value">
+                            <%= @bias_stats.other_correct_scores %>
+                            <%= if @bias_stats.other_predictions > 0 do %>
+                                (<%= Float.round(@bias_stats.other_correct_scores / @bias_stats.other_predictions * 100, 1) %>%)
+                            <% end %>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <% end %>
+
+        <div class="back-button-container analytics-back-buttons">
+            <.link navigate={Routes.football_analytics_path(@socket, :view, @user.id)} class="button button-secondary" aria-label="Vaata analuutikat">Analuutika</.link>
+            <.link navigate={Routes.leaderboard_leaderboard_path(@socket, :view)} class="button button-main" aria-label="Tagasi edetabelisse">Tagasi</.link>
         </div>
     </div>
 </main>

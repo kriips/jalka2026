@@ -3,13 +3,14 @@ defmodule Jalka2026.Football.Team do
   import Ecto.Changeset
 
   alias Jalka2026.Repo
-  alias Jalka2026.Football.PlayoffPrediction
+  alias Jalka2026.Football.{PlayoffPrediction, Competition}
 
   schema "teams" do
     field(:name, :string)
     field(:code, :string)
     field(:flag, :string)
     field(:group, :string)
+    belongs_to(:competition, Competition, type: :string)
 
     many_to_many(:playoff_predictions, PlayoffPrediction,
       join_through: "playoff_predictions_teams"
@@ -23,7 +24,7 @@ defmodule Jalka2026.Football.Team do
   @doc false
   def changeset(team, attrs) do
     team
-    |> cast(attrs, [:name, :code, :flag, :id, :group])
+    |> cast(attrs, [:name, :code, :flag, :id, :group, :competition_id])
     |> validate_inclusion(:group, @valid_groups)
   end
 

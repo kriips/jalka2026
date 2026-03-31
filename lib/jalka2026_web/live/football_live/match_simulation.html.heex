@@ -23,15 +23,21 @@
                                 phx-value-team={team.code}
                                 disabled={@team2 && @team2.code == team.code}
                             >
-                                <span class="team-flag"><%= team.flag %></span>
+                                <%= if team.flag do %>
+                                    <img class="team-flag" src={team.flag} alt={"#{TeamTranslations.translate(team.name)} lipp"} />
+                                <% else %>
+                                    <span class="team-flag-placeholder"></span>
+                                <% end %>
                                 <span class="team-code"><%= team.code %></span>
                             </button>
                         <% end %>
                     </div>
                     <%= if @team1 do %>
                         <div class="selected-team-display">
-                            <span class="team-flag-large"><%= @team1.flag %></span>
-                            <span class="team-name-large"><%= @team1.name %></span>
+                            <%= if @team1.flag do %>
+                                <img class="team-flag-large" src={@team1.flag} alt={"#{TeamTranslations.translate(@team1.name)} lipp"} />
+                            <% end %>
+                            <span class="team-name-large"><%= TeamTranslations.translate(@team1.name) %></span>
                         </div>
                     <% end %>
                 </div>
@@ -49,15 +55,21 @@
                                 phx-value-team={team.code}
                                 disabled={@team1 && @team1.code == team.code}
                             >
-                                <span class="team-flag"><%= team.flag %></span>
+                                <%= if team.flag do %>
+                                    <img class="team-flag" src={team.flag} alt={"#{TeamTranslations.translate(team.name)} lipp"} />
+                                <% else %>
+                                    <span class="team-flag-placeholder"></span>
+                                <% end %>
                                 <span class="team-code"><%= team.code %></span>
                             </button>
                         <% end %>
                     </div>
                     <%= if @team2 do %>
                         <div class="selected-team-display">
-                            <span class="team-flag-large"><%= @team2.flag %></span>
-                            <span class="team-name-large"><%= @team2.name %></span>
+                            <%= if @team2.flag do %>
+                                <img class="team-flag-large" src={@team2.flag} alt={"#{TeamTranslations.translate(@team2.name)} lipp"} />
+                            <% end %>
+                            <span class="team-name-large"><%= TeamTranslations.translate(@team2.name) %></span>
                         </div>
                     <% end %>
                 </div>
@@ -101,7 +113,7 @@
 
                 <div class="simulation-outcome-grid">
                     <div class="outcome-card team1-win">
-                        <span class="outcome-team"><%= @team1.name %> võidab</span>
+                        <span class="outcome-team"><%= TeamTranslations.translate(@team1.name) %> võidab</span>
                         <span class="outcome-percentage"><%= format_percentage(@simulation_results.home_win_pct) %>%</span>
                         <div class="outcome-bar">
                             <div class="outcome-bar-fill team1" style={"width: #{@simulation_results.home_win_pct}%"}></div>
@@ -115,7 +127,7 @@
                         </div>
                     </div>
                     <div class="outcome-card team2-win">
-                        <span class="outcome-team"><%= @team2.name %> võidab</span>
+                        <span class="outcome-team"><%= TeamTranslations.translate(@team2.name) %> võidab</span>
                         <span class="outcome-percentage"><%= format_percentage(@simulation_results.away_win_pct) %>%</span>
                         <div class="outcome-bar">
                             <div class="outcome-bar-fill team2" style={"width: #{@simulation_results.away_win_pct}%"}></div>
@@ -125,12 +137,12 @@
 
                 <div class="avg-goals-display">
                     <span class="avg-goals-item">
-                        <span class="avg-goals-label"><%= @team1.name %> keskmine:</span>
+                        <span class="avg-goals-label"><%= TeamTranslations.translate(@team1.name) %> keskmine:</span>
                         <span class="avg-goals-value"><%= @simulation_results.avg_home_goals %> väravat</span>
                     </span>
                     <span class="avg-goals-divider">|</span>
                     <span class="avg-goals-item">
-                        <span class="avg-goals-label"><%= @team2.name %> keskmine:</span>
+                        <span class="avg-goals-label"><%= TeamTranslations.translate(@team2.name) %> keskmine:</span>
                         <span class="avg-goals-value"><%= @simulation_results.avg_away_goals %> väravat</span>
                     </span>
                 </div>
@@ -157,7 +169,7 @@
             <div class="section-card">
                 <div class="section-card-header">
                     <h2 class="section-card-title">Tulemuste tõenäosuste maatriks</h2>
-                    <span class="section-card-subtitle"><%= @team1.name %> väravad (horisontaalselt) vs <%= @team2.name %> väravad (vertikaalselt)</span>
+                    <span class="section-card-subtitle"><%= TeamTranslations.translate(@team1.name) %> väravad (horisontaalselt) vs <%= TeamTranslations.translate(@team2.name) %> väravad (vertikaalselt)</span>
                 </div>
 
                 <div class="score-matrix-container">
@@ -206,7 +218,10 @@
                 <div class="strength-breakdown-grid">
                     <!-- Team 1 Breakdown -->
                     <div class="strength-card">
-                        <h3 class="strength-team-name"><%= @team1.flag %> <%= @team1.name %></h3>
+                        <h3 class="strength-team-name">
+                            <%= if @team1.flag do %><img class="strength-team-flag" src={@team1.flag} alt="" /><% end %>
+                            <%= TeamTranslations.translate(@team1.name) %>
+                        </h3>
                         <div class="overall-strength">
                             <span class="overall-label">Üldine tugevus:</span>
                             <span class={"overall-value #{strength_color(@team1_breakdown.overall)}"}><%= @team1_breakdown.overall %></span>
@@ -237,7 +252,10 @@
 
                     <!-- Team 2 Breakdown -->
                     <div class="strength-card">
-                        <h3 class="strength-team-name"><%= @team2.flag %> <%= @team2.name %></h3>
+                        <h3 class="strength-team-name">
+                            <%= if @team2.flag do %><img class="strength-team-flag" src={@team2.flag} alt="" /><% end %>
+                            <%= TeamTranslations.translate(@team2.name) %>
+                        </h3>
                         <div class="overall-strength">
                             <span class="overall-label">Üldine tugevus:</span>
                             <span class={"overall-value #{strength_color(@team2_breakdown.overall)}"}><%= @team2_breakdown.overall %></span>

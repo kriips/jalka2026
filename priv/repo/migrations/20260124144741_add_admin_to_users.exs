@@ -3,7 +3,7 @@ defmodule Jalka2026.Repo.Migrations.AddAdminToUsers do
 
   def change do
     alter table(:users) do
-      add :is_admin, :boolean, default: false, null: false
+      add_if_not_exists :is_admin, :boolean, default: false, null: false
     end
   end
 end

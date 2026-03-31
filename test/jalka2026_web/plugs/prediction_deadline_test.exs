@@ -39,7 +39,9 @@ defmodule Jalka2026Web.PredictionDeadlineTest do
       # Connection should be halted
       assert conn.halted
       assert redirected_to(conn) == "/"
-      assert Phoenix.Flash.get(conn.assigns.flash, :error) == "Ennustamine on suletud - turniir on alanud"
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) ==
+               "Ennustamine on suletud - turniir on alanud"
     end
 
     test "allows access when deadline is nil (not configured)", %{conn: conn} do

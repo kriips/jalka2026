@@ -1,0 +1,389 @@
+<main role="main" class="container" aria-label={"Kasutaja #{@user.name} ennustuste analuutika"}>
+    <div class="prediction-page-header">
+        <h1 id="page-title"><%= @user.name %></h1>
+        <p class="page-subtitle">Ennustuste analuutika ja statistika</p>
+        <%= if @favorite_teams != [] do %>
+            <div class="fan-allegiance">
+                <span class="fan-allegiance-label">Toetab:</span>
+                <div class="fan-allegiance-teams">
+                    <%= for fav <- @favorite_teams do %>
+                        <span class={"fan-team-badge #{if fav.is_primary, do: "", else: "secondary"}"}>
+                            <%= if fav.team.flag do %>
+                                <img class="team-flag" src={fav.team.flag} alt={"#{TeamTranslations.translate(fav.team.name)} lipp"} />
+                            <% end %>
+                            <span class="team-name"><%= TeamTranslations.translate(fav.team.name) %></span>
+                        </span>
+                    <% end %>
+                </div>
+            </div>
+        <% end %>
+    </div>
+
+    <div class="container" id="main-content">
+        <!-- Tab Navigation -->
+        <div class="analytics-tabs">
+            <button
+                class={"analytics-tab #{if @selected_tab == "overview", do: "active", else: ""}"}
+                phx-click="change_tab"
+                phx-value-tab="overview"
+            >
+                Ulevaade
+            </button>
+            <button
+                class={"analytics-tab #{if @selected_tab == "groups", do: "active", else: ""}"}
+                phx-click="change_tab"
+                phx-value-tab="groups"
+            >
+                Alagrupid
+            </button>
+            <button
+                class={"analytics-tab #{if @selected_tab == "playoffs", do: "active", else: ""}"}
+                phx-click="change_tab"
+                phx-value-tab="playoffs"
+            >
+                Playoffid
+            </button>
+            <button
+                class={"analytics-tab #{if @selected_tab == "trends", do: "active", else: ""}"}
+                phx-click="change_tab"
+                phx-value-tab="trends"
+            >
+                Trendid
+            </button>
+        </div>
+
+        <!-- Overview Tab -->
+        <%= if @selected_tab == "overview" do %>
+            <div class="analytics-overview">
+                <!-- Leaderboard Position Card -->
+                <%= if @leaderboard_entry do %>
+                    <% {_id, rank, _name, group_pts, playoff_pts, bonus_pts, current_streak, longest_streak, total_pts} = @leaderboard_entry %>
+                    <div class="section-card analytics-position-card">
+                        <div class="analytics-rank-display">
+                            <span class="analytics-rank-number"><%= rank %></span>
+                            <span class="analytics-rank-label">koht</span>
+                        </div>
+                        <div class="analytics-points-breakdown">
+                            <div class="analytics-points-item">
+                                <span class="points-value"><%= total_pts %></span>
+                                <span class="points-label">Kokku punktid</span>
+                            </div>
+                            <div class="analytics-points-item">
+                                <span class="points-value"><%= group_pts %></span>
+                                <span class="points-label">Grupi punktid</span>
+                            </div>
+                            <div class="analytics-points-item">
+                                <span class="points-value"><%= playoff_pts %></span>
+                                <span class="points-label">Playoffi punktid</span>
+                            </div>
+                            <div class="analytics-points-item">
+                                <span class="points-value"><%= bonus_pts %></span>
+                                <span class="points-label">Boonuspunktid</span>
+                            </div>
+                        </div>
+                        <%= if current_streak > 0 or longest_streak > 0 do %>
+                            <div class="analytics-streaks">
+                                <div class="streak-badge">
+                                    <span class="streak-icon">&#128293;</span>
+                                    <span class="streak-value"><%= current_streak %></span>
+                                    <span class="streak-label">Praegune seeria</span>
+                                </div>
+                                <div class="streak-badge">
+                                    <span class="streak-icon">&#127942;</span>
+                                    <span class="streak-value"><%= longest_streak %></span>
+                                    <span class="streak-label">Pikim seeria</span>
+                                </div>
+                            </div>
+                        <% end %>
+                    </div>
+                <% end %>
+
+                <!-- Accuracy Summary -->
+                <div class="section-card">
+                    <h2 class="section-card-title">Tapsuse kokkuvote</h2>
+
+                    <div class="analytics-accuracy-grid">
+                        <div class="accuracy-card">
+                            <div class="accuracy-circle" style={"--accuracy: #{@analytics.group_stats.result_accuracy}"}>
+                                <span class="accuracy-value"><%= @analytics.group_stats.result_accuracy %>%</span>
+                            </div>
+                            <span class="accuracy-label">Oige tulemus</span>
+                            <span class="accuracy-detail"><%= @analytics.group_stats.correct_results %>/<%= @analytics.group_stats.total_finished %></span>
+                        </div>
+
+                        <div class="accuracy-card">
+                            <div class="accuracy-circle exact-score" style={"--accuracy: #{@analytics.group_stats.score_accuracy}"}>
+                                <span class="accuracy-value"><%= @analytics.group_stats.score_accuracy %>%</span>
+                            </div>
+                            <span class="accuracy-label">Oige skoor</span>
+                            <span class="accuracy-detail"><%= @analytics.group_stats.correct_scores %>/<%= @analytics.group_stats.total_finished %></span>
+                        </div>
+
+                        <div class="accuracy-card">
+                            <div class="accuracy-circle playoff" style={"--accuracy: #{@analytics.playoff_stats.overall_accuracy}"}>
+                                <span class="accuracy-value"><%= @analytics.playoff_stats.overall_accuracy %>%</span>
+                            </div>
+                            <span class="accuracy-label">Playoffi tapsus</span>
+                            <span class="accuracy-detail"><%= @analytics.playoff_stats.total_correct %>/<%= @analytics.playoff_stats.total_predictions %></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Best Performances -->
+                <div class="section-card">
+                    <h2 class="section-card-title">Parimad tulemused</h2>
+
+                    <div class="analytics-highlights-grid">
+                        <%= if @analytics.group_stats.best_group do %>
+                            <div class="highlight-card best">
+                                <span class="highlight-icon">&#127941;</span>
+                                <span class="highlight-title">Parim alagrupp</span>
+                                <span class="highlight-value"><%= String.replace(@analytics.group_stats.best_group, "Alagrupp ", "") %></span>
+                                <% group_data = @analytics.group_stats.by_group[@analytics.group_stats.best_group] %>
+                                <span class="highlight-detail"><%= group_data.result_accuracy %>% tapsus</span>
+                            </div>
+                        <% end %>
+
+                        <%= if @analytics.playoff_stats.best_phase do %>
+                            <div class="highlight-card best">
+                                <span class="highlight-icon">&#127942;</span>
+                                <span class="highlight-title">Parim playoff faas</span>
+                                <span class="highlight-value"><%= @analytics.playoff_stats.best_phase %></span>
+                                <% phase_data = @analytics.playoff_stats.by_phase[@analytics.playoff_stats.best_phase] %>
+                                <%= if phase_data do %>
+                                    <span class="highlight-detail"><%= phase_data.accuracy %>% tapsus</span>
+                                <% end %>
+                            </div>
+                        <% end %>
+
+                        <%= if @analytics.group_stats.worst_group && @analytics.group_stats.worst_group != @analytics.group_stats.best_group do %>
+                            <div class="highlight-card needs-work">
+                                <span class="highlight-icon">&#128170;</span>
+                                <span class="highlight-title">Arenguruumi</span>
+                                <span class="highlight-value"><%= String.replace(@analytics.group_stats.worst_group, "Alagrupp ", "") %></span>
+                                <% worst_group_data = @analytics.group_stats.by_group[@analytics.group_stats.worst_group] %>
+                                <span class="highlight-detail"><%= worst_group_data.result_accuracy %>% tapsus</span>
+                            </div>
+                        <% end %>
+                    </div>
+                </div>
+            </div>
+        <% end %>
+
+        <!-- Groups Tab -->
+        <%= if @selected_tab == "groups" do %>
+            <div class="analytics-groups">
+                <div class="section-card">
+                    <h2 class="section-card-title">Alagrupiti statistika</h2>
+
+                    <%= if map_size(@analytics.group_stats.by_group) > 0 do %>
+                        <div class="group-stats-grid">
+                            <%= for {group_name, stats} <- Enum.sort_by(@analytics.group_stats.by_group, fn {_, s} -> -s.result_accuracy end) do %>
+                                <div class="group-stat-card">
+                                    <div class="group-stat-header">
+                                        <span class="group-name"><%= String.replace(group_name, "Alagrupp ", "") %></span>
+                                        <span class="group-accuracy"><%= stats.result_accuracy %>%</span>
+                                    </div>
+                                    <div class="group-stat-bar">
+                                        <div class="group-stat-bar-fill" style={"width: #{stats.result_accuracy}%"}></div>
+                                    </div>
+                                    <div class="group-stat-details">
+                                        <div class="group-stat-detail">
+                                            <span class="detail-label">Mangud</span>
+                                            <span class="detail-value"><%= stats.total %></span>
+                                        </div>
+                                        <div class="group-stat-detail">
+                                            <span class="detail-label">Oige tulemus</span>
+                                            <span class="detail-value"><%= stats.correct_results %></span>
+                                        </div>
+                                        <div class="group-stat-detail">
+                                            <span class="detail-label">Oige skoor</span>
+                                            <span class="detail-value"><%= stats.correct_scores %></span>
+                                        </div>
+                                        <div class="group-stat-detail">
+                                            <span class="detail-label">Punktid</span>
+                                            <span class="detail-value"><%= stats.points %></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            <% end %>
+                        </div>
+                    <% else %>
+                        <p class="no-data-message">Veel pole alagrupimange loppenud.</p>
+                    <% end %>
+                </div>
+            </div>
+        <% end %>
+
+        <!-- Playoffs Tab -->
+        <%= if @selected_tab == "playoffs" do %>
+            <div class="analytics-playoffs">
+                <div class="section-card">
+                    <h2 class="section-card-title">Playoffi statistika</h2>
+
+                    <div class="playoff-stats-overview">
+                        <div class="playoff-overview-stat">
+                            <span class="stat-value"><%= @analytics.playoff_stats.total_points %></span>
+                            <span class="stat-label">Playoffi punktid</span>
+                        </div>
+                        <div class="playoff-overview-stat">
+                            <span class="stat-value"><%= @analytics.playoff_stats.total_correct %></span>
+                            <span class="stat-label">Oigeid ennustusi</span>
+                        </div>
+                        <div class="playoff-overview-stat">
+                            <span class="stat-value"><%= @analytics.playoff_stats.overall_accuracy %>%</span>
+                            <span class="stat-label">Tapsus</span>
+                        </div>
+                    </div>
+
+                    <div class="playoff-phases-grid">
+                        <%= for phase_data <- @analytics.playoff_stats.details do %>
+                            <% phase_names = %{32 => "32 parimat", 16 => "Kaheksandikfinaalid", 8 => "Veerandfinaalid", 4 => "Poolfinaalid", 2 => "Finaal", 1 => "Voitja"} %>
+                            <div class="playoff-phase-card">
+                                <div class="phase-header">
+                                    <span class="phase-name"><%= phase_names[phase_data.phase] %></span>
+                                    <span class="phase-points-per">+<%= phase_data.points_per_correct %> punkti</span>
+                                </div>
+
+                                <div class="phase-stats">
+                                    <div class="phase-accuracy-bar">
+                                        <div class="phase-accuracy-fill" style={"width: #{phase_data.accuracy}%"}></div>
+                                    </div>
+                                    <div class="phase-stats-row">
+                                        <span><%= phase_data.correct_predictions %>/<%= phase_data.total_predictions %> oige</span>
+                                        <span><%= phase_data.points_earned %> punkti</span>
+                                    </div>
+                                </div>
+
+                                <%= if length(phase_data.teams) > 0 do %>
+                                    <div class="phase-teams">
+                                        <%= for team <- phase_data.teams do %>
+                                            <span class={"team-chip #{if team.reached_phase, do: "correct", else: ""}"}>
+                                                <%= team.team_name %>
+                                            </span>
+                                        <% end %>
+                                    </div>
+                                <% end %>
+                            </div>
+                        <% end %>
+                    </div>
+                </div>
+            </div>
+        <% end %>
+
+        <!-- Trends Tab -->
+        <%= if @selected_tab == "trends" do %>
+            <div class="analytics-trends">
+                <!-- Streak Information -->
+                <div class="section-card">
+                    <h2 class="section-card-title">Seeriad</h2>
+
+                    <div class="streak-stats-grid">
+                        <div class="streak-stat-card">
+                            <span class="streak-stat-icon">&#128293;</span>
+                            <span class="streak-stat-value"><%= @analytics.trend_data.streak_data.current %></span>
+                            <span class="streak-stat-label">
+                                Praegune seeria
+                                <%= if @analytics.trend_data.streak_data.type == :correct do %>
+                                    (oiged)
+                                <% else %>
+                                    (valed)
+                                <% end %>
+                            </span>
+                        </div>
+                        <div class="streak-stat-card correct">
+                            <span class="streak-stat-icon">&#127942;</span>
+                            <span class="streak-stat-value"><%= @analytics.trend_data.streak_data.longest_correct %></span>
+                            <span class="streak-stat-label">Pikim oigete seeria</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Form -->
+                <div class="section-card">
+                    <h2 class="section-card-title">Viimased tulemused</h2>
+
+                    <%= if length(@analytics.trend_data.recent_form) > 0 do %>
+                        <div class="recent-form-strip">
+                            <%= for result <- Enum.reverse(@analytics.trend_data.recent_form) do %>
+                                <div class={"form-indicator #{if result.correct, do: "correct", else: "incorrect"}"} title={result.match}>
+                                    <%= if result.correct do %>
+                                        &#10003;
+                                    <% else %>
+                                        &#10007;
+                                    <% end %>
+                                </div>
+                            <% end %>
+                        </div>
+
+                        <div class="recent-form-list">
+                            <%= for result <- @analytics.trend_data.recent_form do %>
+                                <div class={"recent-form-item #{if result.correct, do: "correct", else: "incorrect"}"}>
+                                    <span class="form-match"><%= result.match %></span>
+                                    <span class="form-result">
+                                        <%= if result.correct do %>
+                                            <svg class="result-indicator correct" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                                            </svg>
+                                        <% else %>
+                                            <svg class="result-indicator incorrect" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                                            </svg>
+                                        <% end %>
+                                    </span>
+                                </div>
+                            <% end %>
+                        </div>
+                    <% else %>
+                        <p class="no-data-message">Veel pole loppenud mangusid.</p>
+                    <% end %>
+                </div>
+
+                <!-- Accuracy Trend Chart (Visual representation) -->
+                <%= if length(@analytics.trend_data.cumulative_accuracy) > 0 do %>
+                    <div class="section-card">
+                        <h2 class="section-card-title">Tapsuse trend</h2>
+
+                        <div class="trend-chart">
+                            <div class="trend-chart-y-axis">
+                                <span>100%</span>
+                                <span>75%</span>
+                                <span>50%</span>
+                                <span>25%</span>
+                                <span>0%</span>
+                            </div>
+                            <div class="trend-chart-area">
+                                <div class="trend-line">
+                                    <%= for {data_point, index} <- Enum.with_index(@analytics.trend_data.cumulative_accuracy) do %>
+                                        <% total_points = length(@analytics.trend_data.cumulative_accuracy) %>
+                                        <% x_percent = if total_points > 1, do: index / (total_points - 1) * 100, else: 50 %>
+                                        <div
+                                            class={"trend-point #{if data_point.correct, do: "correct", else: "incorrect"}"}
+                                            style={"left: #{x_percent}%; bottom: #{data_point.accuracy}%"}
+                                            title={"#{data_point.match}: #{data_point.accuracy}%"}
+                                        >
+                                        </div>
+                                    <% end %>
+                                </div>
+                                <div class="trend-baseline" style="bottom: 50%"></div>
+                            </div>
+                        </div>
+                        <p class="trend-chart-caption">
+                            Kumulatiivne tapsus aja jooksul.
+                            Praegune: <strong><%= List.last(@analytics.trend_data.cumulative_accuracy).accuracy %>%</strong>
+                        </p>
+                    </div>
+                <% end %>
+            </div>
+        <% end %>
+
+        <div class="back-button-container analytics-back-buttons">
+            <.link navigate={Routes.football_user_path(@socket, :view, @user.id)} class="button button-secondary">
+                Vaata ennustusi
+            </.link>
+            <.link navigate={Routes.leaderboard_leaderboard_path(@socket, :view)} class="button button-main">
+                Tagasi edetabelisse
+            </.link>
+        </div>
+    </div>
+</main>

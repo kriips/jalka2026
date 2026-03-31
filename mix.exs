@@ -10,7 +10,15 @@ defmodule Jalka2026.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
-      releases: releases()
+      releases: releases(),
+      test_coverage: [tool: ExCoveralls],
+      preferred_cli_env: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.post": :test,
+        "coveralls.html": :test,
+        "coveralls.json": :test
+      ]
     ]
   end
 
@@ -61,10 +69,12 @@ defmodule Jalka2026.MixProject do
       {:gettext, "~> 0.26"},
       {:jason, "~> 1.4"},
       {:plug_cowboy, "~> 2.7"},
-      {:bamboo, "~> 2.5"},
+      {:bamboo, "~> 2.2.0"},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
       {:libcluster, "~> 3.5"},
-      {:timex, "~> 3.7"}
+      {:timex, "~> 3.7"},
+      {:hammer, "~> 6.2"},
+      {:excoveralls, "~> 0.18", only: :test}
     ]
   end
 
@@ -76,11 +86,15 @@ defmodule Jalka2026.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
-      setup: ["deps.get", "ecto.setup", "cmd npm install --prefix assets"],
+      setup: ["deps.get", "ecto.setup"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
-      "assets.deploy": ["esbuild default --minify", "phx.digest"]
+      "assets.deploy": [
+        "cmd cp -r assets/static/. priv/static/",
+        "esbuild default --minify",
+        "phx.digest"
+      ]
     ]
   end
 end

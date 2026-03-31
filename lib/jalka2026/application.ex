@@ -15,8 +15,12 @@ defmodule Jalka2026.Application do
       Jalka2026.Repo,
       # Start the Telemetry supervisor
       Jalka2026Web.Telemetry,
+      # Start the Performance Alerter for monitoring and alerts
+      Jalka2026.Telemetry.PerformanceAlerter,
       # Start the PubSub system
       {Phoenix.PubSub, name: Jalka2026.PubSub},
+      # Start the ETS cache for immutable tournament data (teams, groups, competition)
+      Jalka2026.Football.Cache,
       # Start the Endpoint (http/https)
       Jalka2026Web.Endpoint,
       # Start a worker by calling: Jalka2026.Worker.start_link(arg)

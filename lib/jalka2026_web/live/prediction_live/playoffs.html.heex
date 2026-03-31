@@ -7,13 +7,19 @@
         <section aria-labelledby="phase32-heading">
             <h2 id="phase32-heading">32 parimat (<span aria-label={"#{@left32} valikut jäänud"}><%= @left32 %></span>)</h2>
             <p class="sr-only" id="phase32-desc">Vali 32 meeskonda, kes pääsevad edasi alagrupifaasist</p>
+            <%= if length(@predicted_qualifiers) > 0 do %>
+                <p class="playoff-suggestion-hint">
+                    ⭐ Sinu alagrupiennustuste põhjal edasipääsejad on tähistatud tärniga.
+                </p>
+            <% end %>
             <%= for row <- Enum.chunk_every(@teams32, 4) do %>
                 <div class="row" role="group">
                     <%= for {_group, teams} <- row do %>
                         <div class="column" role="group">
                         <%= for {team_id, team_name, checked} <- teams do %>
                             <% is_disabled = checked != "checked" && @disabled32 == "disabled" %>
-                            <div class="checkbox-item">
+                            <% is_suggested = team_id in @predicted_qualifiers %>
+                            <div class={"checkbox-item #{if is_suggested, do: "suggested-team", else: ""}"}>
                                 <input
                                         type="checkbox"
                                         id={"team32-#{team_id}"}
@@ -24,9 +30,12 @@
                                         disabled={is_disabled}
                                         aria-disabled={if is_disabled, do: "true", else: "false"}
                                         aria-describedby="phase32-desc"
-                                        aria-label={"#{team_name} - #{if checked == "checked", do: "valitud", else: "pole valitud"}"}
+                                        aria-label={"#{team_name} - #{if checked == "checked", do: "valitud", else: "pole valitud"}#{if is_suggested, do: " - soovitatud sinu alagrupiennustuste põhjal", else: ""}"}
                                 />
-                                <label class="label-inline" for={"team32-#{team_id}"}><%= team_name %></label>
+                                <label class="label-inline" for={"team32-#{team_id}"}>
+                                    <%= if is_suggested do %><span class="suggestion-star" title="Sinu alagrupiennustuste põhjal">⭐</span><% end %>
+                                    <%= team_name %>
+                                </label>
                             </div>
                         <% end %>
                         </div>

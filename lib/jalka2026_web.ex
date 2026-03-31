@@ -101,6 +101,9 @@ defmodule Jalka2026Web do
       use Gettext, backend: Jalka2026Web.Gettext
       alias Jalka2026Web.Router.Helpers, as: Routes
 
+      # Team name translations (Estonian)
+      alias Jalka2026.Football.TeamTranslations
+
       unquote(verified_routes())
     end
   end

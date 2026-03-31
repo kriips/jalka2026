@@ -2,30 +2,84 @@ defmodule Jalka2026Web.UserPredictionLive.Playoffs do
   use Jalka2026Web, :live_view
 
   alias Jalka2026Web.Resolvers.FootballResolver
+  alias Jalka2026.Football.GroupScenarios
+  alias Jalka2026.PredictionSync
+  alias Jalka2026Web.TelemetryHooks
 
   @impl true
   def mount(_params, session, socket) do
-    socket = Jalka2026Web.LiveHelpers.assign_defaults(session, socket)
-    {:ok, add_teams(socket)}
+    TelemetryHooks.with_mount_telemetry(__MODULE__, socket, fn ->
+      socket = Jalka2026Web.LiveHelpers.assign_defaults(session, socket)
+
+      # Subscribe to prediction sync for multi-device updates
+      if connected?(socket) and socket.assigns[:current_user] do
+        PredictionSync.subscribe(socket.assigns.current_user.id)
+      end
+
+      socket = add_teams(socket)
+      # Get predicted qualifiers from user's group predictions
+      predicted_qualifiers = GroupScenarios.get_all_predicted_qualifiers(socket.assigns.current_user.id)
+      {:ok, assign(socket, predicted_qualifiers: predicted_qualifiers)}
+    end)
   end
 
   @impl true
   def handle_event("toggle-team", user_params, socket) do
     if Jalka2026Web.LiveHelpers.predictions_open?() do
-      FootballResolver.change_playoff_prediction(%{
-        user_id: socket.assigns.current_user.id,
-        team_id: String.to_integer(user_params["team"]),
-        phase: String.to_integer(user_params["phase"]),
-        include: user_params["value"] == "on"
-      })
+      case Jalka2026Web.LiveRateLimiter.check_playoff_prediction_rate(socket.assigns.current_user.id) do
+        :ok ->
+          team_id = String.to_integer(user_params["team"])
+          phase = String.to_integer(user_params["phase"])
+          include = user_params["value"] == "on"
 
-      {:noreply, add_teams(socket)}
+          FootballResolver.change_playoff_prediction(%{
+            user_id: socket.assigns.current_user.id,
+            team_id: team_id,
+            phase: phase,
+            include: include
+          })
+
+          # Broadcast to other devices
+          PredictionSync.broadcast_playoff_prediction(
+            socket.assigns.current_user.id,
+            team_id,
+            phase,
+            include,
+            self()
+          )
+
+          {:noreply, add_teams(socket)}
+
+        {:error, :rate_limited} ->
+          {:noreply,
+           socket
+           |> Phoenix.LiveView.put_flash(:error, "Liiga palju muudatusi. Oota veidi.")}
+      end
     else
       {:noreply,
        socket
        |> Phoenix.LiveView.put_flash(:error, "Ennustamine on suletud - turniir on alanud")
        |> Phoenix.LiveView.redirect(to: "/")}
     end
+  end
+
+  # Handle prediction sync from other devices
+  @impl true
+  def handle_info({:prediction_sync, :playoff_prediction_changed, %{source_pid: source_pid}}, socket)
+      when source_pid != self() do
+    # Reload teams to reflect changes from another device
+    {:noreply, add_teams(socket)}
+  end
+
+  # Ignore sync messages from self
+  def handle_info({:prediction_sync, :playoff_prediction_changed, %{source_pid: source_pid}}, socket)
+      when source_pid == self() do
+    {:noreply, socket}
+  end
+
+  # Ignore group sync messages in Playoffs view (they're handled in Groups view)
+  def handle_info({:prediction_sync, :group_prediction_changed, _data}, socket) do
+    {:noreply, socket}
   end
 
   defp add_predictions(teams_with_group, predictions, phase) do

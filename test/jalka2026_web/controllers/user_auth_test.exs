@@ -136,7 +136,9 @@ defmodule Jalka2026Web.UserAuthTest do
       assert conn.halted
       # The app redirects to registration page, not login page
       assert redirected_to(conn) == Routes.user_registration_new_path(conn, :new)
-      assert Phoenix.Flash.get(conn.assigns.flash, :error) == "Ennustamiseks pead registreerima/sisse logima"
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) ==
+               "Ennustamiseks pead registreerima/sisse logima"
     end
 
     test "stores the path to redirect to on GET", %{conn: conn} do

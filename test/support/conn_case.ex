@@ -34,7 +34,7 @@ defmodule Jalka2026Web.ConnCase do
   setup tags do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(Jalka2026.Repo)
 
-    unless tags[:async] do
+    if !tags[:async] do
       Ecto.Adapters.SQL.Sandbox.mode(Jalka2026.Repo, {:shared, self()})
     end
 

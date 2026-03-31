@@ -1,0 +1,243 @@
+<main role="main" class="container" aria-label="Ennustuste võrdlus">
+    <div class="prediction-page-header">
+        <h1 id="page-title">Ennustuste võrdlus</h1>
+        <p class="page-subtitle">Võrdle oma ennustusi teise mängijaga</p>
+    </div>
+
+    <div class="container" id="main-content">
+        <!-- User Selection -->
+        <div class="section-card">
+            <h2 class="section-card-title">Vali kasutajad</h2>
+            <form phx-change="select_users" class="compare-user-form">
+                <div class="compare-user-selectors">
+                    <div class="user-selector">
+                        <label for="user1">Kasutaja 1:</label>
+                        <select name="user1" id="user1" class="filter-select">
+                            <option value="">Vali kasutaja...</option>
+                            <%= for {id, name} <- @users do %>
+                                <option value={id} selected={to_string(@user1_id) == to_string(id)}><%= name %></option>
+                            <% end %>
+                        </select>
+                    </div>
+                    <div class="compare-vs-divider">VS</div>
+                    <div class="user-selector">
+                        <label for="user2">Kasutaja 2:</label>
+                        <select name="user2" id="user2" class="filter-select">
+                            <option value="">Vali kasutaja...</option>
+                            <%= for {id, name} <- @users do %>
+                                <option value={id} selected={to_string(@user2_id) == to_string(id)}><%= name %></option>
+                            <% end %>
+                        </select>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <%= if @comparison do %>
+            <!-- Summary Section -->
+            <div class="section-card comparison-summary-card">
+                <h2 class="section-card-title">Kokkuvõte</h2>
+                <div class="comparison-summary">
+                    <div class="comparison-user-stats user1-stats">
+                        <div class="comparison-user-name"><%= @user1.name %></div>
+                        <div class="comparison-stat-row">
+                            <span class="stat-label">Kogupunktid:</span>
+                            <span class={"stat-value #{comparison_class(@comparison.summary.user1_total_points, @comparison.summary.user2_total_points)}"}><%= @comparison.summary.user1_total_points %></span>
+                        </div>
+                        <div class="comparison-stat-row">
+                            <span class="stat-label">Grupi punktid:</span>
+                            <span class={"stat-value #{comparison_class(@comparison.summary.user1_group_points, @comparison.summary.user2_group_points)}"}><%= @comparison.summary.user1_group_points %></span>
+                        </div>
+                        <div class="comparison-stat-row">
+                            <span class="stat-label">Playoffi punktid:</span>
+                            <span class={"stat-value #{comparison_class(@comparison.summary.user1_playoff_points, @comparison.summary.user2_playoff_points)}"}><%= @comparison.summary.user1_playoff_points %></span>
+                        </div>
+                        <div class="comparison-stat-row">
+                            <span class="stat-label">Õigeid tulemusi:</span>
+                            <span class={"stat-value #{comparison_class(@comparison.summary.user1_correct_results, @comparison.summary.user2_correct_results)}"}><%= @comparison.summary.user1_correct_results %></span>
+                        </div>
+                        <div class="comparison-stat-row">
+                            <span class="stat-label">Õigeid skoore:</span>
+                            <span class={"stat-value #{comparison_class(@comparison.summary.user1_correct_scores, @comparison.summary.user2_correct_scores)}"}><%= @comparison.summary.user1_correct_scores %></span>
+                        </div>
+                    </div>
+
+                    <div class="comparison-middle-stats">
+                        <div class="head-to-head">
+                            <div class="h2h-wins user1-wins"><%= @comparison.summary.matches_user1_won %></div>
+                            <div class="h2h-label">Võidetud mänge</div>
+                        </div>
+                        <div class="head-to-head">
+                            <div class="h2h-ties"><%= @comparison.summary.matches_tied %></div>
+                            <div class="h2h-label">Viike</div>
+                        </div>
+                        <div class="head-to-head">
+                            <div class="h2h-wins user2-wins"><%= @comparison.summary.matches_user2_won %></div>
+                            <div class="h2h-label">Võidetud mänge</div>
+                        </div>
+                    </div>
+
+                    <div class="comparison-user-stats user2-stats">
+                        <div class="comparison-user-name"><%= @user2.name %></div>
+                        <div class="comparison-stat-row">
+                            <span class="stat-label">Kogupunktid:</span>
+                            <span class={"stat-value #{comparison_class(@comparison.summary.user2_total_points, @comparison.summary.user1_total_points)}"}><%= @comparison.summary.user2_total_points %></span>
+                        </div>
+                        <div class="comparison-stat-row">
+                            <span class="stat-label">Grupi punktid:</span>
+                            <span class={"stat-value #{comparison_class(@comparison.summary.user2_group_points, @comparison.summary.user1_group_points)}"}><%= @comparison.summary.user2_group_points %></span>
+                        </div>
+                        <div class="comparison-stat-row">
+                            <span class="stat-label">Playoffi punktid:</span>
+                            <span class={"stat-value #{comparison_class(@comparison.summary.user2_playoff_points, @comparison.summary.user1_playoff_points)}"}><%= @comparison.summary.user2_playoff_points %></span>
+                        </div>
+                        <div class="comparison-stat-row">
+                            <span class="stat-label">Õigeid tulemusi:</span>
+                            <span class={"stat-value #{comparison_class(@comparison.summary.user2_correct_results, @comparison.summary.user1_correct_results)}"}><%= @comparison.summary.user2_correct_results %></span>
+                        </div>
+                        <div class="comparison-stat-row">
+                            <span class="stat-label">Õigeid skoore:</span>
+                            <span class={"stat-value #{comparison_class(@comparison.summary.user2_correct_scores, @comparison.summary.user1_correct_scores)}"}><%= @comparison.summary.user2_correct_scores %></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View Mode Tabs -->
+            <div class="comparison-tabs">
+                <button type="button" phx-click="change_view" phx-value-view="summary" class={"tab-button #{if @view_mode == "summary", do: "active", else: ""}"}>Kokkuvõte</button>
+                <button type="button" phx-click="change_view" phx-value-view="groups" class={"tab-button #{if @view_mode == "groups", do: "active", else: ""}"}>Alagrupid</button>
+                <button type="button" phx-click="change_view" phx-value-view="playoffs" class={"tab-button #{if @view_mode == "playoffs", do: "active", else: ""}"}>Playoffid</button>
+            </div>
+
+            <%= if @view_mode == "groups" do %>
+                <!-- Group Matches Comparison -->
+                <div class="section-card">
+                    <h2 class="section-card-title">Alagrupimängude võrdlus</h2>
+                    <p class="section-card-subtitle"><%= @comparison.summary.finished_matches_count %> / <%= @comparison.summary.total_matches_count %> mängu lõppenud</p>
+                    <div class="scroll-hint" aria-hidden="true">← Keri horisontaalselt →</div>
+                    <div class="data-table-card comparison-table-card">
+                        <table role="table" aria-label="Alagrupimängude ennustuste võrdlus">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Mäng</th>
+                                    <th scope="col">Tulemus</th>
+                                    <th scope="col" class="user1-header"><%= @user1.name %></th>
+                                    <th scope="col" class="user2-header"><%= @user2.name %></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <%= for comparison <- @comparison.group_comparisons do %>
+                                <% row_class = cond do
+                                    comparison.point_difference > 0 and comparison.match.finished -> "user1-better"
+                                    comparison.point_difference < 0 and comparison.match.finished -> "user2-better"
+                                    true -> ""
+                                end %>
+                                <tr class={"comparison-row #{row_class}"}>
+                                    <td class="match-teams">
+                                        <%= TeamTranslations.translate(comparison.match.home_team.name) %> - <%= TeamTranslations.translate(comparison.match.away_team.name) %>
+                                    </td>
+                                    <td class="match-result">
+                                        <%= if comparison.match.finished do %>
+                                            <span class="actual-score"><%= comparison.match.home_score %> - <%= comparison.match.away_score %></span>
+                                        <% else %>
+                                            <span class="not-finished">-</span>
+                                        <% end %>
+                                    </td>
+                                    <% user1_cell_class = if comparison.match.finished, do: get_prediction_class(comparison.user1_correct_score, comparison.user1_correct_result), else: "" %>
+                                    <td class={"prediction-cell user1-cell #{user1_cell_class}"}>
+                                        <%= if comparison.user1_prediction do %>
+                                            <span class="prediction-score"><%= comparison.user1_prediction.home_score %> - <%= comparison.user1_prediction.away_score %></span>
+                                            <%= if comparison.match.finished do %>
+                                                <span class="points-earned">+<%= comparison.user1_points %></span>
+                                            <% end %>
+                                        <% else %>
+                                            <span class="no-prediction">-</span>
+                                        <% end %>
+                                    </td>
+                                    <% user2_cell_class = if comparison.match.finished, do: get_prediction_class(comparison.user2_correct_score, comparison.user2_correct_result), else: "" %>
+                                    <td class={"prediction-cell user2-cell #{user2_cell_class}"}>
+                                        <%= if comparison.user2_prediction do %>
+                                            <span class="prediction-score"><%= comparison.user2_prediction.home_score %> - <%= comparison.user2_prediction.away_score %></span>
+                                            <%= if comparison.match.finished do %>
+                                                <span class="points-earned">+<%= comparison.user2_points %></span>
+                                            <% end %>
+                                        <% else %>
+                                            <span class="no-prediction">-</span>
+                                        <% end %>
+                                    </td>
+                                </tr>
+                                <% end %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            <% end %>
+
+            <%= if @view_mode == "playoffs" do %>
+                <!-- Playoff Predictions Comparison -->
+                <div class="section-card">
+                    <h2 class="section-card-title">Playoffi ennustuste võrdlus</h2>
+
+                    <%= for phase <- @comparison.playoff_comparisons do %>
+                    <div class="playoff-phase-comparison">
+                        <h3 class="phase-title"><%= phase.phase_name %> <span class="phase-points-info">(<%= phase.phase_points %> punkti õige ennustuse eest)</span></h3>
+                        <div class="playoff-comparison-grid">
+                            <div class="playoff-user-column user1-column">
+                                <div class="playoff-user-header">
+                                    <span class="playoff-user-name"><%= @user1.name %></span>
+                                    <span class={"playoff-user-points #{comparison_class(phase.user1_points, phase.user2_points)}"}><%= phase.user1_points %> p</span>
+                                </div>
+                                <div class="playoff-teams-list">
+                                    <%= for team <- phase.user1_teams do %>
+                                        <% team_class = cond do
+                                            team in phase.common_teams -> "common-team"
+                                            team in phase.only_user1 -> "unique-team"
+                                            true -> ""
+                                        end %>
+                                        <span class={"playoff-team #{team_class}"}>
+                                            <%= team %>
+                                        </span>
+                                    <% end %>
+                                    <%= if phase.user1_teams == [] do %>
+                                        <span class="no-teams">Ei ole valinud</span>
+                                    <% end %>
+                                </div>
+                            </div>
+                            <div class="playoff-user-column user2-column">
+                                <div class="playoff-user-header">
+                                    <span class="playoff-user-name"><%= @user2.name %></span>
+                                    <span class={"playoff-user-points #{comparison_class(phase.user2_points, phase.user1_points)}"}><%= phase.user2_points %> p</span>
+                                </div>
+                                <div class="playoff-teams-list">
+                                    <%= for team <- phase.user2_teams do %>
+                                        <% team_class = cond do
+                                            team in phase.common_teams -> "common-team"
+                                            team in phase.only_user2 -> "unique-team"
+                                            true -> ""
+                                        end %>
+                                        <span class={"playoff-team #{team_class}"}>
+                                            <%= team %>
+                                        </span>
+                                    <% end %>
+                                    <%= if phase.user2_teams == [] do %>
+                                        <span class="no-teams">Ei ole valinud</span>
+                                    <% end %>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <% end %>
+                </div>
+            <% end %>
+        <% else %>
+            <div class="section-card empty-comparison">
+                <p class="empty-message">Vali kaks kasutajat, et näha nende ennustuste võrdlust.</p>
+            </div>
+        <% end %>
+
+        <div class="back-button-container">
+            <.link navigate={Routes.leaderboard_leaderboard_path(@socket, :view)} class="button button-large button-main" aria-label="Tagasi edetabelisse">Tagasi edetabelisse</.link>
+        </div>
+    </div>
+</main>

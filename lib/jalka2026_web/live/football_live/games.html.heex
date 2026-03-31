@@ -4,6 +4,7 @@
         <p class="page-subtitle">Kõik alagrupiturniiiri mängud</p>
     </div>
     <div class="container" id="main-content">
+        <div class="scroll-hint" aria-hidden="true">← Keri horisontaalselt →</div>
         <div class="data-table-card">
             <table role="table" aria-label="Mängude tabel">
                 <thead>
@@ -19,7 +20,7 @@
                     <%= for %{id: id, group: group, date: date, away_score: away_score, away_team: away_team, home_score: home_score, home_team: home_team} <- @matches do %>
                     <tr>
                         <td>
-                            <.link navigate={Routes.football_game_path(@socket, :view, id)} class="view-predictions-btn" aria-label={"Vaata ennustusi: #{home_team.name} vs #{away_team.name}"}>
+                            <.link navigate={Routes.football_game_path(@socket, :view, id)} class="view-predictions-btn" aria-label={"Vaata ennustusi: #{TeamTranslations.translate(home_team.name)} vs #{TeamTranslations.translate(away_team.name)}"}>
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                                     <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
                                 </svg>
@@ -27,7 +28,7 @@
                         </td>
                         <td class="match-date"><%= date %></td>
                         <td><span class="group-badge"><%= String.replace(group, "Alagrupp ", "") %></span></td>
-                        <td class="match-teams"><%= home_team.name %> - <%= away_team.name %></td>
+                        <td class="match-teams"><%= TeamTranslations.translate(home_team.name) %> - <%= TeamTranslations.translate(away_team.name) %></td>
                         <td class="match-score"><%= home_score %> - <%= away_score %></td>
                     </tr>
                     <% end %>

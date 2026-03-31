@@ -176,7 +176,9 @@ defmodule Jalka2026.FootballTest do
     test "updates existing prediction" do
       user = user_fixture()
       match = match_fixture()
-      _prediction = group_prediction_fixture(%{user: user, match: match, home_score: 1, away_score: 0})
+
+      _prediction =
+        group_prediction_fixture(%{user: user, match: match, home_score: 1, away_score: 0})
 
       result =
         Football.change_score(%{

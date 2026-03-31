@@ -7,28 +7,23 @@ config :jalka2026, Jalka2026.Repo,
   database: "jalka2026_dev",
   hostname: "localhost",
   show_sensitive_data_on_connection_error: true,
-  pool_size: 10
+  pool_size: 10,
+  queue_target: 50,
+  queue_interval: 1000
 
 # For development, we disable any cache and enable
 # debugging and code reloading.
 #
 # The watchers configuration can be used to run external
 # watchers to your application. For example, we use it
-# with webpack to recompile .js and .css sources.
+# with esbuild to recompile .js and .css sources.
 config :jalka2026, Jalka2026Web.Endpoint,
   http: [port: 4000],
   debug_errors: true,
   code_reloader: false,
   check_origin: false,
   watchers: [
-    node: [
-      "node_modules/webpack/bin/webpack.js",
-      "--mode",
-      "development",
-      "--watch",
-      cd: Path.expand("../assets", __DIR__),
-      env: %{"NODE_OPTIONS" => "--openssl-legacy-provider"}
-    ]
+    esbuild: {Esbuild, :install_and_run, [:default, ~w(--sourcemap=inline --watch)]}
   ]
 
 # ## SSL Support

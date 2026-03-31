@@ -5,9 +5,72 @@
     </div>
 
     <div class="container" id="main-content">
+        <!-- Current Competition -->
+        <div class="info-card">
+            <h2 class="info-card-title">Aktiivne turniir</h2>
+            <div class="admin-stats-grid">
+                <%= if @current_competition do %>
+                    <div class="stat-item">
+                        <span class="stat-label">Turniir</span>
+                        <span class="stat-value"><%= @current_competition.name %></span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Tüüp</span>
+                        <span class="stat-value"><%= @current_competition.type %></span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Aasta</span>
+                        <span class="stat-value"><%= @current_competition.year %></span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">ID</span>
+                        <span class="stat-value"><%= @current_competition.id %></span>
+                    </div>
+                <% else %>
+                    <div class="stat-item">
+                        <span class="stat-label">Turniir</span>
+                        <span class="stat-value">Seadistamata</span>
+                    </div>
+                <% end %>
+            </div>
+        </div>
+
+        <!-- All Competitions -->
+        <%= if length(@competitions) > 0 do %>
+        <div class="info-card">
+            <h2 class="info-card-title">Kõik turniirid</h2>
+            <div style="overflow-x: auto;">
+                <table class="admin-table" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr>
+                            <th style="text-align: left; padding: 8px;">ID</th>
+                            <th style="text-align: left; padding: 8px;">Nimi</th>
+                            <th style="text-align: left; padding: 8px;">Tüüp</th>
+                            <th style="text-align: center; padding: 8px;">Aasta</th>
+                            <th style="text-align: center; padding: 8px;">Aktiivne</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <%= for comp <- @competitions do %>
+                            <tr style={"#{if @current_competition && comp.id == @current_competition.id, do: "font-weight: bold;", else: ""}"}>
+                                <td style="padding: 8px;"><%= comp.id %></td>
+                                <td style="padding: 8px;"><%= comp.name %></td>
+                                <td style="padding: 8px;"><%= comp.type %></td>
+                                <td style="text-align: center; padding: 8px;"><%= comp.year %></td>
+                                <td style="text-align: center; padding: 8px;">
+                                    <%= if comp.is_active, do: "✓", else: "-" %>
+                                </td>
+                            </tr>
+                        <% end %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <% end %>
+
         <!-- System Status -->
         <div class="info-card">
-            <h2 class="info-card-title">Susteemi olek</h2>
+            <h2 class="info-card-title">Süsteemi olek</h2>
             <div class="admin-stats-grid">
                 <div class="stat-item">
                     <span class="stat-label">Ennustamine</span>

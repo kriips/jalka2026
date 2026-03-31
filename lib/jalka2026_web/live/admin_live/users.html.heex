@@ -45,9 +45,8 @@
                             <th>Toimingud</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <%= for user <- @users do %>
-                            <tr class={if user.is_admin, do: "admin-row", else: ""}>
+                    <tbody id="users-body" phx-update="stream">
+                        <tr :for={{dom_id, user} <- @streams.user_rows} id={dom_id} class={if user.is_admin, do: "admin-row", else: ""}>
                                 <td><%= user.name %></td>
                                 <td><%= user.email || "-" %></td>
                                 <td class="text-center"><%= user.prediction_count %> / 72</td>
@@ -64,20 +63,19 @@
                                         type="button"
                                         class={"toggle-admin-btn " <> if user.is_admin, do: "remove", else: "add"}
                                         phx-click="toggle_admin"
-                                        phx-value-user_id={user.id}
+                                        phx-value-user_id={user.user_id}
                                         title={if user.is_admin, do: "Eemalda admin", else: "Tee adminiks"}
                                     >
                                         <%= if user.is_admin, do: "Eemalda admin", else: "Tee adminiks" %>
                                     </button>
                                     <.link
-                                        navigate={Routes.football_user_path(@socket, :view, user.id)}
+                                        navigate={Routes.football_user_path(@socket, :view, user.user_id)}
                                         class="view-predictions-link"
                                     >
                                         Vaata ennustusi
                                     </.link>
                                 </td>
-                            </tr>
-                        <% end %>
+                        </tr>
                     </tbody>
                 </table>
             </div>

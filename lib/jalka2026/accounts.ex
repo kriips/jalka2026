@@ -22,23 +22,32 @@ defmodule Jalka2026.Accounts do
 
   """
   def get_user_by_email(email) when is_binary(email) do
-    Repo.get_by(User, email: email)
+    competition_id = competition_id()
+    Repo.get_by(User, email: email, competition_id: competition_id)
   end
 
   def get_user_by_name(name) when is_binary(name) do
-    Repo.get_by(User, name: name)
+    competition_id = competition_id()
+    Repo.get_by(User, name: name, competition_id: competition_id)
   end
 
   def get_user_by_name(_name), do: []
 
   def get_allowed_users_by_name(query) when is_binary(query) do
-    Repo.all(from(a in AllowedUser, where: ilike(a.name, ^"%#{query}%")))
+    competition_id = competition_id()
+    Repo.all(from(a in AllowedUser, where: ilike(a.name, ^"%#{query}%") and a.competition_id == ^competition_id))
   end
 
   def get_allowed_users_by_name(_name), do: []
 
+  def get_allowed_users_exactly_by_name(query, competition_id) when is_binary(query) do
+    Repo.all(from(a in AllowedUser, where: like(a.name, ^"#{query}") and a.competition_id == ^competition_id))
+  end
+
+  def get_allowed_users_exactly_by_name(_name, _competition_id), do: []
+
   def get_allowed_users_exactly_by_name(query) when is_binary(query) do
-    Repo.all(from(a in AllowedUser, where: like(a.name, ^"#{query}")))
+    get_allowed_users_exactly_by_name(query, competition_id())
   end
 
   def get_allowed_users_exactly_by_name(_name), do: []
@@ -57,13 +66,15 @@ defmodule Jalka2026.Accounts do
   """
   def get_user_by_email_and_password(email, password)
       when is_binary(email) and is_binary(password) do
-    user = Repo.get_by(User, email: email)
+    competition_id = competition_id()
+    user = Repo.get_by(User, email: email, competition_id: competition_id)
     if User.valid_password?(user, password), do: user
   end
 
   def get_user_by_name_and_password(name, password)
       when is_binary(name) and is_binary(password) do
-    user = Repo.get_by(User, name: name)
+    competition_id = competition_id()
+    user = Repo.get_by(User, name: name, competition_id: competition_id)
     if User.valid_password?(user, password), do: user
   end
 
@@ -82,6 +93,19 @@ defmodule Jalka2026.Accounts do
 
   """
   def get_user!(id), do: Repo.get!(User, id)
+
+  @doc """
+  Gets a single user by ID, returning nil if not found.
+  """
+  def get_user(id), do: Repo.get(User, id)
+
+  @doc """
+  Returns a list of all users for the current competition.
+  """
+  def list_users do
+    competition_id = competition_id()
+    Repo.all(from(u in User, where: u.competition_id == ^competition_id))
+  end
 
   ## User registration
 
@@ -122,6 +146,17 @@ defmodule Jalka2026.Accounts do
   """
   def change_user_registration(%User{} = user, attrs \\ %{}) do
     User.registration_changeset(user, attrs, hash_password: false)
+  end
+
+  ## Theme
+
+  @doc """
+  Updates the user's theme preference.
+  """
+  def update_user_theme(user, theme) do
+    user
+    |> User.theme_changeset(%{theme: theme})
+    |> Repo.update()
   end
 
   ## Settings
@@ -377,5 +412,13 @@ defmodule Jalka2026.Accounts do
       {:ok, %{user: user}} -> {:ok, user}
       {:error, :user, changeset, _} -> {:error, changeset}
     end
+  end
+
+  @doc """
+  Returns the current competition ID from application config.
+  Delegates to `Jalka2026.Competitions.current_id/0`.
+  """
+  def competition_id do
+    Jalka2026.Competitions.current_id()
   end
 end

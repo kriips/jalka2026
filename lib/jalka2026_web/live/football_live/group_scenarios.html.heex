@@ -30,7 +30,7 @@
                 <%= for req <- @team_requirements do %>
                     <div class={"scenario-team-card #{status_class(req.status)}"}>
                         <div class="scenario-team-header">
-                            <span class="scenario-team-name"><%= req.team.name %></span>
+                            <span class="scenario-team-name"><%= TeamTranslations.translate(req.team.name) %></span>
                             <span class={"scenario-status-badge #{status_class(req.status)}"}><%= status_label(req.status) %></span>
                         </div>
 
@@ -85,7 +85,7 @@
                                 <%= for {team_stats, idx} <- Enum.with_index(@scenario_data.final_standings, 1) do %>
                                     <tr class={if idx <= 2, do: "qualified-row", else: ""}>
                                         <td><span class={"rank-badge #{rank_class(idx)}"}><%= idx %></span></td>
-                                        <td class="team-name-cell"><%= team_stats.team.name %></td>
+                                        <td class="team-name-cell"><%= TeamTranslations.translate(team_stats.team.name) %></td>
                                         <td><%= team_stats.played %></td>
                                         <td><%= team_stats.won %></td>
                                         <td><%= team_stats.drawn %></td>
@@ -98,7 +98,7 @@
                                 <%= for {team_stats, idx} <- Enum.with_index(@scenario_data.current_standings, 1) do %>
                                     <tr>
                                         <td><span class="rank-badge default"><%= idx %></span></td>
-                                        <td class="team-name-cell"><%= team_stats.team.name %></td>
+                                        <td class="team-name-cell"><%= TeamTranslations.translate(team_stats.team.name) %></td>
                                         <td><%= team_stats.played %></td>
                                         <td><%= team_stats.won %></td>
                                         <td><%= team_stats.drawn %></td>
@@ -124,9 +124,9 @@
                 <div class="remaining-matches-list">
                     <%= for match <- @scenario_data.remaining_matches do %>
                         <div class="remaining-match-item">
-                            <span class="match-home-team"><%= match.home_team.name %></span>
+                            <span class="match-home-team"><%= TeamTranslations.translate(match.home_team.name) %></span>
                             <span class="match-vs">vs</span>
-                            <span class="match-away-team"><%= match.away_team.name %></span>
+                            <span class="match-away-team"><%= TeamTranslations.translate(match.away_team.name) %></span>
                         </div>
                     <% end %>
                 </div>
@@ -156,7 +156,7 @@
                             <%= for {match, outcome} <- @selected_scenario.outcomes do %>
                                 <div class="scenario-outcome-item">
                                     <span class="outcome-teams">
-                                        <%= match.home_team.name %> vs <%= match.away_team.name %>
+                                        <%= TeamTranslations.translate(match.home_team.name) %> vs <%= TeamTranslations.translate(match.away_team.name) %>
                                     </span>
                                     <span class={"outcome-result outcome-#{outcome}"}>
                                         <%= outcome_label(outcome) %>
@@ -180,7 +180,7 @@
                                     <%= for {team_stats, idx} <- Enum.with_index(@selected_scenario.standings, 1) do %>
                                         <tr class={if idx <= 2, do: "qualified-row", else: ""}>
                                             <td><span class={"rank-badge #{rank_class(idx)}"}><%= idx %></span></td>
-                                            <td><%= team_stats.team.name %></td>
+                                            <td><%= TeamTranslations.translate(team_stats.team.name) %></td>
                                             <td class="points-cell"><%= team_stats.points %></td>
                                             <td><%= format_goal_diff(team_stats.goal_difference) %></td>
                                         </tr>

@@ -6,18 +6,26 @@
         </p>
     </div>
     <div class="container" id="main-content">
-        <div role="list" aria-label="Mängude nimekiri">
-        <%= for {match, {home_score, away_score}} <- @predictions do %>
+        <div role="list" aria-label="Mängude nimekiri" id="predictions-stream" phx-update="stream">
+        <div :for={{dom_id, item} <- @streams.prediction_items} id={dom_id} role="listitem">
+        <% match = item.match %>
+        <% {home_score, away_score} = item.scores %>
         <% prediction_complete = home_score != "-" and away_score != "-" %>
-        <% match_label = "#{match.home_team.name} vs #{match.away_team.name}" %>
-        <div class="match-card" role="listitem" aria-label={match_label}>
+        <% home_team_name = TeamTranslations.translate(match.home_team.name) %>
+        <% away_team_name = TeamTranslations.translate(match.away_team.name) %>
+        <% match_label = "#{home_team_name} vs #{away_team_name}" %>
+        <div class="match-card" aria-label={match_label}>
             <fieldset class="match-card-inner" aria-describedby={"match-status-#{match.id}"}>
                 <legend class="sr-only"><%= match_label %> - ennusta tulemus</legend>
                 <div class="team-section home">
                     <div class="team-flag-container">
-                        <img class="team-flag" src={match.home_team.flag} alt={"#{match.home_team.name} lipp"} />
+                        <%= if match.home_team.flag && match.home_team.flag != "" do %>
+                            <img class="team-flag" src={match.home_team.flag} alt={"#{home_team_name} lipp"} />
+                        <% else %>
+                            <div class="team-flag team-flag-placeholder" aria-label={"#{home_team_name} lipp puudub"}><%= String.slice(match.home_team.code || "", 0, 3) %></div>
+                        <% end %>
                     </div>
-                    <h4 class="team-name" id={"home-team-#{match.id}"}><%= match.home_team.name %></h4>
+                    <h4 class="team-name" id={"home-team-#{match.id}"}><%= home_team_name %></h4>
                 </div>
 
                 <div class="score-section" role="group" aria-label="Skoori sisestamine">
@@ -32,7 +40,7 @@
                             phx-value-side="home"
                             phx-value-home-score={home_score}
                             phx-value-away-score={away_score}
-                            aria-label={"Suurenda #{match.home_team.name} skoori, praegu #{home_score}. Kasuta nooleklahve skoori muutmiseks."}
+                            aria-label={"Suurenda #{home_team_name} skoori, praegu #{home_score}. Kasuta nooleklahve skoori muutmiseks."}
                             aria-keyshortcuts="ArrowUp ArrowDown"
                             tabindex="0"
                         >+</button>
@@ -46,13 +54,13 @@
                             phx-value-side="home"
                             phx-value-home-score={home_score}
                             phx-value-away-score={away_score}
-                            aria-label={"Vähenda #{match.home_team.name} skoori, praegu #{home_score}. Kasuta nooleklahve skoori muutmiseks."}
+                            aria-label={"Vähenda #{home_team_name} skoori, praegu #{home_score}. Kasuta nooleklahve skoori muutmiseks."}
                             aria-keyshortcuts="ArrowUp ArrowDown"
                             tabindex="0"
                         >−</button>
                     </div>
 
-                    <div class="score-display" role="status" aria-live="polite" aria-atomic="true" aria-label={"Praegune skoor: #{match.home_team.name} #{home_score}, #{match.away_team.name} #{away_score}"}>
+                    <div class="score-display" role="status" aria-live="polite" aria-atomic="true" aria-label={"Praegune skoor: #{home_team_name} #{home_score}, #{away_team_name} #{away_score}"}>
                         <span class={"score-value #{if home_score == "-", do: "empty", else: ""}"} aria-hidden="true"><%= home_score %></span>
                         <span class="score-separator" aria-hidden="true">:</span>
                         <span class={"score-value #{if away_score == "-", do: "empty", else: ""}"} aria-hidden="true"><%= away_score %></span>
@@ -70,7 +78,7 @@
                             phx-value-side="away"
                             phx-value-home-score={home_score}
                             phx-value-away-score={away_score}
-                            aria-label={"Suurenda #{match.away_team.name} skoori, praegu #{away_score}. Kasuta nooleklahve skoori muutmiseks."}
+                            aria-label={"Suurenda #{away_team_name} skoori, praegu #{away_score}. Kasuta nooleklahve skoori muutmiseks."}
                             aria-keyshortcuts="ArrowUp ArrowDown"
                             tabindex="0"
                         >+</button>
@@ -84,7 +92,7 @@
                             phx-value-side="away"
                             phx-value-home-score={home_score}
                             phx-value-away-score={away_score}
-                            aria-label={"Vähenda #{match.away_team.name} skoori, praegu #{away_score}. Kasuta nooleklahve skoori muutmiseks."}
+                            aria-label={"Vähenda #{away_team_name} skoori, praegu #{away_score}. Kasuta nooleklahve skoori muutmiseks."}
                             aria-keyshortcuts="ArrowUp ArrowDown"
                             tabindex="0"
                         >−</button>
@@ -93,9 +101,13 @@
 
                 <div class="team-section away">
                     <div class="team-flag-container">
-                        <img class="team-flag" src={match.away_team.flag} alt={"#{match.away_team.name} lipp"} />
+                        <%= if match.away_team.flag && match.away_team.flag != "" do %>
+                            <img class="team-flag" src={match.away_team.flag} alt={"#{away_team_name} lipp"} />
+                        <% else %>
+                            <div class="team-flag team-flag-placeholder" aria-label={"#{away_team_name} lipp puudub"}><%= String.slice(match.away_team.code || "", 0, 3) %></div>
+                        <% end %>
                     </div>
-                    <h4 class="team-name" id={"away-team-#{match.id}"}><%= match.away_team.name %></h4>
+                    <h4 class="team-name" id={"away-team-#{match.id}"}><%= away_team_name %></h4>
                 </div>
             </fieldset>
 
@@ -105,56 +117,6 @@
                     <%= if prediction_complete, do: "Ennustatud", else: "Ootel" %>
                 </span>
             </div>
-
-            <% historical = @historical_data[match.id] %>
-            <%= if historical && historical.stats && historical.stats.total_matches > 0 do %>
-                <details class="historical-matchup-details">
-                    <summary class="historical-matchup-toggle">
-                        Ajaloolised kohtumised (<%= historical.stats.total_matches %>)
-                    </summary>
-                    <div class="historical-matchup-content">
-                        <div class="h2h-mini-stats">
-                            <div class="h2h-mini-stat">
-                                <span class="h2h-mini-team"><%= match.home_team.name %></span>
-                                <span class="h2h-mini-value wins"><%= historical.stats.team1_wins %></span>
-                            </div>
-                            <div class="h2h-mini-stat draws">
-                                <span class="h2h-mini-label">Viiki</span>
-                                <span class="h2h-mini-value"><%= historical.stats.draws %></span>
-                            </div>
-                            <div class="h2h-mini-stat">
-                                <span class="h2h-mini-team"><%= match.away_team.name %></span>
-                                <span class="h2h-mini-value wins"><%= historical.stats.team2_wins %></span>
-                            </div>
-                        </div>
-
-                        <div class="h2h-goals-mini">
-                            Väravaid: <%= historical.stats.team1_goals %> - <%= historical.stats.team2_goals %>
-                        </div>
-
-                        <%= if length(historical.world_cup_matches) > 0 do %>
-                            <div class="wc-matches-mini">
-                                <div class="wc-matches-mini-header">MM-kohtumised</div>
-                                <%= for wc_match <- Enum.take(historical.world_cup_matches, 3) do %>
-                                    <div class="wc-match-mini-item">
-                                        <span class="wc-match-mini-date"><%= format_date(wc_match.date) %></span>
-                                        <span class="wc-match-mini-score">
-                                            <%= wc_match.home_team_name %> <%= wc_match.home_score %>-<%= wc_match.away_score %> <%= wc_match.away_team_name %>
-                                        </span>
-                                        <%= if wc_match.stage do %>
-                                            <span class="wc-match-mini-stage"><%= wc_match.stage %></span>
-                                        <% end %>
-                                    </div>
-                                <% end %>
-                            </div>
-                        <% end %>
-                    </div>
-                </details>
-            <% else %>
-                <div class="historical-matchup-empty">
-                    <span class="historical-empty-text">Ajaloolised kohtumised puuduvad</span>
-                </div>
-            <% end %>
 
             <!-- Match Analysis Dropdown -->
             <div class="match-analysis-section">
@@ -172,210 +134,156 @@
 
                 <%= if @expanded_match_id == match.id do %>
                     <div class="match-analysis-panel" id={"analysis-panel-#{match.id}"}>
-                        <!-- Tab Navigation -->
-                        <div class="analysis-tabs">
+                        <!-- Simulate Random Score Button - Primary Action -->
+                        <div class="simulate-random-action">
                             <button
                                 type="button"
-                                class={"analysis-tab #{if @active_analysis_tab == "simulation", do: "active", else: ""}"}
-                                phx-click="select_analysis_tab"
-                                phx-value-tab="simulation"
+                                class="button button-simulate-random"
+                                phx-click="simulate_random_score"
                                 phx-value-match-id={match.id}
+                                aria-label="Simuleeri juhuslik tulemus"
                             >
-                                Simulatsioon
+                                🎲 Simuleeri tulemus
                             </button>
-                            <button
-                                type="button"
-                                class={"analysis-tab #{if @active_analysis_tab == "history", do: "active", else: ""}"}
-                                phx-click="select_analysis_tab"
-                                phx-value-tab="history"
-                                phx-value-match-id={match.id}
-                            >
-                                Detailne ajalugu
-                            </button>
+                            <span class="simulate-hint">Valib simulatsiooni põhjal juhusliku tõenäolise tulemuse</span>
                         </div>
 
-                        <!-- Simulation Tab Content -->
-                        <%= if @active_analysis_tab == "simulation" do %>
-                            <div class="analysis-tab-content">
-                                <%= if @simulating do %>
-                                    <div class="analysis-loading">
-                                        <div class="spinner-small"></div>
-                                        <span>Simuleerib 10 000 mängu...</span>
+                        <!-- Loading or Content -->
+                        <%= if @simulating or @detailed_history == nil do %>
+                            <div class="analysis-loading">
+                                <div class="spinner-small"></div>
+                                <span>Laen andmeid...</span>
+                            </div>
+                        <% else %>
+                            <div class="analysis-content">
+                                <!-- Head to Head Stats -->
+                                <%= if @detailed_history.stats && @detailed_history.stats.total_matches > 0 do %>
+                                    <div class="h2h-compact">
+                                        <div class="h2h-header">Omavahelised kohtumised (<%= @detailed_history.stats.total_matches %>)</div>
+                                        <div class="h2h-stats-row">
+                                            <div class="h2h-stat-item">
+                                                <span class="h2h-stat-team"><%= home_team_name %></span>
+                                                <span class="h2h-stat-value wins"><%= @detailed_history.stats.team1_wins %></span>
+                                            </div>
+                                            <div class="h2h-stat-item draws">
+                                                <span class="h2h-stat-label">Viiki</span>
+                                                <span class="h2h-stat-value"><%= @detailed_history.stats.draws %></span>
+                                            </div>
+                                            <div class="h2h-stat-item">
+                                                <span class="h2h-stat-team"><%= away_team_name %></span>
+                                                <span class="h2h-stat-value wins"><%= @detailed_history.stats.team2_wins %></span>
+                                            </div>
+                                        </div>
+                                        <div class="h2h-goals-row">
+                                            Väravaid: <%= @detailed_history.stats.team1_goals %> - <%= @detailed_history.stats.team2_goals %>
+                                        </div>
                                     </div>
                                 <% else %>
-                                    <%= if @simulation_data do %>
-                                        <div class="simulation-results-compact">
-                                            <!-- Main Outcome Probabilities -->
-                                            <div class="outcome-grid-compact">
-                                                <div class="outcome-item team1-win">
-                                                    <span class="outcome-team-name"><%= match.home_team.name %></span>
-                                                    <span class="outcome-pct"><%= format_percentage(@simulation_data.results.home_win_pct) %>%</span>
-                                                    <div class="outcome-bar-mini">
-                                                        <div class="outcome-bar-fill-mini team1" style={"width: #{@simulation_data.results.home_win_pct}%"}></div>
-                                                    </div>
-                                                </div>
-                                                <div class="outcome-item draw">
-                                                    <span class="outcome-team-name">Viik</span>
-                                                    <span class="outcome-pct"><%= format_percentage(@simulation_data.results.draw_pct) %>%</span>
-                                                    <div class="outcome-bar-mini">
-                                                        <div class="outcome-bar-fill-mini draw" style={"width: #{@simulation_data.results.draw_pct}%"}></div>
-                                                    </div>
-                                                </div>
-                                                <div class="outcome-item team2-win">
-                                                    <span class="outcome-team-name"><%= match.away_team.name %></span>
-                                                    <span class="outcome-pct"><%= format_percentage(@simulation_data.results.away_win_pct) %>%</span>
-                                                    <div class="outcome-bar-mini">
-                                                        <div class="outcome-bar-fill-mini team2" style={"width: #{@simulation_data.results.away_win_pct}%"}></div>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                    <div class="h2h-empty">Omavahelised kohtumised puuduvad</div>
+                                <% end %>
 
-                                            <!-- Most Likely Scores -->
-                                            <div class="likely-scores-compact">
-                                                <div class="likely-scores-header">Tõenäolisemad tulemused:</div>
-                                                <div class="likely-scores-list">
-                                                    <%= for {score, idx} <- Enum.with_index(Enum.take(@simulation_data.results.most_likely_scores, 5)) do %>
-                                                        <span class={"likely-score-badge #{if idx == 0, do: "top", else: ""}"}>
-                                                            <%= score.home_score %>-<%= score.away_score %> (<%= format_percentage(score.percentage) %>%)
+                                <!-- World Cup Matches (all, no limit) -->
+                                <%= if length(@detailed_history.world_cup_matches) > 0 do %>
+                                    <div class="wc-history-compact">
+                                        <div class="wc-history-header">MM-kohtumised</div>
+                                        <div class="wc-matches-list-compact">
+                                            <%= for wc_match <- @detailed_history.world_cup_matches do %>
+                                                <div class="wc-match-item-compact">
+                                                    <span class="wc-match-date"><%= format_date(wc_match.date) %></span>
+                                                    <span class="wc-match-score"><%= wc_match.home_team_name %> <%= wc_match.home_score %>-<%= wc_match.away_score %> <%= wc_match.away_team_name %></span>
+                                                    <%= if wc_match.stage do %>
+                                                        <span class="wc-match-stage"><%= wc_match.stage %></span>
+                                                    <% end %>
+                                                </div>
+                                            <% end %>
+                                        </div>
+                                    </div>
+                                <% end %>
+
+                                <!-- WC Stats Comparison by Tournament -->
+                                <%= if @detailed_history.team1_wc_stats && @detailed_history.team1_wc_stats.matches_played > 0 || @detailed_history.team2_wc_stats && @detailed_history.team2_wc_stats.matches_played > 0 do %>
+                                    <div class="wc-stats-section">
+                                        <div class="wc-stats-header">MM-ajalugu üldiselt</div>
+
+                                        <!-- Overall totals -->
+                                        <div class="wc-stats-totals">
+                                            <div class="wc-stats-team-total">
+                                                <span class="wc-stats-team-name"><%= home_team_name %></span>
+                                                <%= if @detailed_history.team1_wc_stats && @detailed_history.team1_wc_stats.matches_played > 0 do %>
+                                                    <span class="wc-stats-total-line">Kokku: <%= @detailed_history.team1_wc_stats.matches_played %> mängu</span>
+                                                    <span class="wc-stats-total-line">V/Vi/K: <%= @detailed_history.team1_wc_stats.wins %>/<%= @detailed_history.team1_wc_stats.draws %>/<%= @detailed_history.team1_wc_stats.losses %></span>
+                                                    <%= if @detailed_history.team1_wc_positions.total_top_4 > 0 do %>
+                                                        <span class="wc-stats-positions">
+                                                            <%= if @detailed_history.team1_wc_positions.counts.gold > 0 do %><span class="wc-position wc-gold" title="Maailmameister"><%= @detailed_history.team1_wc_positions.counts.gold %>x</span><% end %>
+                                                            <%= if @detailed_history.team1_wc_positions.counts.silver > 0 do %><span class="wc-position wc-silver" title="Finalist"><%= @detailed_history.team1_wc_positions.counts.silver %>x</span><% end %>
+                                                            <%= if @detailed_history.team1_wc_positions.counts.bronze > 0 do %><span class="wc-position wc-bronze" title="3. koht"><%= @detailed_history.team1_wc_positions.counts.bronze %>x</span><% end %>
+                                                            <%= if @detailed_history.team1_wc_positions.counts.fourth > 0 do %><span class="wc-position wc-fourth" title="4. koht"><%= @detailed_history.team1_wc_positions.counts.fourth %>x</span><% end %>
                                                         </span>
                                                     <% end %>
-                                                </div>
+                                                <% else %>
+                                                    <span class="wc-stats-empty">MM-ajalugu puudub</span>
+                                                <% end %>
                                             </div>
-
-                                            <!-- Average Goals -->
-                                            <div class="avg-goals-compact">
-                                                <span><%= match.home_team.name %>: <%= @simulation_data.results.avg_home_goals %> väravat</span>
-                                                <span class="avg-goals-sep">|</span>
-                                                <span><%= match.away_team.name %>: <%= @simulation_data.results.avg_away_goals %> väravat</span>
+                                            <div class="wc-stats-team-total">
+                                                <span class="wc-stats-team-name"><%= away_team_name %></span>
+                                                <%= if @detailed_history.team2_wc_stats && @detailed_history.team2_wc_stats.matches_played > 0 do %>
+                                                    <span class="wc-stats-total-line">Kokku: <%= @detailed_history.team2_wc_stats.matches_played %> mängu</span>
+                                                    <span class="wc-stats-total-line">V/Vi/K: <%= @detailed_history.team2_wc_stats.wins %>/<%= @detailed_history.team2_wc_stats.draws %>/<%= @detailed_history.team2_wc_stats.losses %></span>
+                                                    <%= if @detailed_history.team2_wc_positions.total_top_4 > 0 do %>
+                                                        <span class="wc-stats-positions">
+                                                            <%= if @detailed_history.team2_wc_positions.counts.gold > 0 do %><span class="wc-position wc-gold" title="Maailmameister"><%= @detailed_history.team2_wc_positions.counts.gold %>x</span><% end %>
+                                                            <%= if @detailed_history.team2_wc_positions.counts.silver > 0 do %><span class="wc-position wc-silver" title="Finalist"><%= @detailed_history.team2_wc_positions.counts.silver %>x</span><% end %>
+                                                            <%= if @detailed_history.team2_wc_positions.counts.bronze > 0 do %><span class="wc-position wc-bronze" title="3. koht"><%= @detailed_history.team2_wc_positions.counts.bronze %>x</span><% end %>
+                                                            <%= if @detailed_history.team2_wc_positions.counts.fourth > 0 do %><span class="wc-position wc-fourth" title="4. koht"><%= @detailed_history.team2_wc_positions.counts.fourth %>x</span><% end %>
+                                                        </span>
+                                                    <% end %>
+                                                <% else %>
+                                                    <span class="wc-stats-empty">MM-ajalugu puudub</span>
+                                                <% end %>
                                             </div>
-
-                                            <!-- Strength Comparison -->
-                                            <details class="strength-details">
-                                                <summary>Meeskondade tugevuse võrdlus</summary>
-                                                <div class="strength-comparison-compact">
-                                                    <div class="strength-team">
-                                                        <span class="strength-team-name"><%= match.home_team.name %></span>
-                                                        <span class={"strength-overall #{strength_color(@simulation_data.team1_breakdown.overall)}"}><%= @simulation_data.team1_breakdown.overall %></span>
-                                                    </div>
-                                                    <div class="strength-team">
-                                                        <span class="strength-team-name"><%= match.away_team.name %></span>
-                                                        <span class={"strength-overall #{strength_color(@simulation_data.team2_breakdown.overall)}"}><%= @simulation_data.team2_breakdown.overall %></span>
-                                                    </div>
-                                                </div>
-                                            </details>
                                         </div>
-                                    <% end %>
-                                <% end %>
-                            </div>
-                        <% end %>
 
-                        <!-- History Tab Content -->
-                        <%= if @active_analysis_tab == "history" do %>
-                            <div class="analysis-tab-content">
-                                <%= if @detailed_history == nil do %>
-                                    <div class="analysis-loading">
-                                        <div class="spinner-small"></div>
-                                        <span>Laen ajaloolisi andmeid...</span>
-                                    </div>
-                                <% else %>
-                                    <div class="history-results-compact">
-                                        <!-- Head to Head Stats -->
-                                        <%= if @detailed_history.stats && @detailed_history.stats.total_matches > 0 do %>
-                                            <div class="h2h-compact">
-                                                <div class="h2h-header">Omavahelised kohtumised (<%= @detailed_history.stats.total_matches %>)</div>
-                                                <div class="h2h-stats-row">
-                                                    <div class="h2h-stat-item">
-                                                        <span class="h2h-stat-team"><%= match.home_team.name %></span>
-                                                        <span class="h2h-stat-value wins"><%= @detailed_history.stats.team1_wins %></span>
-                                                    </div>
-                                                    <div class="h2h-stat-item draws">
-                                                        <span class="h2h-stat-label">Viiki</span>
-                                                        <span class="h2h-stat-value"><%= @detailed_history.stats.draws %></span>
-                                                    </div>
-                                                    <div class="h2h-stat-item">
-                                                        <span class="h2h-stat-team"><%= match.away_team.name %></span>
-                                                        <span class="h2h-stat-value wins"><%= @detailed_history.stats.team2_wins %></span>
-                                                    </div>
-                                                </div>
-                                                <div class="h2h-goals-row">
-                                                    Väravaid: <%= @detailed_history.stats.team1_goals %> - <%= @detailed_history.stats.team2_goals %>
-                                                </div>
-                                            </div>
-                                        <% else %>
-                                            <div class="h2h-empty">Omavahelised kohtumised puuduvad</div>
-                                        <% end %>
-
-                                        <!-- World Cup Matches -->
-                                        <%= if length(@detailed_history.world_cup_matches) > 0 do %>
-                                            <div class="wc-history-compact">
-                                                <div class="wc-history-header">MM-kohtumised</div>
-                                                <div class="wc-matches-list-compact">
-                                                    <%= for wc_match <- Enum.take(@detailed_history.world_cup_matches, 5) do %>
-                                                        <div class="wc-match-item-compact">
-                                                            <span class="wc-match-date"><%= format_date(wc_match.date) %></span>
-                                                            <span class="wc-match-score"><%= wc_match.home_team_name %> <%= wc_match.home_score %>-<%= wc_match.away_score %> <%= wc_match.away_team_name %></span>
-                                                            <%= if wc_match.stage do %>
-                                                                <span class="wc-match-stage"><%= wc_match.stage %></span>
+                                        <!-- Tournament by tournament breakdown -->
+                                        <div class="wc-tournament-breakdown">
+                                            <div class="wc-tournament-column">
+                                                <%= if length(@detailed_history.team1_wc_by_tournament) > 0 do %>
+                                                    <%= for tournament <- @detailed_history.team1_wc_by_tournament do %>
+                                                        <% position = get_position_for_year(@detailed_history.team1_wc_positions, tournament.year) %>
+                                                        <% elimination = get_elimination_for_year(@detailed_history.team1_wc_eliminations, tournament.year) %>
+                                                        <div class={"wc-tournament-item #{if position, do: "wc-has-position-#{position}", else: if(elimination, do: "wc-eliminated", else: "")}"}>
+                                                            <span class="wc-tournament-year"><%= tournament.year %></span>
+                                                            <%= if position do %>
+                                                                <span class={"wc-tournament-position wc-pos-#{position}"}><%= position_icon(position) %></span>
+                                                            <% else %>
+                                                                <%= if elimination do %>
+                                                                    <span class="wc-tournament-elimination" title={Football.stage_display_name(elimination)}><%= stage_short(elimination) %></span>
+                                                                <% end %>
                                                             <% end %>
+                                                            <span class="wc-tournament-stats"><%= tournament.wins %>V <%= tournament.draws %>Vi <%= tournament.losses %>K</span>
                                                         </div>
                                                     <% end %>
-                                                </div>
+                                                <% end %>
                                             </div>
-                                        <% end %>
-
-                                        <!-- Recent Form -->
-                                        <div class="form-comparison-compact">
-                                            <div class="form-header">Hiljutine vorm (viimased 5 mängu)</div>
-                                            <div class="form-teams-row">
-                                                <div class="form-team-col">
-                                                    <span class="form-team-name"><%= match.home_team.name %></span>
-                                                    <div class="form-badges-compact">
-                                                        <%= for form_match <- @detailed_history.team1_form do %>
-                                                            <span class={"form-badge-compact #{result_class(form_match.result)}"} title={"vs #{form_match.opponent_name}: #{form_match.goals_for}-#{form_match.goals_against}"}>
-                                                                <%= form_match.result %>
-                                                            </span>
-                                                        <% end %>
-                                                    </div>
-                                                </div>
-                                                <div class="form-team-col">
-                                                    <span class="form-team-name"><%= match.away_team.name %></span>
-                                                    <div class="form-badges-compact">
-                                                        <%= for form_match <- @detailed_history.team2_form do %>
-                                                            <span class={"form-badge-compact #{result_class(form_match.result)}"} title={"vs #{form_match.opponent_name}: #{form_match.goals_for}-#{form_match.goals_against}"}>
-                                                                <%= form_match.result %>
-                                                            </span>
-                                                        <% end %>
-                                                    </div>
-                                                </div>
+                                            <div class="wc-tournament-column">
+                                                <%= if length(@detailed_history.team2_wc_by_tournament) > 0 do %>
+                                                    <%= for tournament <- @detailed_history.team2_wc_by_tournament do %>
+                                                        <% position = get_position_for_year(@detailed_history.team2_wc_positions, tournament.year) %>
+                                                        <% elimination = get_elimination_for_year(@detailed_history.team2_wc_eliminations, tournament.year) %>
+                                                        <div class={"wc-tournament-item #{if position, do: "wc-has-position-#{position}", else: if(elimination, do: "wc-eliminated", else: "")}"}>
+                                                            <span class="wc-tournament-year"><%= tournament.year %></span>
+                                                            <%= if position do %>
+                                                                <span class={"wc-tournament-position wc-pos-#{position}"}><%= position_icon(position) %></span>
+                                                            <% else %>
+                                                                <%= if elimination do %>
+                                                                    <span class="wc-tournament-elimination" title={Football.stage_display_name(elimination)}><%= stage_short(elimination) %></span>
+                                                                <% end %>
+                                                            <% end %>
+                                                            <span class="wc-tournament-stats"><%= tournament.wins %>V <%= tournament.draws %>Vi <%= tournament.losses %>K</span>
+                                                        </div>
+                                                    <% end %>
+                                                <% end %>
                                             </div>
                                         </div>
-
-                                        <!-- WC Stats Comparison -->
-                                        <%= if @detailed_history.team1_wc_stats && @detailed_history.team1_wc_stats.matches_played > 0 || @detailed_history.team2_wc_stats && @detailed_history.team2_wc_stats.matches_played > 0 do %>
-                                            <details class="wc-stats-details">
-                                                <summary>MM-ajalugu üldiselt</summary>
-                                                <div class="wc-stats-comparison">
-                                                    <div class="wc-stats-team">
-                                                        <span class="wc-stats-team-name"><%= match.home_team.name %></span>
-                                                        <%= if @detailed_history.team1_wc_stats && @detailed_history.team1_wc_stats.matches_played > 0 do %>
-                                                            <span class="wc-stats-line">Mängud: <%= @detailed_history.team1_wc_stats.matches_played %></span>
-                                                            <span class="wc-stats-line">V/Vi/K: <%= @detailed_history.team1_wc_stats.wins %>/<%= @detailed_history.team1_wc_stats.draws %>/<%= @detailed_history.team1_wc_stats.losses %></span>
-                                                        <% else %>
-                                                            <span class="wc-stats-empty">Puudub</span>
-                                                        <% end %>
-                                                    </div>
-                                                    <div class="wc-stats-team">
-                                                        <span class="wc-stats-team-name"><%= match.away_team.name %></span>
-                                                        <%= if @detailed_history.team2_wc_stats && @detailed_history.team2_wc_stats.matches_played > 0 do %>
-                                                            <span class="wc-stats-line">Mängud: <%= @detailed_history.team2_wc_stats.matches_played %></span>
-                                                            <span class="wc-stats-line">V/Vi/K: <%= @detailed_history.team2_wc_stats.wins %>/<%= @detailed_history.team2_wc_stats.draws %>/<%= @detailed_history.team2_wc_stats.losses %></span>
-                                                        <% else %>
-                                                            <span class="wc-stats-empty">Puudub</span>
-                                                        <% end %>
-                                                    </div>
-                                                </div>
-                                            </details>
-                                        <% end %>
                                     </div>
                                 <% end %>
                             </div>
@@ -384,54 +292,18 @@
                 <% end %>
             </div>
         </div>
-        <% end %>
+        </div>
         </div>
 
-        <!-- Group Scenarios Section -->
+        <!-- Predicted Group Standings Section -->
         <div class="group-scenarios-section">
-            <button
-                type="button"
-                class={"scenarios-toggle #{if @show_scenarios, do: "active", else: ""}"}
-                phx-click="toggle_scenarios"
-                aria-expanded={@show_scenarios}
-                aria-controls="scenarios-panel"
-            >
-                <span class="scenarios-toggle-icon"><%= if @show_scenarios, do: "▼", else: "▶" %></span>
-                <span class="scenarios-toggle-text">Alagrupistsenaariumid</span>
-                <span class="scenarios-toggle-subtitle">Edasipääsuvõimalused</span>
-            </button>
-
-            <%= if @show_scenarios && @scenario_data do %>
-                <div class="scenarios-panel" id="scenarios-panel">
-                    <!-- Team Status Cards -->
-                    <div class="scenarios-team-status">
-                        <div class="scenarios-section-header">Meeskondade olukord</div>
-                        <div class="scenarios-team-cards">
-                            <%= for req <- @team_requirements do %>
-                                <div class={"scenario-team-card-compact #{status_class(req.status)}"}>
-                                    <div class="scenario-team-row">
-                                        <span class="scenario-team-name-compact"><%= req.team.name %></span>
-                                        <span class={"scenario-status-badge-compact #{status_class(req.status)}"}><%= status_label(req.status) %></span>
-                                    </div>
-                                    <%= if Map.has_key?(req, :current_stats) do %>
-                                        <div class="scenario-team-stats-compact">
-                                            <span>P: <%= req.current_stats.points %></span>
-                                            <span>VV: <%= format_goal_diff(req.current_stats.goal_difference) %></span>
-                                            <%= if Map.has_key?(req, :percentage) do %>
-                                                <span class="scenario-pct">Edasi: <%= req.percentage %>%</span>
-                                            <% end %>
-                                        </div>
-                                    <% end %>
-                                </div>
-                            <% end %>
-                        </div>
-                    </div>
-
-                    <!-- Current Standings Table -->
-                    <div class="scenarios-standings">
-                        <div class="scenarios-section-header">Hetkeseisutabel</div>
+            <div class="scenarios-panel" id="predicted-standings-panel">
+                <div class="scenarios-standings">
+                    <div class="scenarios-section-header">Ennustuse põhjal tabel</div>
+                    <% all_filled = Enum.all?(@predictions, fn {_m, {h, a}} -> h != "-" and a != "-" end) %>
+                    <%= if all_filled do %>
                         <div class="standings-table-compact">
-                            <table role="table" aria-label="Alagrupi tabel">
+                            <table role="table" aria-label="Ennustuse põhjal alagrupi tabel" aria-live="polite">
                                 <thead>
                                     <tr>
                                         <th scope="col">#</th>
@@ -445,87 +317,80 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <%= case @scenario_data.status do %>
-                                        <% :completed -> %>
-                                            <%= for {team_stats, idx} <- Enum.with_index(@scenario_data.final_standings, 1) do %>
-                                                <tr class={if idx <= 2, do: "qualified-row", else: ""}>
-                                                    <td><%= idx %></td>
-                                                    <td class="team-name-cell"><%= team_stats.team.name %></td>
-                                                    <td><%= team_stats.played %></td>
-                                                    <td><%= team_stats.won %></td>
-                                                    <td><%= team_stats.drawn %></td>
-                                                    <td><%= team_stats.lost %></td>
-                                                    <td><%= format_goal_diff(team_stats.goal_difference) %></td>
-                                                    <td class="points-cell"><%= team_stats.points %></td>
-                                                </tr>
-                                            <% end %>
-                                        <% :in_progress -> %>
-                                            <%= for {team_stats, idx} <- Enum.with_index(@scenario_data.current_standings, 1) do %>
-                                                <tr>
-                                                    <td><%= idx %></td>
-                                                    <td class="team-name-cell"><%= team_stats.team.name %></td>
-                                                    <td><%= team_stats.played %></td>
-                                                    <td><%= team_stats.won %></td>
-                                                    <td><%= team_stats.drawn %></td>
-                                                    <td><%= team_stats.lost %></td>
-                                                    <td><%= format_goal_diff(team_stats.goal_difference) %></td>
-                                                    <td class="points-cell"><%= team_stats.points %></td>
-                                                </tr>
-                                            <% end %>
+                                    <%= for {team_stats, idx} <- Enum.with_index(@predicted_standings, 1) do %>
+                                        <tr class={if idx <= 2, do: "qualified-row", else: ""}>
+                                            <td><%= idx %></td>
+                                            <td class="team-name-cell"><%= TeamTranslations.translate(team_stats.team.name) %></td>
+                                            <td><%= team_stats.played %></td>
+                                            <td><%= team_stats.won %></td>
+                                            <td><%= team_stats.drawn %></td>
+                                            <td><%= team_stats.lost %></td>
+                                            <td><%= format_goal_diff(team_stats.goal_difference) %></td>
+                                            <td class="points-cell"><%= team_stats.points %></td>
+                                        </tr>
                                     <% end %>
                                 </tbody>
                             </table>
                         </div>
                         <p class="table-legend-compact">M = mängud, V = võidud, Vi = viigid, K = kaotused, VV = väravatevahe, P = punktid</p>
-                    </div>
-
-                    <!-- Remaining Matches -->
-                    <%= if @scenario_data.status == :in_progress and length(@scenario_data.remaining_matches) > 0 do %>
-                        <div class="scenarios-remaining">
-                            <div class="scenarios-section-header">Järelejäänud mängud</div>
-                            <div class="remaining-matches-compact">
-                                <%= for match <- @scenario_data.remaining_matches do %>
-                                    <div class="remaining-match-compact">
-                                        <span><%= match.home_team.name %></span>
-                                        <span class="vs-sep">vs</span>
-                                        <span><%= match.away_team.name %></span>
-                                    </div>
-                                <% end %>
+                        <p class="predicted-standings-hint">Esimesed 2 meeskonda pääsevad sinu ennustuse järgi edasi playoff-mängudesse.</p>
+                    <% else %>
+                        <div class="predicted-standings-incomplete">
+                            <p>Täida kõik ennustused, et näha alagrupi eeldatavat tabelit.</p>
+                            <div class="standings-table-compact">
+                                <table role="table" aria-label="Ennustuse põhjal alagrupi tabel (poolik)">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">#</th>
+                                            <th scope="col">Meeskond</th>
+                                            <th scope="col">M</th>
+                                            <th scope="col">V</th>
+                                            <th scope="col">Vi</th>
+                                            <th scope="col">K</th>
+                                            <th scope="col">VV</th>
+                                            <th scope="col">P</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <%= for {team_stats, idx} <- Enum.with_index(@predicted_standings, 1) do %>
+                                            <tr>
+                                                <td><%= idx %></td>
+                                                <td class="team-name-cell"><%= TeamTranslations.translate(team_stats.team.name) %></td>
+                                                <td><%= team_stats.played %></td>
+                                                <td><%= team_stats.won %></td>
+                                                <td><%= team_stats.drawn %></td>
+                                                <td><%= team_stats.lost %></td>
+                                                <td><%= format_goal_diff(team_stats.goal_difference) %></td>
+                                                <td class="points-cell"><%= team_stats.points %></td>
+                                            </tr>
+                                        <% end %>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     <% end %>
-
-                    <!-- Scenarios Info -->
-                    <%= if @scenario_data.status == :in_progress and length(@scenario_data.scenarios) > 0 do %>
-                        <div class="scenarios-info-compact">
-                            <span class="scenarios-count">Kokku <%= length(@scenario_data.scenarios) %> võimalikku stsenaariumi</span>
-                            <.link navigate={Routes.football_group_scenarios_path(@socket, :view, @group)} class="scenarios-link">
-                                Vaata kõiki stsenaariume →
-                            </.link>
-                        </div>
-                    <% end %>
                 </div>
-            <% end %>
+            </div>
         </div>
 
         <nav class="group-navigation" aria-label="Alagruppi vahel navigeerimine">
             <div class="group-nav-buttons">
                 <%= if @prev_group do %>
-                    <.link navigate={Routes.user_prediction_groups_path(@socket, :edit, @prev_group)} class="button button-secondary group-nav-btn" aria-label={"Eelmine alagrupp #{@prev_group}"}>
-                        ← Alagrupp <%= @prev_group %>
+                    <.link navigate={Routes.user_prediction_groups_path(@socket, :edit, @prev_group)} class="group-nav-btn group-nav-btn-secondary" aria-label={"Eelmine alagrupp #{@prev_group}"}>
+                        ← <%= @prev_group %>
                     </.link>
                 <% else %>
-                    <span class="button button-secondary group-nav-btn disabled" aria-disabled="true">← Eelmine</span>
+                    <span class="group-nav-btn group-nav-btn-secondary disabled" aria-disabled="true">← Eelmine</span>
                 <% end %>
 
-                <.link navigate={Routes.user_prediction_navigate_path(@socket, :navigate)} class={"button button-large #{@predictions_done} button-main"} aria-label="Tagasi ennustuste navigeerimise juurde">Tagasi</.link>
+                <.link navigate={Routes.user_prediction_navigate_path(@socket, :navigate)} class={"group-nav-btn group-nav-btn-primary #{@predictions_done}"} aria-label="Tagasi ennustuste navigeerimise juurde">Tagasi</.link>
 
                 <%= if @next_group do %>
-                    <.link navigate={Routes.user_prediction_groups_path(@socket, :edit, @next_group)} class="button button-secondary group-nav-btn" aria-label={"Järgmine alagrupp #{@next_group}"}>
-                        Alagrupp <%= @next_group %> →
+                    <.link navigate={Routes.user_prediction_groups_path(@socket, :edit, @next_group)} class="group-nav-btn group-nav-btn-secondary" aria-label={"Järgmine alagrupp #{@next_group}"}>
+                        <%= @next_group %> →
                     </.link>
                 <% else %>
-                    <span class="button button-secondary group-nav-btn disabled" aria-disabled="true">Järgmine →</span>
+                    <span class="group-nav-btn group-nav-btn-secondary disabled" aria-disabled="true">Järgmine →</span>
                 <% end %>
             </div>
         </nav>

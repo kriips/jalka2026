@@ -5,12 +5,35 @@ defmodule Jalka2026.FootballFixtures do
   """
 
   alias Jalka2026.Repo
-  alias Jalka2026.Football.{Team, Match, GroupPrediction, PlayoffPrediction, PlayoffResult}
+  alias Jalka2026.Football.{Team, Match, GroupPrediction, PlayoffPrediction, PlayoffResult, Competition}
+
+  @doc """
+  Ensures the default competition exists for tests.
+  """
+  def ensure_competition_exists do
+    case Repo.get(Competition, "wc-2026") do
+      nil ->
+        %Competition{}
+        |> Competition.changeset(%{
+          id: "wc-2026",
+          name: "FIFA World Cup 2026",
+          short_name: "MM 2026",
+          type: "world_cup",
+          year: 2026,
+          is_active: true
+        })
+        |> Repo.insert!()
+
+      competition ->
+        competition
+    end
+  end
 
   @doc """
   Creates a team.
   """
   def team_fixture(attrs \\ %{}) do
+    ensure_competition_exists()
     {:ok, team} =
       %Team{}
       |> Team.changeset(
@@ -137,13 +160,15 @@ defmodule Jalka2026.FootballFixtures do
   Creates a playoff result.
   """
   def playoff_result_fixture(attrs \\ %{}) do
+    ensure_competition_exists()
     team = attrs[:team] || team_fixture()
 
     {:ok, result} =
       %PlayoffResult{}
       |> PlayoffResult.create_changeset(%{
         team_id: team.id,
-        phase: attrs[:phase] || 16
+        phase: attrs[:phase] || 16,
+        competition_id: "wc-2026"
       })
       |> Repo.insert()
 

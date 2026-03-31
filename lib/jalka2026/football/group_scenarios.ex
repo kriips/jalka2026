@@ -104,6 +104,7 @@ defmodule Jalka2026.Football.GroupScenarios do
     case scenario_data.status do
       :completed ->
         advancement = scenario_data.advancement
+
         Enum.map(scenario_data.final_standings, fn team_stats ->
           %{
             team: team_stats.team,
@@ -130,13 +131,9 @@ defmodule Jalka2026.Football.GroupScenarios do
   end
 
   defp get_group_teams(group) do
-    query =
-      from(t in Jalka2026.Football.Team,
-        where: t.group == ^group,
-        order_by: t.name
-      )
-
-    Repo.all(query)
+    Jalka2026.Football.Cache.get_teams()
+    |> Enum.filter(&(&1.group == group))
+    |> Enum.sort_by(& &1.name)
   end
 
   defp calculate_team_stats(team, matches) do
@@ -254,7 +251,7 @@ defmodule Jalka2026.Football.GroupScenarios do
           goals_for: team_stats.goals_for + add_gf,
           goals_against: team_stats.goals_against + add_ga,
           goal_difference: team_stats.goal_difference + add_gf - add_ga,
-          points: team_stats.points + (add_won * 3) + add_drawn
+          points: team_stats.points + add_won * 3 + add_drawn
       }
     end)
   end
@@ -277,7 +274,8 @@ defmodule Jalka2026.Football.GroupScenarios do
           true -> :unlikely
         end
 
-      message = generate_requirement_message(team_stats, status, qualifying_count, total_scenarios)
+      message =
+        generate_requirement_message(team_stats, status, qualifying_count, total_scenarios)
 
       %{
         team: team_stats.team,
@@ -336,5 +334,111 @@ defmodule Jalka2026.Football.GroupScenarios do
     else
       "Alagrupiturniir lõppenud. Edasipääs jäi saavutamata."
     end
+  end
+
+  @doc """
+  Calculate predicted group standings based on a user's predictions.
+  Takes a list of {match, {home_score, away_score}} tuples (from the prediction page).
+  Returns sorted standings showing what the group table would look like if predictions come true.
+  """
+  def calculate_predicted_standings(predictions) do
+    # Extract teams from the matches
+    teams =
+      predictions
+      |> Enum.flat_map(fn {match, _scores} -> [match.home_team, match.away_team] end)
+      |> Enum.uniq_by(& &1.id)
+
+    # Calculate stats for each team based on predictions
+    standings =
+      teams
+      |> Enum.map(fn team ->
+        calculate_predicted_team_stats(team, predictions)
+      end)
+      |> sort_standings()
+
+    standings
+  end
+
+  @doc """
+  Get the predicted top 2 teams (qualifiers) from a group based on user predictions.
+  Returns a list of team IDs that would qualify.
+  """
+  def get_predicted_qualifiers(predictions) do
+    standings = calculate_predicted_standings(predictions)
+    standings |> Enum.take(2) |> Enum.map(& &1.team.id)
+  end
+
+  @doc """
+  Get predicted qualifiers for all groups for a given user.
+  Returns a list of team IDs that would qualify across all groups.
+  """
+  def get_all_predicted_qualifiers(user_id) do
+    alias Jalka2026.Football
+
+    @valid_groups
+    |> Enum.flat_map(fn group ->
+      group_name = "Alagrupp #{group}"
+      matches = Football.get_matches_by_group(group_name)
+
+      predictions =
+        matches
+        |> Enum.map(fn match ->
+          case Football.get_prediction_by_user_match(user_id, match.id) do
+            %{home_score: home_score, away_score: away_score} -> {match, {home_score, away_score}}
+            _ -> {match, {"-", "-"}}
+          end
+        end)
+
+      # Only calculate if all predictions are filled
+      all_filled = Enum.all?(predictions, fn {_m, {h, a}} -> h != "-" and a != "-" end)
+
+      if all_filled do
+        get_predicted_qualifiers(predictions)
+      else
+        []
+      end
+    end)
+  end
+
+  defp calculate_predicted_team_stats(team, predictions) do
+    # Only count predictions that are filled in (not "-")
+    team_predictions =
+      Enum.filter(predictions, fn {match, {home_score, away_score}} ->
+        (match.home_team_id == team.id || match.away_team_id == team.id) &&
+          home_score != "-" && away_score != "-"
+      end)
+
+    {played, won, drawn, lost, goals_for, goals_against} =
+      Enum.reduce(team_predictions, {0, 0, 0, 0, 0, 0}, fn {match, {home_score, away_score}}, {p, w, d, l, gf, ga} ->
+        is_home = match.home_team_id == team.id
+
+        {scored, conceded} =
+          if is_home do
+            {home_score, away_score}
+          else
+            {away_score, home_score}
+          end
+
+        cond do
+          scored > conceded -> {p + 1, w + 1, d, l, gf + scored, ga + conceded}
+          scored < conceded -> {p + 1, w, d, l + 1, gf + scored, ga + conceded}
+          true -> {p + 1, w, d + 1, l, gf + scored, ga + conceded}
+        end
+      end)
+
+    points = won * 3 + drawn
+    goal_difference = goals_for - goals_against
+
+    %{
+      team: team,
+      played: played,
+      won: won,
+      drawn: drawn,
+      lost: lost,
+      goals_for: goals_for,
+      goals_against: goals_against,
+      goal_difference: goal_difference,
+      points: points
+    }
   end
 end

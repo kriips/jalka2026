@@ -52,7 +52,13 @@ defmodule Jalka2026.AccountsFixtures do
 
   def extract_user_token(fun) do
     {:ok, captured} = fun.(&"[TOKEN]#{&1}[TOKEN]")
-    [_, token, _] = String.split(captured.body, "[TOKEN]")
+    # Support both old-style map with :body and Bamboo.Email with :text_body
+    body = case captured do
+      %Bamboo.Email{text_body: text_body} -> text_body
+      %{body: body} -> body
+      %{text_body: text_body} -> text_body
+    end
+    [_, token, _] = String.split(body, "[TOKEN]")
     token
   end
 end

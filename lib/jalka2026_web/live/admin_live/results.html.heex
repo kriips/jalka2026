@@ -28,23 +28,22 @@
             <!-- Matches for selected group -->
             <div class="info-card">
                 <h2 class="info-card-title">Alagrupp <%= @selected_group %></h2>
-                <div class="matches-list">
-                    <%= for match <- Map.get(@groups, @selected_group, []) do %>
-                        <div class={"match-row " <> if match.finished, do: "finished", else: ""}>
+                <div class="matches-list" id="admin-matches-stream" phx-update="stream">
+                    <div :for={{dom_id, item} <- @streams.match_rows} id={dom_id} class={"match-row " <> if item.match.finished, do: "finished", else: ""}>
                             <div class="match-teams">
-                                <span class="team home"><%= match.home_team.name %></span>
+                                <span class="team home"><%= TeamTranslations.translate(item.match.home_team.name) %></span>
                                 <span class="vs">vs</span>
-                                <span class="team away"><%= match.away_team.name %></span>
+                                <span class="team away"><%= TeamTranslations.translate(item.match.away_team.name) %></span>
                             </div>
                             <form class="match-score-form" phx-submit="save_result">
-                                <input type="hidden" name="match_id" value={match.id} />
+                                <input type="hidden" name="match_id" value={item.match.id} />
                                 <input
                                     type="number"
                                     name="home_score"
                                     class="score-input"
                                     min="0"
                                     max="20"
-                                    value={match.home_score}
+                                    value={item.match.home_score}
                                     placeholder="-"
                                 />
                                 <span class="score-separator">:</span>
@@ -54,22 +53,21 @@
                                     class="score-input"
                                     min="0"
                                     max="20"
-                                    value={match.away_score}
+                                    value={item.match.away_score}
                                     placeholder="-"
                                 />
                                 <button type="submit" class="save-btn">
-                                    <%= if match.finished, do: "Uuenda", else: "Salvesta" %>
+                                    <%= if item.match.finished, do: "Uuenda", else: "Salvesta" %>
                                 </button>
                             </form>
                             <div class="match-status">
-                                <%= if match.finished do %>
+                                <%= if item.match.finished do %>
                                     <span class="status-badge finished">Lopetatud</span>
                                 <% else %>
                                     <span class="status-badge pending">Ootel</span>
                                 <% end %>
                             </div>
-                        </div>
-                    <% end %>
+                    </div>
                 </div>
             </div>
         <% else %>

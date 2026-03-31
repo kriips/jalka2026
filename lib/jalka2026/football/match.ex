@@ -2,7 +2,7 @@ defmodule Jalka2026.Football.Match do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias Jalka2026.Football.Team
+  alias Jalka2026.Football.{Team, Competition}
   alias Jalka2026.Repo
 
   schema "matches" do
@@ -14,6 +14,7 @@ defmodule Jalka2026.Football.Match do
     field(:result, :string)
     field(:date, :naive_datetime)
     field(:finished, :boolean, default: false)
+    belongs_to(:competition, Competition, type: :string)
 
     timestamps()
   end
@@ -44,7 +45,8 @@ defmodule Jalka2026.Football.Match do
       :away_score,
       :result,
       :date,
-      :finished
+      :finished,
+      :competition_id
     ])
     |> validate_inclusion(:group, @valid_groups)
   end

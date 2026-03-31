@@ -1,6 +1,6 @@
-<main role="main" class="container" aria-label="Jalgpalli MM 2026 ennustusvõistlus">
+<main role="main" class="container" aria-label={"#{if @competition, do: @competition.name, else: "Jalgpalli MM 2026"} ennustusvõistlus"}>
     <div class="prediction-page-header">
-        <h1 id="page-title">Jalgpalli MM 2026</h1>
+        <h1 id="page-title"><%= if @competition, do: @competition.short_name, else: "Jalgpalli MM 2026" %></h1>
         <p class="page-subtitle">Ennustusvõistluse reeglid ja navigeerimine</p>
     </div>
     <div class="container" id="main-content">
@@ -88,6 +88,40 @@
                 </div>
                 <span class="nav-card-label">Ennusta</span>
             </.link>
+            <%= if @current_user do %>
+            <.link navigate={Routes.user_favorite_teams_path(@socket, :edit)} class="nav-card" aria-label="Vali lemmikmeeskonnad">
+                <div class="nav-card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                    </svg>
+                </div>
+                <span class="nav-card-label">Lemmikud</span>
+            </.link>
+            <.link navigate={Routes.user_rivalries_path(@socket, :edit)} class="nav-card" aria-label="Halda rivaale">
+                <div class="nav-card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                    </svg>
+                </div>
+                <span class="nav-card-label">Rivaalid</span>
+            </.link>
+            <.link navigate={~p"/bracket"} class="nav-card" aria-label="Turniiri tabel">
+                <div class="nav-card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M2 4h4v4H2V4zm0 6h4v4H2v-4zm0 6h4v4H2v-4zm6-12h4v4H8V4zm0 6h4v4H8v-4zm6-6h4v4h-4V4zm0 6h4v4h-4v-4zm-6 6h4v4H8v-4zm6 0h4v4h-4v-4zm6-12h4v4h-4V4zm0 6h4v4h-4v-4zm0 6h4v4h-4v-4z"/>
+                    </svg>
+                </div>
+                <span class="nav-card-label">Tabel</span>
+            </.link>
+            <.link navigate={~p"/bracket/compare"} class="nav-card" aria-label="Võrdle tabeleid">
+                <div class="nav-card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M10 3H4c-1.1 0-2 .9-2 2v4c0 1.1.9 2 2 2h6c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 6H4V5h6v4zm10-6h-6c-1.1 0-2 .9-2 2v4c0 1.1.9 2 2 2h6c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 6h-6V5h6v4zm-10 4H4c-1.1 0-2 .9-2 2v4c0 1.1.9 2 2 2h6c1.1 0 2-.9 2-2v-4c0-1.1-.9-2-2-2zm0 6H4v-4h6v4zm10-6h-6c-1.1 0-2 .9-2 2v4c0 1.1.9 2 2 2h6c1.1 0 2-.9 2-2v-4c0-1.1-.9-2-2-2zm0 6h-6v-4h6v4z"/>
+                    </svg>
+                </div>
+                <span class="nav-card-label">Võrdle</span>
+            </.link>
+            <% end %>
         </nav>
     </div>
 </main>

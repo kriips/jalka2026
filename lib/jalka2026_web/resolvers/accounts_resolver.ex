@@ -1,20 +1,18 @@
 defmodule Jalka2026Web.Resolvers.AccountsResolver do
-  alias Jalka2026.{Accounts, Repo}
-  alias Accounts.{User}
+  alias Jalka2026.Accounts
 
   def list_users() do
-    User
-    |> Repo.all()
+    Accounts.list_users()
   end
 
   def list_allowed_users(query) do
     require Logger
     Logger.debug("list_allowed_user" <> query)
-    Jalka2026.Accounts.get_allowed_users_by_name(query)
+    Accounts.get_allowed_users_by_name(query)
   end
 
   def find_user(_parent, %{id: id}, _resolution) do
-    case Jalka2026.Accounts.get_user!(id) do
+    case Accounts.get_user!(id) do
       nil ->
         {:error, "User ID #{id} not found"}
 
@@ -24,7 +22,7 @@ defmodule Jalka2026Web.Resolvers.AccountsResolver do
   end
 
   def get_user(user_id) do
-    Jalka2026.Accounts.get_user!(user_id)
+    Accounts.get_user!(user_id)
   end
 
   def current_user(_, %{context: %{current_user: current_user}}) do
