@@ -3,6 +3,18 @@ defmodule Jalka2026.Accounts.User do
   import Ecto.Changeset
   alias Jalka2026.Accounts
 
+  @type t :: %__MODULE__{
+    id: pos_integer() | nil,
+    email: String.t() | nil,
+    name: String.t() | nil,
+    is_admin: boolean(),
+    competition_id: String.t(),
+    theme: String.t(),
+    confirmed_at: NaiveDateTime.t() | nil,
+    inserted_at: NaiveDateTime.t() | nil,
+    updated_at: NaiveDateTime.t() | nil
+  }
+
   @derive {Inspect, except: [:password]}
   schema "users" do
     field(:email, :string)
@@ -11,7 +23,7 @@ defmodule Jalka2026.Accounts.User do
     field(:hashed_password, :string)
     field(:confirmed_at, :naive_datetime)
     field(:is_admin, :boolean, default: false)
-    field(:competition_id, :string, default: "wc-2026")
+    field(:competition_id, :string, default: Jalka2026.Competitions.current_id())
     field(:theme, :string, default: "light")
 
     timestamps()

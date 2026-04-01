@@ -1,6 +1,10 @@
 defmodule Jalka2026.Football do
   @moduledoc """
-  The Accounts context.
+  The Football context.
+
+  Manages matches, predictions, teams, playoff data, historical matchups,
+  and bracket predictions for the current competition. Functions return
+  Ecto schema structs (`%Match{}`, `%GroupPrediction{}`, `%Team{}`, etc.).
   """
 
   import Ecto.Query, warn: false
@@ -23,6 +27,10 @@ defmodule Jalka2026.Football do
   alias Jalka2026Web.Resolvers.FootballResolver
   alias Jalka2026.Telemetry.Events, as: TelemetryEvents
   alias Jalka2026.Competitions
+
+  @type match :: Match.t()
+  @type prediction :: GroupPrediction.t()
+  @type team :: Jalka2026.Football.Team.t()
 
   ## Competition Management
   ## Delegated to Jalka2026.Competitions context — these remain for backward compatibility.
@@ -96,28 +104,32 @@ defmodule Jalka2026.Football do
   ## Database getters
 
   def get_matches_by_group(group) when is_binary(group) do
-    comp_id = competition_id()
+    TelemetryEvents.span_match_listing(%{source: :matches_by_group, group: group}, fn ->
+      comp_id = competition_id()
 
-    query =
-      from(m in Match,
-        where: m.group == ^group and m.competition_id == ^comp_id,
-        order_by: m.date,
-        preload: [:home_team, :away_team]
-      )
+      query =
+        from(m in Match,
+          where: m.group == ^group and m.competition_id == ^comp_id,
+          order_by: m.date,
+          preload: [:home_team, :away_team]
+        )
 
-    Repo.all(query)
+      Repo.all(query)
+    end)
   end
 
   def get_finished_matches() do
-    comp_id = competition_id()
+    TelemetryEvents.span_match_listing(%{source: :finished_matches}, fn ->
+      comp_id = competition_id()
 
-    query =
-      from(m in Match,
-        where: m.finished == true and m.competition_id == ^comp_id,
-        order_by: m.date
-      )
+      query =
+        from(m in Match,
+          where: m.finished == true and m.competition_id == ^comp_id,
+          order_by: m.date
+        )
 
-    Repo.all(query)
+      Repo.all(query)
+    end)
   end
 
   def get_playoff_results() do
@@ -128,18 +140,20 @@ defmodule Jalka2026.Football do
   end
 
   def get_matches() do
-    comp_id = competition_id()
+    TelemetryEvents.span_match_listing(%{source: :all_matches}, fn ->
+      comp_id = competition_id()
 
-    query =
-      from(m in Match,
-        where: m.competition_id == ^comp_id,
-        order_by: m.date,
-        preload: [:home_team, :away_team]
-      )
+      query =
+        from(m in Match,
+          where: m.competition_id == ^comp_id,
+          order_by: m.date,
+          preload: [:home_team, :away_team]
+        )
 
-    Repo.all(query)
-    |> Enum.map(fn match ->
-      %Match{match | date: Timex.shift(match.date, hours: +2)}
+      Repo.all(query)
+      |> Enum.map(fn match ->
+        %Match{match | date: Timex.shift(match.date, hours: +2)}
+      end)
     end)
   end
 
@@ -156,8 +170,10 @@ defmodule Jalka2026.Football do
   Used by leaderboard to avoid N+1 queries.
   """
   def get_all_predictions_indexed() do
-    Repo.all(GroupPrediction)
-    |> Map.new(fn p -> {{p.user_id, p.match_id}, p} end)
+    TelemetryEvents.span_prediction_load(%{source: :all_predictions_indexed}, fn ->
+      Repo.all(GroupPrediction)
+      |> Map.new(fn p -> {{p.user_id, p.match_id}, p} end)
+    end)
   end
 
   @doc """
@@ -166,10 +182,12 @@ defmodule Jalka2026.Football do
   Used by streak/badge calculation to avoid N+1 queries.
   """
   def get_all_predictions_by_user() do
-    Repo.all(GroupPrediction)
-    |> Enum.group_by(& &1.user_id)
-    |> Map.new(fn {user_id, predictions} ->
-      {user_id, Map.new(predictions, fn p -> {p.match_id, p} end)}
+    TelemetryEvents.span_prediction_load(%{source: :all_predictions_by_user}, fn ->
+      Repo.all(GroupPrediction)
+      |> Enum.group_by(& &1.user_id)
+      |> Map.new(fn {user_id, predictions} ->
+        {user_id, Map.new(predictions, fn p -> {p.match_id, p} end)}
+      end)
     end)
   end
 
@@ -179,15 +197,17 @@ defmodule Jalka2026.Football do
   Used by leaderboard to avoid N+1 queries.
   """
   def get_all_playoff_predictions_indexed() do
-    Repo.all(PlayoffPrediction)
-    |> Enum.group_by(& &1.user_id)
-    |> Map.new(fn {user_id, predictions} ->
-      by_phase =
-        Enum.reduce(predictions, %{32 => [], 16 => [], 8 => [], 4 => [], 2 => [], 1 => []}, fn pred, acc ->
-          Map.update(acc, pred.phase, [pred.team_id], &[pred.team_id | &1])
-        end)
+    TelemetryEvents.span_prediction_load(%{source: :all_playoff_predictions_indexed}, fn ->
+      Repo.all(PlayoffPrediction)
+      |> Enum.group_by(& &1.user_id)
+      |> Map.new(fn {user_id, predictions} ->
+        by_phase =
+          Enum.reduce(predictions, %{32 => [], 16 => [], 8 => [], 4 => [], 2 => [], 1 => []}, fn pred, acc ->
+            Map.update(acc, pred.phase, [pred.team_id], &[pred.team_id | &1])
+          end)
 
-      {user_id, by_phase}
+        {user_id, by_phase}
+      end)
     end)
   end
 

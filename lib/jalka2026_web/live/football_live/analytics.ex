@@ -4,6 +4,7 @@ defmodule Jalka2026Web.FootballLive.Analytics do
   alias Jalka2026Web.Resolvers.{FootballResolver, AccountsResolver}
   alias Jalka2026.Football
   alias Jalka2026.Leaderboard
+  alias Jalka2026.Leaderboard.Entry
   alias Jalka2026.Badges
 
   @impl true
@@ -18,7 +19,7 @@ defmodule Jalka2026Web.FootballLive.Analytics do
 
     # Get leaderboard position
     leaderboard = Leaderboard.get_leaderboard()
-    leaderboard_entry = Enum.find(leaderboard, fn {id, _, _, _, _, _, _, _, _} -> id == user_id_int end)
+    leaderboard_entry = Enum.find(leaderboard, fn %Entry{user_id: id} -> id == user_id_int end)
 
     {:ok,
      socket

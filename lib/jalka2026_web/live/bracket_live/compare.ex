@@ -6,10 +6,8 @@ defmodule Jalka2026Web.BracketLive.Compare do
   alias Jalka2026Web.TelemetryHooks
 
   @impl true
-  def mount(_params, session, socket) do
+  def mount(_params, _session, socket) do
     TelemetryHooks.with_mount_telemetry(__MODULE__, socket, fn ->
-      socket = Jalka2026Web.LiveHelpers.assign_defaults(session, socket)
-
       # Get all users for comparison selection
       users = Accounts.list_users() |> Enum.reject(&(&1.id == socket.assigns.current_user.id))
 

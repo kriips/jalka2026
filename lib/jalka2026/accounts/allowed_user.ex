@@ -4,7 +4,7 @@ defmodule Jalka2026.Accounts.AllowedUser do
 
   schema "allowed_users" do
     field(:name, :string)
-    field(:competition_id, :string, default: "wc-2026")
+    field(:competition_id, :string, default: Jalka2026.Competitions.current_id())
     timestamps()
   end
 

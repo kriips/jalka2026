@@ -12,13 +12,12 @@ defmodule Jalka2026Web.UserPredictionLive.Groups do
   @groups ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"]
 
   @impl true
-  def mount(params, session, socket) do
+  def mount(params, _session, socket) do
     TelemetryHooks.with_mount_telemetry(__MODULE__, socket, fn ->
       group = Map.get(params, "group")
-      socket = Jalka2026Web.LiveHelpers.assign_defaults(session, socket)
 
       # Subscribe to prediction sync for multi-device updates
-      if connected?(socket) and socket.assigns[:current_user] do
+      if connected?(socket) do
         PredictionSync.subscribe(socket.assigns.current_user.id)
       end
 

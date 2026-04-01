@@ -1,5 +1,6 @@
 defmodule Jalka2026Web.Resolvers.FootballResolver do
   alias Jalka2026.Football
+  alias Jalka2026.Scoring
 
   def list_matches_by_group(group) do
     Football.get_matches_by_group("Alagrupp #{group}")
@@ -398,7 +399,7 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
   end
 
   defp compare_playoff_predictions(user1_playoff, user2_playoff) do
-    phases = [32, 16, 8, 4, 2, 1]
+    phases = Scoring.phases()
     phase_names = %{
       32 => "32 parimat",
       16 => "Kaheksandikfinalistid",
@@ -407,7 +408,7 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
       2 => "Finalistid",
       1 => "Võitja"
     }
-    phase_points = %{32 => 1, 16 => 2, 8 => 3, 4 => 5, 2 => 6, 1 => 8}
+    phase_points = Scoring.playoff_phase_points_map()
 
     Enum.map(phases, fn phase ->
       user1_teams = Map.get(user1_playoff, phase, [])
@@ -595,8 +596,8 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
   end
 
   defp calculate_playoff_analytics(playoff_predictions) do
-    phases = [32, 16, 8, 4, 2, 1]
-    phase_points_map = %{32 => 1, 16 => 2, 8 => 3, 4 => 5, 2 => 6, 1 => 8}
+    phases = Scoring.phases()
+    phase_points_map = Scoring.playoff_phase_points_map()
 
     Enum.map(phases, fn phase ->
       teams = Map.get(playoff_predictions, phase, [])

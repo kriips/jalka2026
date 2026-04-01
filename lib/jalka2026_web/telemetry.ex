@@ -99,6 +99,23 @@ defmodule Jalka2026Web.Telemetry do
       counter("jalka2026.performance.alert.count",
         tags: [:key, :type],
         description: "Performance alerts triggered"
+      ),
+
+      # Query Group Metrics (N+1 regression detection)
+      summary("jalka2026.query_group.prediction_load.stop.duration",
+        unit: {:native, :millisecond},
+        tags: [:source],
+        description: "Time taken to bulk-load prediction data"
+      ),
+      summary("jalka2026.query_group.match_listing.stop.duration",
+        unit: {:native, :millisecond},
+        tags: [:source],
+        description: "Time taken to load match listing data"
+      ),
+      summary("jalka2026.query_group.leaderboard_data_load.stop.duration",
+        unit: {:native, :millisecond},
+        tags: [:source],
+        description: "Time taken to load all leaderboard data"
       )
     ]
   end

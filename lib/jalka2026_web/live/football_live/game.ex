@@ -7,11 +7,7 @@ defmodule Jalka2026Web.FootballLive.Game do
   alias Jalka2026Web.Live.Components.MatchChat
 
   @impl true
-  def mount(params, session, socket) do
-    socket = Phoenix.Component.assign_new(socket, :current_user, fn ->
-      find_current_user(session)
-    end)
-
+  def mount(params, _session, socket) do
     case FootballResolver.list_match(params["id"]) do
       nil ->
         {:ok, socket |> redirect(to: "/football/games")}
@@ -49,12 +45,6 @@ defmodule Jalka2026Web.FootballLive.Game do
            selected_scenario: nil
          )}
     end
-  end
-
-  defp find_current_user(session) do
-    with user_token when not is_nil(user_token) <- session["user_token"],
-         %Jalka2026.Accounts.User{} = user <- Jalka2026.Accounts.get_user_by_session_token(user_token),
-         do: user
   end
 
   @impl true

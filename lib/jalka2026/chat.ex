@@ -1,11 +1,16 @@
 defmodule Jalka2026.Chat do
   @moduledoc """
   The Chat context for managing match comments and real-time chat functionality.
+
+  Functions return `%Comment{}` structs (with `:user` preloaded).
+  Subscribe to `"match_chat:<match_id>"` via `subscribe/1` for real-time updates.
   """
 
   import Ecto.Query, warn: false
   alias Jalka2026.Repo
   alias Jalka2026.Chat.Comment
+
+  @type comment :: Comment.t()
 
   @topic_prefix "match_chat:"
 

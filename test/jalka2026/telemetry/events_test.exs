@@ -213,4 +213,70 @@ defmodule Jalka2026.Telemetry.EventsTest do
       assert metadata.user_id == 99
     end
   end
+
+  describe "span_prediction_load/2" do
+    test "executes the provided function and returns its result" do
+      metadata = %{source: :all_predictions_indexed}
+      result = Events.span_prediction_load(metadata, fn -> {:ok, %{}} end)
+      assert result == {:ok, %{}}
+    end
+
+    test "emits telemetry start and stop events" do
+      attach_test_handler([:jalka2026, :query_group, :prediction_load, :start])
+      attach_test_handler([:jalka2026, :query_group, :prediction_load, :stop])
+
+      metadata = %{source: :all_predictions_by_user}
+      Events.span_prediction_load(metadata, fn -> :done end)
+
+      assert_receive {:telemetry_event, [:jalka2026, :query_group, :prediction_load, :start], _m, recv_meta}
+      assert recv_meta.source == :all_predictions_by_user
+
+      assert_receive {:telemetry_event, [:jalka2026, :query_group, :prediction_load, :stop], stop_m, _meta}
+      assert Map.has_key?(stop_m, :duration)
+    end
+  end
+
+  describe "span_match_listing/2" do
+    test "executes the provided function and returns its result" do
+      metadata = %{source: :matches_by_group, group: "A"}
+      result = Events.span_match_listing(metadata, fn -> [{:match, 1}] end)
+      assert result == [{:match, 1}]
+    end
+
+    test "emits telemetry start and stop events with source metadata" do
+      attach_test_handler([:jalka2026, :query_group, :match_listing, :start])
+      attach_test_handler([:jalka2026, :query_group, :match_listing, :stop])
+
+      metadata = %{source: :finished_matches}
+      Events.span_match_listing(metadata, fn -> [] end)
+
+      assert_receive {:telemetry_event, [:jalka2026, :query_group, :match_listing, :start], _m, recv_meta}
+      assert recv_meta.source == :finished_matches
+
+      assert_receive {:telemetry_event, [:jalka2026, :query_group, :match_listing, :stop], stop_m, _meta}
+      assert Map.has_key?(stop_m, :duration)
+    end
+  end
+
+  describe "span_leaderboard_data_load/2" do
+    test "executes the provided function and returns its result" do
+      metadata = %{source: :recalculate_leaderboard}
+      result = Events.span_leaderboard_data_load(metadata, fn -> {:data, :loaded} end)
+      assert result == {:data, :loaded}
+    end
+
+    test "emits telemetry start and stop events" do
+      attach_test_handler([:jalka2026, :query_group, :leaderboard_data_load, :start])
+      attach_test_handler([:jalka2026, :query_group, :leaderboard_data_load, :stop])
+
+      metadata = %{source: :recalculate_leaderboard}
+      Events.span_leaderboard_data_load(metadata, fn -> :done end)
+
+      assert_receive {:telemetry_event, [:jalka2026, :query_group, :leaderboard_data_load, :start], _m, recv_meta}
+      assert recv_meta.source == :recalculate_leaderboard
+
+      assert_receive {:telemetry_event, [:jalka2026, :query_group, :leaderboard_data_load, :stop], stop_m, _meta}
+      assert Map.has_key?(stop_m, :duration)
+    end
+  end
 end

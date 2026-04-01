@@ -1,4 +1,19 @@
 defmodule Jalka2026.Leaderboard do
+  @moduledoc """
+  Cached leaderboard GenServer.
+
+  Exposes a ranked list of `%Jalka2026.Leaderboard.Entry{}` structs
+  sorted by total points (descending). The leaderboard is recalculated
+  asynchronously via `Task.async/1` and cached in GenServer state.
+
+  ## Public API
+
+  - `get_leaderboard/0` — returns `[Entry.t()]`
+  - `recalc_leaderboard/0` — synchronous recalculation (circuit-breaker: #{500}ms)
+  - `recalc_leaderboard_async/0` — fire-and-forget recalculation
+  - `subscribe/0` — subscribe to `:leaderboard_updated` broadcasts
+  """
+
   use GenServer
 
   require Logger
@@ -9,12 +24,16 @@ defmodule Jalka2026.Leaderboard do
   alias Jalka2026.Scoring
   alias Jalka2026.Streak
   alias Jalka2026.Badges
+  alias Jalka2026.Leaderboard.Entry
   alias Jalka2026.Telemetry.Events, as: TelemetryEvents
+
+  @type leaderboard :: [Entry.t()]
 
   @pubsub Jalka2026.PubSub
   @topic "leaderboard:updates"
   @circuit_breaker_timeout 500
 
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(_opts \\ []) do
     GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
   end
@@ -45,13 +64,15 @@ defmodule Jalka2026.Leaderboard do
   @doc """
   Subscribe to leaderboard updates via PubSub.
   """
+  @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
     Phoenix.PubSub.subscribe(@pubsub, @topic)
   end
 
   @doc """
-  Returns the current cached leaderboard.
+  Returns the current cached leaderboard as a list of `%Entry{}` structs.
   """
+  @spec get_leaderboard() :: leaderboard()
   def get_leaderboard, do: GenServer.call(__MODULE__, :get_leaderboard)
 
   @doc """
@@ -60,12 +81,14 @@ defmodule Jalka2026.Leaderboard do
   The recalculation continues in the background and the cache will be updated
   when it completes.
   """
+  @spec recalc_leaderboard() :: leaderboard()
   def recalc_leaderboard, do: GenServer.call(__MODULE__, :recalc_leaderboard)
 
   @doc """
   Asynchronously recalculates the leaderboard. Use this when you don't need
   to wait for the result (e.g., after user registration).
   """
+  @spec recalc_leaderboard_async() :: :ok
   def recalc_leaderboard_async, do: GenServer.cast(__MODULE__, :recalc_leaderboard_async)
 
   # --- Callbacks ---
@@ -184,9 +207,11 @@ defmodule Jalka2026.Leaderboard do
   end
 
   defp calculate_changes(old_leaderboard, new_leaderboard) do
-    old_map = Map.new(old_leaderboard, fn {id, rank, _name, _gp, _pp, _bp, _cs, _ls, points} -> {id, {rank, points}} end)
+    old_map = Map.new(old_leaderboard, fn %Entry{user_id: id, rank: rank, total_points: points} ->
+      {id, {rank, points}}
+    end)
 
-    Enum.reduce(new_leaderboard, %{}, fn {id, new_rank, _name, _gp, _pp, _bp, _cs, _ls, new_points}, acc ->
+    Enum.reduce(new_leaderboard, %{}, fn %Entry{user_id: id, rank: new_rank, total_points: new_points}, acc ->
       case Map.get(old_map, id) do
         nil ->
           Map.put(acc, id, %{rank_change: :new, points_change: new_points})
@@ -205,14 +230,21 @@ defmodule Jalka2026.Leaderboard do
   end
 
   defp recalculate_leaderboard() do
-    finished_matches = FootballResolver.list_finished_matches()
-    playoff_results = FootballResolver.list_playoff_results()
-    users = AccountsResolver.list_users()
+    {finished_matches, playoff_results, users,
+     all_predictions, all_predictions_by_user, all_playoff_predictions} =
+      TelemetryEvents.span_leaderboard_data_load(%{source: :recalculate_leaderboard}, fn ->
+        finished_matches = FootballResolver.list_finished_matches()
+        playoff_results = FootballResolver.list_playoff_results()
+        users = AccountsResolver.list_users()
 
-    # Bulk-load all predictions in single queries (avoids N+1)
-    all_predictions = Football.get_all_predictions_indexed()
-    all_predictions_by_user = Football.get_all_predictions_by_user()
-    all_playoff_predictions = Football.get_all_playoff_predictions_indexed()
+        # Bulk-load all predictions in single queries (avoids N+1)
+        all_predictions = Football.get_all_predictions_indexed()
+        all_predictions_by_user = Football.get_all_predictions_by_user()
+        all_playoff_predictions = Football.get_all_playoff_predictions_indexed()
+
+        {finished_matches, playoff_results, users,
+         all_predictions, all_predictions_by_user, all_playoff_predictions}
+      end)
 
     # Recalculate streaks and badges with shared data to avoid duplicate queries
     streaks = Streak.recalculate_all_streaks(users, finished_matches, all_predictions_by_user)
@@ -229,28 +261,25 @@ defmodule Jalka2026.Leaderboard do
       |> Enum.map(&calculate_points(&1, finished_matches, all_predictions))
       |> Enum.map(&calculate_playoff_points(&1, playoff_results, all_playoff_predictions))
       |> Enum.map(&add_streak_data(&1, streaks))
-      |> Enum.sort(fn {_id1, _name1, _gpoints1, _ppoints1, _bonus1, _current1, _longest1, points1},
-                      {_id2, _name2, _gpoints2, _ppoints2, _bonus2, _current2, _longest2, points2} ->
-        points1 >= points2
-      end)
+      |> Enum.sort_by(& &1.total_points, :desc)
       |> add_rank()
     end)
   end
 
-  defp calculate_playoff_points({user_id, user_name, group_points}, playoff_results, all_playoff_predictions) do
+  defp calculate_playoff_points(%{user_id: user_id} = acc, playoff_results, all_playoff_predictions) do
     playoff_predictions = Map.get(all_playoff_predictions, user_id, %{})
     playoff_points = Scoring.total_playoff_points(playoff_results, playoff_predictions)
-    {user_id, user_name, group_points, playoff_points}
+    Map.put(acc, :playoff_points, playoff_points)
   end
 
-  defp add_streak_data({user_id, user_name, group_points, playoff_points}, streaks) do
+  defp add_streak_data(%{user_id: user_id, group_points: gp, playoff_points: pp} = acc, streaks) do
     streak_data = Map.get(streaks, user_id, %{current_streak: 0, longest_streak: 0, bonus_points: 0})
-    bonus_points = streak_data.bonus_points
-    current_streak = streak_data.current_streak
-    longest_streak = streak_data.longest_streak
-    total_points = group_points + playoff_points + bonus_points
 
-    {user_id, user_name, group_points, playoff_points, bonus_points, current_streak, longest_streak, total_points}
+    acc
+    |> Map.put(:bonus_points, streak_data.bonus_points)
+    |> Map.put(:current_streak, streak_data.current_streak)
+    |> Map.put(:longest_streak, streak_data.longest_streak)
+    |> Map.put(:total_points, gp + pp + streak_data.bonus_points)
   end
 
   defp calculate_points(%User{} = user, finished_matches, all_predictions) do
@@ -264,7 +293,7 @@ defmodule Jalka2026.Leaderboard do
         points + Scoring.group_match_points(finished_match, group_prediction)
       end)
 
-    {user.id, user.name, points}
+    %{user_id: user.id, name: user.name, group_points: points}
   end
 
 
@@ -285,34 +314,19 @@ defmodule Jalka2026.Leaderboard do
     end
   end
 
-  defp add_rank(users, rank \\ 1, index \\ 1, acc \\ [])
-
-  defp add_rank([{id, name, gpoints, ppoints, bpoints, current_streak, longest_streak, points} | users], rank, index, acc) do
-    add_rank(users, rank, index + 1, points, acc ++ [{id, rank, name, gpoints, ppoints, bpoints, current_streak, longest_streak, points}])
-  end
-
-  defp add_rank([], _rank, _index, []) do
-    []
-  end
-
-  defp add_rank([{id, name, gpoints, ppoints, bpoints, current_streak, longest_streak, points} | users], rank, index, prev_points, acc) do
-    new_rank =
-      if points == prev_points do
-        rank
-      else
-        index
-      end
-
-    add_rank(
-      users,
-      new_rank,
-      index + 1,
-      points,
-      acc ++ [{id, new_rank, name, gpoints, ppoints, bpoints, current_streak, longest_streak, points}]
-    )
-  end
-
-  defp add_rank([], _rank, _index, _prev_points, acc) do
-    acc
+  defp add_rank(rows) do
+    rows
+    |> Enum.with_index(1)
+    |> Enum.reduce({[], nil, 1}, fn {row, index}, {acc, prev_points, current_rank} ->
+      rank = if row.total_points == prev_points, do: current_rank, else: index
+      entry = Entry.new(
+        row.user_id, rank, row.name,
+        row.group_points, row.playoff_points, row.bonus_points,
+        row.current_streak, row.longest_streak, row.total_points
+      )
+      {[entry | acc], row.total_points, rank}
+    end)
+    |> elem(0)
+    |> Enum.reverse()
   end
 end

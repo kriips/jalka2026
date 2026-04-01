@@ -182,6 +182,76 @@ defmodule Jalka2026.Telemetry.Events do
   end
 
   @doc """
+  Execute a telemetry span for prediction data loading.
+  Measures the time taken to bulk-load predictions from the database.
+
+  ## Events emitted:
+  - `[:jalka2026, :query_group, :prediction_load, :start]`
+  - `[:jalka2026, :query_group, :prediction_load, :stop]`
+  - `[:jalka2026, :query_group, :prediction_load, :exception]`
+
+  ## Metadata:
+  - `:source` - Which prediction loader function is being called
+  """
+  def span_prediction_load(metadata, fun) do
+    :telemetry.span(
+      [:jalka2026, :query_group, :prediction_load],
+      metadata,
+      fn ->
+        result = fun.()
+        {result, metadata}
+      end
+    )
+  end
+
+  @doc """
+  Execute a telemetry span for match listing queries.
+  Measures the time taken to load match data from the database.
+
+  ## Events emitted:
+  - `[:jalka2026, :query_group, :match_listing, :start]`
+  - `[:jalka2026, :query_group, :match_listing, :stop]`
+  - `[:jalka2026, :query_group, :match_listing, :exception]`
+
+  ## Metadata:
+  - `:source` - Which match listing function is being called
+  - `:group` - The group filter (optional)
+  """
+  def span_match_listing(metadata, fun) do
+    :telemetry.span(
+      [:jalka2026, :query_group, :match_listing],
+      metadata,
+      fn ->
+        result = fun.()
+        {result, metadata}
+      end
+    )
+  end
+
+  @doc """
+  Execute a telemetry span for leaderboard data loading.
+  Measures the time taken to load all data needed for leaderboard calculation.
+
+  ## Events emitted:
+  - `[:jalka2026, :query_group, :leaderboard_data_load, :start]`
+  - `[:jalka2026, :query_group, :leaderboard_data_load, :stop]`
+  - `[:jalka2026, :query_group, :leaderboard_data_load, :exception]`
+
+  ## Metadata:
+  - `:source` - The calling function
+  """
+  def span_leaderboard_data_load(metadata, fun) do
+    :telemetry.span(
+      [:jalka2026, :query_group, :leaderboard_data_load],
+      metadata,
+      fn ->
+        result = fun.()
+        {result, metadata}
+      end
+    )
+  end
+
+  @doc """
   Emit a page view event for analytics.
   """
   def emit_page_view(view_name, metadata \\ %{}) do

@@ -7,7 +7,7 @@ defmodule Jalka2026.FootballContextExtendedTest do
 
   describe "competition_id/0" do
     test "returns the default competition id" do
-      assert Football.competition_id() == "wc-2026"
+      assert Football.competition_id() == Jalka2026.Competitions.current_id()
     end
   end
 
@@ -74,9 +74,10 @@ defmodule Jalka2026.FootballContextExtendedTest do
 
     test "get_competition/1 returns a competition by id" do
       ensure_competition_exists()
-      result = Football.get_competition("wc-2026")
+      competition_id = Jalka2026.Competitions.current_id()
+      result = Football.get_competition(competition_id)
       assert result != nil
-      assert result.id == "wc-2026"
+      assert result.id == competition_id
     end
 
     test "get_current_competition/0 returns current competition" do
@@ -101,7 +102,7 @@ defmodule Jalka2026.FootballContextExtendedTest do
 
     test "update_competition/2 updates a competition" do
       ensure_competition_exists()
-      competition = Football.get_competition("wc-2026")
+      competition = Football.get_competition(Jalka2026.Competitions.current_id())
 
       {:ok, updated} =
         Football.update_competition(competition, %{short_name: "MM 2026 Updated"})

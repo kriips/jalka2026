@@ -6,9 +6,8 @@ defmodule Jalka2026Web.BracketLive.Bracket do
   alias Jalka2026Web.TelemetryHooks
 
   @impl true
-  def mount(_params, session, socket) do
+  def mount(_params, _session, socket) do
     TelemetryHooks.with_mount_telemetry(__MODULE__, socket, fn ->
-      socket = Jalka2026Web.LiveHelpers.assign_defaults(session, socket)
       socket = load_bracket_data(socket)
       {:ok, socket}
     end)

@@ -5,8 +5,7 @@ defmodule Jalka2026Web.UserLive.FavoriteTeams do
   alias Jalka2026.Football.TeamTranslations
 
   @impl true
-  def mount(_params, session, socket) do
-    socket = Jalka2026Web.LiveHelpers.assign_defaults(session, socket)
+  def mount(_params, _session, socket) do
     user = socket.assigns.current_user
 
     teams = Football.get_teams() |> Enum.sort_by(& &1.name)

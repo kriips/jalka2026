@@ -112,7 +112,7 @@ defmodule Jalka2026.Football.SchemasTest do
         PlayoffResult.create_changeset(%PlayoffResult{}, %{
           team_id: team.id,
           phase: 16,
-          competition_id: "wc-2026"
+          competition_id: Jalka2026.Competitions.current_id()
         })
 
       assert changeset.valid?
@@ -311,7 +311,7 @@ defmodule Jalka2026.Football.SchemasTest do
         BracketResult.changeset(%BracketResult{}, %{
           round: "round_of_16",
           position: 1,
-          competition_id: "wc-2026"
+          competition_id: Jalka2026.Competitions.current_id()
         })
 
       assert changeset.valid?

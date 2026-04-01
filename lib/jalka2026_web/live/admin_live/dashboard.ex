@@ -5,9 +5,7 @@ defmodule Jalka2026Web.AdminLive.Dashboard do
   alias Jalka2026.{Leaderboard, Competitions}
 
   @impl true
-  def mount(_params, session, socket) do
-    socket = Jalka2026Web.LiveHelpers.assign_admin_defaults(session, socket)
-
+  def mount(_params, _session, socket) do
     if connected?(socket) do
       # Refresh stats every 30 seconds
       :timer.send_interval(30_000, self(), :refresh_stats)

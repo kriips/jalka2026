@@ -17,6 +17,9 @@ defmodule Jalka2026.Badges do
   alias Jalka2026.Football.{UserBadge, GroupPrediction, Match}
   alias Jalka2026.Accounts
 
+  @type badge :: UserBadge.t()
+  @type badges_by_user :: %{pos_integer() => [badge()]}
+
   @doc """
   Get all badges for a user.
   """

@@ -11,11 +11,13 @@ defmodule Jalka2026.FootballFixtures do
   Ensures the default competition exists for tests.
   """
   def ensure_competition_exists do
-    case Repo.get(Competition, "wc-2026") do
+    competition_id = Jalka2026.Competitions.current_id()
+
+    case Repo.get(Competition, competition_id) do
       nil ->
         %Competition{}
         |> Competition.changeset(%{
-          id: "wc-2026",
+          id: competition_id,
           name: "FIFA World Cup 2026",
           short_name: "MM 2026",
           type: "world_cup",
@@ -168,7 +170,7 @@ defmodule Jalka2026.FootballFixtures do
       |> PlayoffResult.create_changeset(%{
         team_id: team.id,
         phase: attrs[:phase] || 16,
-        competition_id: "wc-2026"
+        competition_id: Jalka2026.Competitions.current_id()
       })
       |> Repo.insert()
 

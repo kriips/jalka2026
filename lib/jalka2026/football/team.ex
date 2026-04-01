@@ -5,6 +5,15 @@ defmodule Jalka2026.Football.Team do
   alias Jalka2026.Repo
   alias Jalka2026.Football.{PlayoffPrediction, Competition}
 
+  @type t :: %__MODULE__{
+    id: pos_integer() | nil,
+    name: String.t() | nil,
+    code: String.t() | nil,
+    flag: String.t() | nil,
+    group: String.t() | nil,
+    competition_id: String.t() | nil
+  }
+
   schema "teams" do
     field(:name, :string)
     field(:code, :string)

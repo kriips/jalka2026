@@ -1,11 +1,22 @@
 defmodule Jalka2026.Accounts do
   @moduledoc """
   The Accounts context.
+
+  Manages user registration, authentication, sessions, and profile settings
+  for the current competition. All query functions are automatically scoped
+  to `Competitions.current_id/0`.
+
+  ## Return types
+
+  Most functions return `%User{}` structs or standard `{:ok, _} / {:error, _}` tuples.
   """
 
   import Ecto.Query, warn: false
   alias Jalka2026.Repo
   alias Jalka2026.Accounts.{User, AllowedUser, UserToken, UserNotifier}
+
+  @type user :: User.t()
+  @type changeset :: Ecto.Changeset.t()
 
   ## Database getters
 

@@ -5,6 +5,18 @@ defmodule Jalka2026.Football.Match do
   alias Jalka2026.Football.{Team, Competition}
   alias Jalka2026.Repo
 
+  @type t :: %__MODULE__{
+    id: pos_integer() | nil,
+    group: String.t() | nil,
+    home_team_id: pos_integer() | nil,
+    away_team_id: pos_integer() | nil,
+    home_score: non_neg_integer() | nil,
+    away_score: non_neg_integer() | nil,
+    result: String.t() | nil,
+    date: NaiveDateTime.t() | nil,
+    finished: boolean()
+  }
+
   schema "matches" do
     field(:group, :string)
     belongs_to(:home_team, Team)

@@ -4,8 +4,7 @@ defmodule Jalka2026Web.UserPredictionLive.Navigate do
   alias Jalka2026Web.Resolvers.FootballResolver
 
   @impl true
-  def mount(_params, session, socket) do
-    socket = Jalka2026Web.LiveHelpers.assign_defaults(session, socket)
+  def mount(_params, _session, socket) do
     filled_predictions = FootballResolver.filled_predictions(socket.assigns.current_user.id)
     playoff_predictions = FootballResolver.get_playoff_predictions(socket.assigns.current_user.id)
     progress = count_progress(filled_predictions, playoff_predictions)

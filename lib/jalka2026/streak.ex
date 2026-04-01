@@ -15,6 +15,13 @@ defmodule Jalka2026.Streak do
   alias Jalka2026.Accounts
   alias Jalka2026.Scoring
 
+  @type streak_stats :: %{
+    current_streak: non_neg_integer(),
+    longest_streak: non_neg_integer(),
+    bonus_points: non_neg_integer()
+  }
+  @type streaks_by_user :: %{pos_integer() => streak_stats()}
+
   @doc """
   Get or create a user streak record.
   """

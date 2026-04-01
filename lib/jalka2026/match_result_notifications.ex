@@ -12,6 +12,7 @@ defmodule Jalka2026.MatchResultNotifications do
   alias Jalka2026.Accounts
   alias Jalka2026.Accounts.UserNotifier
   alias Jalka2026.Leaderboard
+  alias Jalka2026.Scoring
   alias Jalka2026Web.Resolvers.FootballResolver
 
   @doc """
@@ -91,25 +92,17 @@ defmodule Jalka2026.MatchResultNotifications do
     {result, user.id}
   end
 
-  defp calculate_points_for_match(_match, nil), do: 0
-
   defp calculate_points_for_match(match, prediction) do
-    if match.result == prediction.result do
-      if match.home_score == prediction.home_score && match.away_score == prediction.away_score do
-        2
-      else
-        1
-      end
-    else
-      0
-    end
+    Scoring.group_match_points(match, prediction)
   end
 
   defp get_user_leaderboard_position(user_id, leaderboard, leaderboard_changes) do
-    user_entry = Enum.find(leaderboard, fn {uid, _, _, _, _, _, _, _, _} -> uid == user_id end)
+    alias Jalka2026.Leaderboard.Entry
+
+    user_entry = Enum.find(leaderboard, fn %Entry{user_id: uid} -> uid == user_id end)
 
     case user_entry do
-      {_id, rank, _name, _gp, _pp, _bp, _cs, _ls, total_points} ->
+      %Entry{rank: rank, total_points: total_points} ->
         rank_change = case Map.get(leaderboard_changes, user_id) do
           nil -> nil
           %{rank_change: :new} -> nil
@@ -170,7 +163,7 @@ defmodule Jalka2026.MatchResultNotifications do
       1 => "Võitja"
     }
 
-    phase_points = %{32 => 1, 16 => 2, 8 => 3, 4 => 5, 2 => 6, 1 => 8}
+    phase_points = Scoring.playoff_phase_points_map()
 
     results =
       users

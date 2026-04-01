@@ -57,40 +57,39 @@
             <div class="analytics-overview">
                 <!-- Leaderboard Position Card -->
                 <%= if @leaderboard_entry do %>
-                    <% {_id, rank, _name, group_pts, playoff_pts, bonus_pts, current_streak, longest_streak, total_pts} = @leaderboard_entry %>
                     <div class="section-card analytics-position-card">
                         <div class="analytics-rank-display">
-                            <span class="analytics-rank-number"><%= rank %></span>
+                            <span class="analytics-rank-number"><%= @leaderboard_entry.rank %></span>
                             <span class="analytics-rank-label">koht</span>
                         </div>
                         <div class="analytics-points-breakdown">
                             <div class="analytics-points-item">
-                                <span class="points-value"><%= total_pts %></span>
+                                <span class="points-value"><%= @leaderboard_entry.total_points %></span>
                                 <span class="points-label">Kokku punktid</span>
                             </div>
                             <div class="analytics-points-item">
-                                <span class="points-value"><%= group_pts %></span>
+                                <span class="points-value"><%= @leaderboard_entry.group_points %></span>
                                 <span class="points-label">Grupi punktid</span>
                             </div>
                             <div class="analytics-points-item">
-                                <span class="points-value"><%= playoff_pts %></span>
+                                <span class="points-value"><%= @leaderboard_entry.playoff_points %></span>
                                 <span class="points-label">Playoffi punktid</span>
                             </div>
                             <div class="analytics-points-item">
-                                <span class="points-value"><%= bonus_pts %></span>
+                                <span class="points-value"><%= @leaderboard_entry.bonus_points %></span>
                                 <span class="points-label">Boonuspunktid</span>
                             </div>
                         </div>
-                        <%= if current_streak > 0 or longest_streak > 0 do %>
+                        <%= if @leaderboard_entry.current_streak > 0 or @leaderboard_entry.longest_streak > 0 do %>
                             <div class="analytics-streaks">
                                 <div class="streak-badge">
                                     <span class="streak-icon">&#128293;</span>
-                                    <span class="streak-value"><%= current_streak %></span>
+                                    <span class="streak-value"><%= @leaderboard_entry.current_streak %></span>
                                     <span class="streak-label">Praegune seeria</span>
                                 </div>
                                 <div class="streak-badge">
                                     <span class="streak-icon">&#127942;</span>
-                                    <span class="streak-value"><%= longest_streak %></span>
+                                    <span class="streak-value"><%= @leaderboard_entry.longest_streak %></span>
                                     <span class="streak-label">Pikim seeria</span>
                                 </div>
                             </div>
