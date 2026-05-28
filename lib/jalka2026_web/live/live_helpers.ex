@@ -15,4 +15,15 @@ defmodule Jalka2026Web.LiveHelpers do
     deadline = Application.get_env(:jalka2026, :prediction_deadline)
     deadline == nil or DateTime.compare(DateTime.utc_now(), deadline) == :lt
   end
+
+  @doc """
+  Formats a match date+time as `DD.MM.YYYY HH:MM` (no seconds).
+  """
+  def format_match_time(nil), do: ""
+
+  def format_match_time(%NaiveDateTime{} = dt),
+    do: Calendar.strftime(dt, "%d.%m.%Y %H:%M")
+
+  def format_match_time(%DateTime{} = dt),
+    do: Calendar.strftime(dt, "%d.%m.%Y %H:%M")
 end

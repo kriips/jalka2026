@@ -14,37 +14,31 @@ defmodule Jalka2026Web.FootballLive.GamesTest do
     test "renders match table with groups", %{conn: conn} do
       {:ok, _view, html} = live(conn, "/football/games")
 
-      # Pre-seeded data has groups A-L
       assert html =~ "Alagrupp"
     end
 
     test "toggle_group event expands and collapses group", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/football/games")
 
-      # Toggle group A open
       html = render_click(view, "toggle_group", %{"group" => "Alagrupp A"})
       assert html =~ "Alagrupp A"
     end
 
-    test "show_match event with pre-seeded match", %{conn: conn} do
-      # Get a pre-seeded match ID
-      [match | _] = Jalka2026.Football.get_matches()
-
+    test "desktop rows are clickable and navigate to game details", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/football/games")
 
-      html = render_click(view, "show_match", %{"id" => to_string(match.id)})
-      assert html =~ "Alagrupp"
+      assert has_element?(view, "tr.match-row-clickable[phx-click]")
+      refute has_element?(view, ".view-predictions-btn")
+      refute has_element?(view, ".bottom-sheet")
     end
 
-    test "close_bottom_sheet event", %{conn: conn} do
+    test "expanded accordion matches link to game details", %{conn: conn} do
       [match | _] = Jalka2026.Football.get_matches()
-
       {:ok, view, _html} = live(conn, "/football/games")
 
-      # Open and then close bottom sheet
-      render_click(view, "show_match", %{"id" => to_string(match.id)})
-      html = render_click(view, "close_bottom_sheet", %{})
-      assert html =~ "Alagrupimängud"
+      render_click(view, "toggle_group", %{"group" => match.group})
+
+      assert has_element?(view, ~s|a.group-accordion-match[href="/football/games/#{match.id}"]|)
     end
   end
 end

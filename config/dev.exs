@@ -20,7 +20,7 @@ config :jalka2026, Jalka2026.Repo,
 config :jalka2026, Jalka2026Web.Endpoint,
   http: [port: 4000],
   debug_errors: true,
-  code_reloader: false,
+  code_reloader: true,
   check_origin: false,
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:default, ~w(--sourcemap=inline --watch)]}

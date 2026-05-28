@@ -9406,6 +9406,17 @@ details[open] .historical-matchup-toggle::before {
   display: block;
 }
 
+.games-table-desktop tr.match-row-clickable {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.games-table-desktop tr.match-row-clickable:hover,
+.games-table-desktop tr.match-row-clickable:focus-visible {
+  background-color: var(--accent-bg);
+  outline: none;
+}
+
 /* On mobile: hide desktop table, show accordion */
 @media (max-width: 600px) {
   .games-table-desktop {
