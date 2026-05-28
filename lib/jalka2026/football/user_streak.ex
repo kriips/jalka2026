@@ -3,12 +3,12 @@ defmodule Jalka2026.Football.UserStreak do
   import Ecto.Changeset
 
   @type t :: %__MODULE__{
-    id: pos_integer() | nil,
-    user_id: pos_integer() | nil,
-    current_streak: non_neg_integer(),
-    longest_streak: non_neg_integer(),
-    bonus_points: non_neg_integer()
-  }
+          id: pos_integer() | nil,
+          user_id: pos_integer() | nil,
+          current_streak: non_neg_integer(),
+          longest_streak: non_neg_integer(),
+          bonus_points: non_neg_integer()
+        }
 
   schema "user_streaks" do
     belongs_to(:user, Jalka2026.Accounts.User)

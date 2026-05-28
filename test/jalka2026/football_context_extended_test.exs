@@ -53,7 +53,7 @@ defmodule Jalka2026.FootballContextExtendedTest do
       assert Football.stage_short_name("round of 16") == "R16"
       assert Football.stage_short_name("quarter-finals") == "VF"
       assert Football.stage_short_name("semi-finals") == "PF"
-      assert Football.stage_short_name("final") == "F"
+      assert Football.stage_short_name("final") == "1./2."
     end
   end
 
@@ -90,7 +90,7 @@ defmodule Jalka2026.FootballContextExtendedTest do
       ensure_competition_exists()
       result = Football.list_competitions()
       assert is_list(result)
-      assert length(result) >= 1
+      assert result != []
     end
 
     test "list_active_competitions/0 returns only active competitions" do
@@ -165,13 +165,13 @@ defmodule Jalka2026.FootballContextExtendedTest do
       assert favorites == []
     end
 
-    test "is_favorite_team?/2 checks if team is favorited" do
+    test "favorite_team?/2 checks if team is favorited" do
       user = user_fixture()
       team = team_fixture()
 
-      refute Football.is_favorite_team?(user.id, team.id)
+      refute Football.favorite_team?(user.id, team.id)
       Football.add_favorite_team(user.id, team.id)
-      assert Football.is_favorite_team?(user.id, team.id)
+      assert Football.favorite_team?(user.id, team.id)
     end
 
     test "set_primary_team/2 sets a team as primary" do
@@ -245,13 +245,13 @@ defmodule Jalka2026.FootballContextExtendedTest do
       assert Football.get_rivalry(user1.id, user2.id) == nil
     end
 
-    test "is_rival?/2 checks rivalry existence" do
+    test "rival?/2 checks rivalry existence" do
       user1 = user_fixture()
       user2 = user_fixture()
 
-      refute Football.is_rival?(user1.id, user2.id)
+      refute Football.rival?(user1.id, user2.id)
       Football.add_rival(user1.id, user2.id)
-      assert Football.is_rival?(user1.id, user2.id)
+      assert Football.rival?(user1.id, user2.id)
     end
 
     test "toggle_rivalry_notifications/2 toggles notification setting" do
@@ -397,11 +397,17 @@ defmodule Jalka2026.FootballContextExtendedTest do
       team = team_fixture()
 
       Football.set_bracket_prediction(%{
-        user_id: user.id, round: "round_of_16", position: 1, team_id: team.id
+        user_id: user.id,
+        round: "round_of_16",
+        position: 1,
+        team_id: team.id
       })
 
       Football.set_bracket_prediction(%{
-        user_id: user.id, round: "quarter_final", position: 1, team_id: team.id
+        user_id: user.id,
+        round: "quarter_final",
+        position: 1,
+        team_id: team.id
       })
 
       Football.cascade_bracket_removal(user.id, team.id, "round_of_16")
@@ -607,7 +613,8 @@ defmodule Jalka2026.FootballContextExtendedTest do
       result = Football.compare_brackets(user1.id, user2.id)
       assert is_map(result)
       assert is_list(result.rounds)
-      assert length(result.rounds) == 6  # 6 rounds
+      # 5 rounds (round_of_32, round_of_16, quarter_final, semi_final, final)
+      assert length(result.rounds) == 5
       assert Map.has_key?(result, :user1_points)
       assert Map.has_key?(result, :user2_points)
     end
@@ -643,9 +650,8 @@ defmodule Jalka2026.FootballContextExtendedTest do
   describe "stage_short_name/1 additional" do
     test "translates additional stages" do
       assert Football.stage_short_name("second group stage") == "2. grupp"
-      assert Football.stage_short_name("third-place match") == "3."
-      assert Football.stage_short_name("final round") == "F"
+      assert Football.stage_short_name("third-place match") == "3./4."
+      assert Football.stage_short_name("final round") == "1./2."
     end
   end
-
 end

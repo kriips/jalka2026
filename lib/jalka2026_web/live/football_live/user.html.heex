@@ -107,13 +107,6 @@
                     <%= raw(Enum.join(@playoff_predictions[2], ", ")) %>
                 </div>
             </div>
-
-            <div class="phase-section">
-                <h3 class="phase-title">Võitja</h3>
-                <div class="teams-grid winner">
-                    <%= raw(Enum.join(@playoff_predictions[1], ", ")) %>
-                </div>
-            </div>
         </div>
 
         <%= if @bias_stats.has_favorites and (@bias_stats.favorite_predictions > 0 or @bias_stats.other_predictions > 0) do %>

@@ -5,13 +5,13 @@ defmodule Jalka2026.Football.GroupPrediction do
   alias Jalka2026.Repo
 
   @type t :: %__MODULE__{
-    id: pos_integer() | nil,
-    user_id: pos_integer() | nil,
-    match_id: pos_integer() | nil,
-    home_score: non_neg_integer() | nil,
-    away_score: non_neg_integer() | nil,
-    result: String.t() | nil
-  }
+          id: pos_integer() | nil,
+          user_id: pos_integer() | nil,
+          match_id: pos_integer() | nil,
+          home_score: non_neg_integer() | nil,
+          away_score: non_neg_integer() | nil,
+          result: String.t() | nil
+        }
 
   schema "group_prediction" do
     belongs_to(:user, Jalka2026.Accounts.User)
@@ -30,7 +30,7 @@ defmodule Jalka2026.Football.GroupPrediction do
   end
 
   def get_group_prediction!(id) do
-    Repo.get!(GroupPrediction, id)
+    Repo.get!(__MODULE__, id)
   end
 
   @doc false

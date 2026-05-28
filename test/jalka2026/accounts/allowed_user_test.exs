@@ -5,7 +5,12 @@ defmodule Jalka2026.Accounts.AllowedUserTest do
 
   describe "changeset/2" do
     test "creates valid changeset with attributes" do
-      changeset = AllowedUser.changeset(%AllowedUser{}, %{name: "Test User", competition_id: Jalka2026.Competitions.current_id()})
+      changeset =
+        AllowedUser.changeset(%AllowedUser{}, %{
+          name: "Test User",
+          competition_id: Jalka2026.Competitions.current_id()
+        })
+
       assert changeset.valid?
     end
 

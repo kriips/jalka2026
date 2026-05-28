@@ -42,12 +42,11 @@ defmodule Jalka2026Web.AdminLive.Predictions do
         16 => length(Map.get(playoff_predictions, 16, [])),
         8 => length(Map.get(playoff_predictions, 8, [])),
         4 => length(Map.get(playoff_predictions, 4, [])),
-        2 => length(Map.get(playoff_predictions, 2, [])),
-        1 => length(Map.get(playoff_predictions, 1, []))
+        2 => length(Map.get(playoff_predictions, 2, []))
       }
 
       # Expected counts per phase
-      expected_counts = %{32 => 16, 16 => 16, 8 => 8, 4 => 4, 2 => 2, 1 => 1}
+      expected_counts = %{32 => 16, 16 => 16, 8 => 8, 4 => 4, 2 => 2}
 
       # Validate
       group_valid = group_count == 72

@@ -30,7 +30,8 @@ defmodule Jalka2026.BadgesTest do
         user: user,
         match: match,
         home_score: 3,
-        away_score: 0  # Different score but same result (home wins)
+        # Different score but same result (home wins)
+        away_score: 0
       })
 
       Badges.recalculate_user_badges(user.id, [match], [])
@@ -69,7 +70,8 @@ defmodule Jalka2026.BadgesTest do
         user: user,
         match: match,
         home_score: 0,
-        away_score: 3  # Wrong result
+        # Wrong result
+        away_score: 3
       })
 
       Badges.recalculate_user_badges(user.id, [match], [])

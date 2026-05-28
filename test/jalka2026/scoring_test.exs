@@ -67,9 +67,12 @@ defmodule Jalka2026.ScoringTest do
       ]
 
       predictions_index = %{
-        {42, 1} => %{result: "home", home_score: 2, away_score: 1},  # exact: 2pts
-        {42, 2} => %{result: "away", home_score: 0, away_score: 2},  # correct result: 1pt
-        {42, 3} => %{result: "home", home_score: 2, away_score: 0}   # wrong: 0pts
+        # exact: 2pts
+        {42, 1} => %{result: "home", home_score: 2, away_score: 1},
+        # correct result: 1pt
+        {42, 2} => %{result: "away", home_score: 0, away_score: 2},
+        # wrong: 0pts
+        {42, 3} => %{result: "home", home_score: 2, away_score: 0}
       }
 
       assert Scoring.total_group_points(matches, predictions_index, 42) == 3
@@ -105,10 +108,6 @@ defmodule Jalka2026.ScoringTest do
     test "final awards 6 points" do
       assert Scoring.playoff_phase_points(2) == 6
     end
-
-    test "champion awards 8 points" do
-      assert Scoring.playoff_phase_points(1) == 8
-    end
   end
 
   describe "total_playoff_points/2" do
@@ -120,9 +119,12 @@ defmodule Jalka2026.ScoringTest do
       ]
 
       predictions = %{
-        32 => [100, 102],  # correct: team 100
-        16 => [101],       # correct: team 101
-        8 => [103]         # wrong: predicted 103 not 100
+        # correct: team 100
+        32 => [100, 102],
+        # correct: team 101
+        16 => [101],
+        # wrong: predicted 103 not 100
+        8 => [103]
       }
 
       # 1 (phase 32) + 2 (phase 16) = 3
@@ -162,17 +164,19 @@ defmodule Jalka2026.ScoringTest do
         %{team_id: 1, phase: 16},
         %{team_id: 1, phase: 8},
         %{team_id: 1, phase: 4},
-        %{team_id: 1, phase: 2},
-        %{team_id: 1, phase: 1}
+        %{team_id: 1, phase: 2}
       ]
 
       predictions = %{
-        32 => [1], 16 => [1], 8 => [1],
-        4 => [1], 2 => [1], 1 => [1]
+        32 => [1],
+        16 => [1],
+        8 => [1],
+        4 => [1],
+        2 => [1]
       }
 
-      # 1 + 2 + 3 + 5 + 6 + 8 = 25
-      assert Scoring.total_playoff_points(playoff_results, predictions) == 25
+      # 1 + 2 + 3 + 5 + 6 = 17
+      assert Scoring.total_playoff_points(playoff_results, predictions) == 17
     end
   end
 
@@ -256,7 +260,8 @@ defmodule Jalka2026.ScoringTest do
 
       predictions = %{
         1 => %{result: "home"},
-        2 => %{result: "home"},  # Wrong
+        # Wrong
+        2 => %{result: "home"},
         3 => %{result: "draw"}
       }
 
@@ -288,7 +293,8 @@ defmodule Jalka2026.ScoringTest do
         1 => %{result: "home"},
         2 => %{result: "home"},
         3 => %{result: "home"},
-        4 => %{result: "away"},  # Break at 4
+        # Break at 4
+        4 => %{result: "away"},
         5 => %{result: "home"},
         6 => %{result: "home"},
         7 => %{result: "home"},
@@ -327,7 +333,8 @@ defmodule Jalka2026.ScoringTest do
         Map.merge(
           for(i <- 1..6, into: %{}, do: {i, %{result: "home"}}),
           Map.merge(
-            %{7 => %{result: "away"}},  # Break
+            # Break
+            %{7 => %{result: "away"}},
             for(i <- 8..12, into: %{}, do: {i, %{result: "home"}})
           )
         )
@@ -360,14 +367,13 @@ defmodule Jalka2026.ScoringTest do
       assert Scoring.calculate(:playoff, 8) == 3
       assert Scoring.calculate(:playoff, 4) == 5
       assert Scoring.calculate(:playoff, 2) == 6
-      assert Scoring.calculate(:playoff, 1) == 8
     end
   end
 
   describe "playoff_phase_points_map/0" do
     test "returns the complete phase-to-points mapping" do
       map = Scoring.playoff_phase_points_map()
-      assert map == %{32 => 1, 16 => 2, 8 => 3, 4 => 5, 2 => 6, 1 => 8}
+      assert map == %{32 => 1, 16 => 2, 8 => 3, 4 => 5, 2 => 6}
     end
 
     test "is consistent with playoff_phase_points/1" do
@@ -379,7 +385,7 @@ defmodule Jalka2026.ScoringTest do
 
   describe "phases/0" do
     test "returns all playoff phases in order" do
-      assert Scoring.phases() == [32, 16, 8, 4, 2, 1]
+      assert Scoring.phases() == [32, 16, 8, 4, 2]
     end
   end
 end

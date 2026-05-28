@@ -1,8 +1,9 @@
 defmodule Jalka2026Web.FootballLive.Compare do
   use Jalka2026Web, :live_view
 
-  alias Jalka2026Web.Resolvers.{FootballResolver, AccountsResolver}
   alias Jalka2026.Leaderboard
+  alias Jalka2026Web.Resolvers.AccountsResolver
+  alias Jalka2026Web.Resolvers.FootballResolver
 
   # Helper functions for template
   def get_prediction_class(true, _correct_result), do: "correct-score"
@@ -100,7 +101,7 @@ defmodule Jalka2026Web.FootballLive.Compare do
 
   defp get_users_for_dropdown(leaderboard) do
     leaderboard
-    |> Enum.map(fn {id, _rank, name, _gp, _pp, _bp, _cs, _ls, _total} ->
+    |> Enum.map(fn %{user_id: id, name: name} ->
       {id, name}
     end)
     |> Enum.sort_by(fn {_id, name} -> String.downcase(name) end)

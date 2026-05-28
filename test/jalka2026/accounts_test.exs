@@ -143,14 +143,14 @@ defmodule Jalka2026.AccountsTest do
 
     test "requires email to change", %{user: user} do
       {:error, changeset} = Accounts.apply_user_email(user, valid_user_password(), %{})
-      assert %{email: ["did not change"]} = errors_on(changeset)
+      assert %{email: ["ei muutunud"]} = errors_on(changeset)
     end
 
     test "validates email", %{user: user} do
       {:error, changeset} =
         Accounts.apply_user_email(user, valid_user_password(), %{email: "not valid"})
 
-      assert %{email: ["must have the @ sign and no spaces"]} = errors_on(changeset)
+      assert %{email: ["peab sisaldama @ märki ja mitte tühikuid"]} = errors_on(changeset)
     end
 
     test "validates maximum value for email for security", %{user: user} do
@@ -166,7 +166,7 @@ defmodule Jalka2026.AccountsTest do
       {:error, changeset} =
         Accounts.apply_user_email(user, "invalid", %{email: unique_user_email()})
 
-      assert %{current_password: ["is not valid"]} = errors_on(changeset)
+      assert %{current_password: ["on vale"]} = errors_on(changeset)
     end
 
     test "applies the email without persisting it", %{user: user} do
@@ -286,7 +286,7 @@ defmodule Jalka2026.AccountsTest do
 
       assert %{
                password: ["should be at least 5 character(s)"],
-               password_confirmation: ["does not match password"]
+               password_confirmation: ["paroolid ei kattu"]
              } = errors_on(changeset)
     end
 
@@ -303,7 +303,7 @@ defmodule Jalka2026.AccountsTest do
       {:error, changeset} =
         Accounts.update_user_password(user, "invalid", %{password: valid_user_password()})
 
-      assert %{current_password: ["is not valid"]} = errors_on(changeset)
+      assert %{current_password: ["on vale"]} = errors_on(changeset)
     end
 
     test "updates the password", %{user: user} do
@@ -511,7 +511,7 @@ defmodule Jalka2026.AccountsTest do
 
       assert %{
                password: ["should be at least 5 character(s)"],
-               password_confirmation: ["does not match password"]
+               password_confirmation: ["paroolid ei kattu"]
              } = errors_on(changeset)
     end
 

@@ -62,9 +62,9 @@ defmodule Jalka2026Web.UserSettingsControllerTest do
 
       response = html_response(old_password_conn, 200)
       assert response =~ "<h1>Settings</h1>"
-      assert response =~ "should be at least 5 character(s)"
-      assert response =~ "does not match password"
-      assert response =~ "is not valid"
+      assert response =~ "peab olema vähemalt 5 tähemärki"
+      assert response =~ "paroolid ei kattu"
+      assert response =~ "on vale"
 
       assert get_session(old_password_conn, :user_token) == get_session(conn, :user_token)
     end
@@ -95,8 +95,8 @@ defmodule Jalka2026Web.UserSettingsControllerTest do
 
       response = html_response(conn, 200)
       assert response =~ "<h1>Settings</h1>"
-      assert response =~ "must have the @ sign and no spaces"
-      assert response =~ "is not valid"
+      assert response =~ "peab sisaldama @ märki ja mitte tühikuid"
+      assert response =~ "on vale"
     end
   end
 
@@ -141,6 +141,28 @@ defmodule Jalka2026Web.UserSettingsControllerTest do
       conn = get(conn, Routes.user_settings_path(conn, :confirm_email, token))
       # App redirects to registration page when not authenticated
       assert redirected_to(conn) == Routes.user_registration_new_path(conn, :new)
+    end
+  end
+
+  describe "PUT /users/settings/theme" do
+    test "updates theme to dark", %{conn: conn} do
+      conn = put(conn, "/users/settings/theme", %{"theme" => "dark"})
+      assert json_response(conn, 200) == %{"ok" => true, "theme" => "dark"}
+    end
+
+    test "updates theme to light", %{conn: conn} do
+      conn = put(conn, "/users/settings/theme", %{"theme" => "light"})
+      assert json_response(conn, 200) == %{"ok" => true, "theme" => "light"}
+    end
+
+    test "rejects invalid theme", %{conn: conn} do
+      conn = put(conn, "/users/settings/theme", %{"theme" => "rainbow"})
+      assert json_response(conn, 422) == %{"error" => "invalid theme"}
+    end
+
+    test "rejects missing theme param", %{conn: conn} do
+      conn = put(conn, "/users/settings/theme", %{})
+      assert json_response(conn, 422) == %{"error" => "invalid theme"}
     end
   end
 end

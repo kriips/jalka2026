@@ -105,7 +105,7 @@
 
         <%= if @simulation_results && @team1 && @team2 do %>
             <!-- Main Results -->
-            <div class="section-card">
+            <div class="section-card" id="simulation-results" phx-hook="ScrollIntoView">
                 <div class="section-card-header">
                     <h2 class="section-card-title">Simulatsiooni tulemused</h2>
                     <span class="section-card-subtitle"><%= @simulation_results.simulations %> simulatsiooni</span>

@@ -4,10 +4,34 @@
         <p class="page-subtitle" id="page-description">Vali alagrupp või playoff-mängud</p>
     </div>
     <div class="container" id="main-content" aria-describedby="page-description">
+        <%= if @prediction_deadline do %>
+        <div class="countdown-container countdown-compact" id="countdown-navigate" phx-hook="Countdown" phx-update="ignore" data-deadline={DateTime.to_iso8601(@prediction_deadline)}>
+            <div data-countdown-timer style={if @predictions_open, do: "", else: "display:none"}>
+                <div class="countdown-inline">
+                    <span class="countdown-inline-label">Tähtajani:</span>
+                    <span class="countdown-inline-digits">
+                        <span data-cd-days>--</span>p
+                        <span data-cd-hours>--</span>t
+                        <span data-cd-minutes>--</span>m
+                        <span data-cd-seconds>--</span>s
+                    </span>
+                </div>
+            </div>
+            <div data-countdown-locked style={if @predictions_open, do: "display:none", else: ""}>
+                <div class="countdown-locked-compact">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="countdown-lock-icon-sm" aria-hidden="true">
+                        <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+                    </svg>
+                    <span>Ennustamine on suletud</span>
+                </div>
+            </div>
+        </div>
+        <% end %>
+
         <section class="section-card" aria-labelledby="groups-heading">
             <h2 class="section-card-title" id="groups-heading">Alagrupid</h2>
             <nav class="nav-button-grid" role="navigation" aria-label="Alagrupid">
-                <% groups = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"] %>
+                <% groups = Jalka2026.Football.groups() %>
                 <%= for group <- groups do %>
                 <% is_filled = @filled["Alagrupp #{group}"] != "button-outline" %>
                 <.link

@@ -1,4 +1,5 @@
 defmodule Jalka2026Web.Resolvers.AccountsResolver do
+  @moduledoc false
   alias Jalka2026.Accounts
 
   def list_users() do

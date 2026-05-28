@@ -6,20 +6,20 @@ defmodule Jalka2026.Chat.Comment do
   alias Jalka2026.Football.Match
 
   @type t :: %__MODULE__{
-    id: pos_integer() | nil,
-    content: String.t() | nil,
-    user_id: pos_integer() | nil,
-    user: User.t() | Ecto.Association.NotLoaded.t(),
-    match_id: pos_integer() | nil,
-    match: Match.t() | Ecto.Association.NotLoaded.t(),
-    inserted_at: NaiveDateTime.t() | nil,
-    updated_at: NaiveDateTime.t() | nil
-  }
+          id: pos_integer() | nil,
+          content: String.t() | nil,
+          user_id: pos_integer() | nil,
+          user: User.t() | Ecto.Association.NotLoaded.t(),
+          match_id: pos_integer() | nil,
+          match: Match.t() | Ecto.Association.NotLoaded.t(),
+          inserted_at: NaiveDateTime.t() | nil,
+          updated_at: NaiveDateTime.t() | nil
+        }
 
   schema "match_comments" do
-    field :content, :string
-    belongs_to :user, User
-    belongs_to :match, Match
+    field(:content, :string)
+    belongs_to(:user, User)
+    belongs_to(:match, Match)
 
     timestamps()
   end

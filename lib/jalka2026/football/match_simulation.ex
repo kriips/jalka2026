@@ -92,11 +92,7 @@ defmodule Jalka2026.Football.MatchSimulation do
       # Calculate points per game (3 for win, 1 for draw, 0 for loss)
       total_points =
         Enum.reduce(form, 0, fn match, acc ->
-          case match.result do
-            "W" -> acc + 3
-            "D" -> acc + 1
-            "L" -> acc + 0
-          end
+          acc + result_points(match.result)
         end)
 
       # Calculate goal difference per game
@@ -153,7 +149,7 @@ defmodule Jalka2026.Football.MatchSimulation do
       0.9
     else
       # Points per game in World Cups
-      points = stats.wins * 3 + stats.draws * 1
+      points = stats.wins * 3 + stats.draws
       ppg = points / (stats.matches_played * 3)
 
       # Goal difference per match
@@ -231,6 +227,10 @@ defmodule Jalka2026.Football.MatchSimulation do
     l = :math.exp(-lambda)
     poisson_random_loop(l, 1.0, 0)
   end
+
+  defp result_points("W"), do: 3
+  defp result_points("D"), do: 1
+  defp result_points("L"), do: 0
 
   defp poisson_random_loop(l, p, k) when p > l do
     u = :rand.uniform()

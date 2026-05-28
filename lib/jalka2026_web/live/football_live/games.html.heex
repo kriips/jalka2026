@@ -4,40 +4,207 @@
         <p class="page-subtitle">Kõik alagrupiturniiiri mängud</p>
     </div>
     <div class="container" id="main-content">
-        <div class="scroll-hint" aria-hidden="true">← Keri horisontaalselt →</div>
-        <div class="data-table-card">
-            <table role="table" aria-label="Mängude tabel">
-                <thead>
-                    <tr>
-                        <th scope="col">Ennustused</th>
-                        <th scope="col">Aeg</th>
-                        <th scope="col">Grupp</th>
-                        <th scope="col">Võistkonnad</th>
-                        <th scope="col">Tulemus</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <%= for %{id: id, group: group, date: date, away_score: away_score, away_team: away_team, home_score: home_score, home_team: home_team} <- @matches do %>
-                    <tr>
-                        <td>
-                            <.link navigate={Routes.football_game_path(@socket, :view, id)} class="view-predictions-btn" aria-label={"Vaata ennustusi: #{TeamTranslations.translate(home_team.name)} vs #{TeamTranslations.translate(away_team.name)}"}>
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                    <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-                                </svg>
-                            </.link>
-                        </td>
-                        <td class="match-date"><%= date %></td>
-                        <td><span class="group-badge"><%= String.replace(group, "Alagrupp ", "") %></span></td>
-                        <td class="match-teams"><%= TeamTranslations.translate(home_team.name) %> - <%= TeamTranslations.translate(away_team.name) %></td>
-                        <td class="match-score"><%= home_score %> - <%= away_score %></td>
-                    </tr>
+        <!-- Desktop: full table (hidden on mobile) -->
+        <div class="games-table-desktop">
+            <div class="scroll-hint" aria-hidden="true">← Keri horisontaalselt →</div>
+            <div class="data-table-card">
+                <table role="table" aria-label="Mängude tabel">
+                    <thead>
+                        <tr>
+                            <th scope="col">Ennustused</th>
+                            <th scope="col">Aeg</th>
+                            <th scope="col">Grupp</th>
+                            <th scope="col">Võistkonnad</th>
+                            <th scope="col">Tulemus</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <%= for %{id: id, group: group, date: date, away_score: away_score, away_team: away_team, home_score: home_score, home_team: home_team} <- @matches do %>
+                        <tr>
+                            <td>
+                                <button type="button" phx-click="show_match" phx-value-id={id} class="view-predictions-btn" aria-label={"Vaata ennustusi: #{TeamTranslations.translate(home_team.name)} vs #{TeamTranslations.translate(away_team.name)}"}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                        <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                                    </svg>
+                                </button>
+                            </td>
+                            <td class="match-date"><%= date %></td>
+                            <td><span class="group-badge"><%= String.replace(group, "Alagrupp ", "") %></span></td>
+                            <td class="match-teams"><%= TeamTranslations.translate(home_team.name) %> - <%= TeamTranslations.translate(away_team.name) %></td>
+                            <td class="match-score"><%= home_score %> - <%= away_score %></td>
+                        </tr>
+                        <% end %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Mobile: accordion grouped by group (hidden on desktop) -->
+        <div class="games-accordion-mobile">
+            <%= for {group, matches} <- @grouped_matches do %>
+                <% group_letter = String.replace(group, "Alagrupp ", "") %>
+                <% {finished, total} = group_summary(matches) %>
+                <% is_expanded = MapSet.member?(@expanded_groups, group) %>
+                <div class="group-accordion-section">
+                    <button
+                        type="button"
+                        class={"group-accordion-header #{if is_expanded, do: "expanded", else: ""}"}
+                        phx-click="toggle_group"
+                        phx-value-group={group}
+                        aria-expanded={"#{is_expanded}"}
+                        aria-controls={"group-matches-#{group_letter}"}
+                    >
+                        <div class="group-accordion-title">
+                            <span class="group-accordion-badge"><%= group_letter %></span>
+                            <span class="group-accordion-name"><%= group %></span>
+                        </div>
+                        <div class="group-accordion-summary">
+                            <span class="group-accordion-count"><%= finished %>/<%= total %> lõppenud</span>
+                            <span class={"group-accordion-icon #{if is_expanded, do: "rotated", else: ""}"}><%= if is_expanded, do: "▼", else: "▶" %></span>
+                        </div>
+                    </button>
+                    <%= if is_expanded do %>
+                        <div class="group-accordion-content" id={"group-matches-#{group_letter}"}>
+                            <%= for %{id: id, date: date, away_score: away_score, away_team: away_team, home_score: home_score, home_team: home_team} <- matches do %>
+                                <button type="button" phx-click="show_match" phx-value-id={id} class="group-accordion-match" aria-label={"#{TeamTranslations.translate(home_team.name)} vs #{TeamTranslations.translate(away_team.name)}"}>
+                                    <div class="accordion-match-teams">
+                                        <span class="accordion-match-home"><%= TeamTranslations.translate(home_team.name) %></span>
+                                        <span class="accordion-match-score"><%= home_score %> - <%= away_score %></span>
+                                        <span class="accordion-match-away"><%= TeamTranslations.translate(away_team.name) %></span>
+                                    </div>
+                                    <div class="accordion-match-date"><%= date %></div>
+                                </button>
+                            <% end %>
+                        </div>
                     <% end %>
-                </tbody>
-            </table>
+                </div>
+            <% end %>
         </div>
 
         <div class="back-button-container">
             <.link navigate={Routes.page_path(@socket, :index)} class="button button-large button-main" aria-label="Tagasi avalehele">Tagasi</.link>
         </div>
     </div>
+
+    <!-- Bottom Sheet Overlay -->
+    <%= if @show_bottom_sheet and @selected_match do %>
+        <div class="bottom-sheet-backdrop" phx-click="close_bottom_sheet"></div>
+        <div class="bottom-sheet" id="match-bottom-sheet" phx-hook="BottomSheet">
+            <div class="bottom-sheet-handle-area">
+                <div class="bottom-sheet-handle"></div>
+            </div>
+            <div class="bottom-sheet-header">
+                <h2 class="bottom-sheet-title">
+                    <%= TeamTranslations.translate(@selected_match.home_team.name) %> - <%= TeamTranslations.translate(@selected_match.away_team.name) %>
+                </h2>
+                <%= if @selected_match.finished do %>
+                    <p class="bottom-sheet-subtitle">Lõpptulemus: <%= @selected_match.home_score %>:<%= @selected_match.away_score %></p>
+                <% else %>
+                    <p class="bottom-sheet-subtitle">Mäng pole veel toimunud</p>
+                <% end %>
+                <button type="button" class="bottom-sheet-close" phx-click="close_bottom_sheet" aria-label="Sulge">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="bottom-sheet-body">
+                <!-- Crowd Confidence Section -->
+                <%= if @crowd_confidence && @crowd_confidence.total > 0 do %>
+                    <div class="crowd-confidence-section">
+                        <p class="confidence-subtitle">Kasutajate ennustuste jaotus (<%= @crowd_confidence.total %> ennustust)</p>
+                        <div class="confidence-bars">
+                            <div class="confidence-bar-item">
+                                <div class="confidence-bar-label">
+                                    <span class="confidence-outcome">1</span>
+                                    <span class="confidence-team"><%= TeamTranslations.translate(@selected_match.home_team.name) %></span>
+                                </div>
+                                <div class="confidence-bar-container">
+                                    <div class="confidence-bar confidence-home" style={"width: #{@crowd_confidence.home}%"}></div>
+                                </div>
+                                <span class="confidence-percentage"><%= @crowd_confidence.home %>%</span>
+                                <span class="confidence-count">(<%= @crowd_confidence.counts.home %>)</span>
+                            </div>
+                            <div class="confidence-bar-item">
+                                <div class="confidence-bar-label">
+                                    <span class="confidence-outcome">X</span>
+                                    <span class="confidence-team">Viik</span>
+                                </div>
+                                <div class="confidence-bar-container">
+                                    <div class="confidence-bar confidence-draw" style={"width: #{@crowd_confidence.draw}%"}></div>
+                                </div>
+                                <span class="confidence-percentage"><%= @crowd_confidence.draw %>%</span>
+                                <span class="confidence-count">(<%= @crowd_confidence.counts.draw %>)</span>
+                            </div>
+                            <div class="confidence-bar-item">
+                                <div class="confidence-bar-label">
+                                    <span class="confidence-outcome">2</span>
+                                    <span class="confidence-team"><%= TeamTranslations.translate(@selected_match.away_team.name) %></span>
+                                </div>
+                                <div class="confidence-bar-container">
+                                    <div class="confidence-bar confidence-away" style={"width: #{@crowd_confidence.away}%"}></div>
+                                </div>
+                                <span class="confidence-percentage"><%= @crowd_confidence.away %>%</span>
+                                <span class="confidence-count">(<%= @crowd_confidence.counts.away %>)</span>
+                            </div>
+                        </div>
+                    </div>
+                <% else %>
+                    <p class="no-predictions">Ennustusi pole veel tehtud</p>
+                <% end %>
+
+                <!-- Predictions by outcome -->
+                <%= if @predictions do %>
+                    <div class="predictions-group">
+                        <div class="prediction-column">
+                            <h3 class="prediction-column-title"><%= TeamTranslations.translate(@selected_match.home_team.name) %> võidab</h3>
+                            <%= if @predictions["home"] do %>
+                                <%= for prediction <- @predictions["home"] do %>
+                                <div class="prediction-item">
+                                    <.link navigate={Routes.football_user_path(@socket, :view, prediction.user.id)} class="user-link"><%= prediction.user.name %></.link>
+                                    <span class="prediction-score"><%= prediction.home_score %>:<%= prediction.away_score %></span>
+                                </div>
+                                <% end %>
+                            <% else %>
+                                <p class="no-predictions">Ennustusi pole</p>
+                            <% end %>
+                        </div>
+                        <div class="prediction-column">
+                            <h3 class="prediction-column-title">Viik</h3>
+                            <%= if @predictions["draw"] do %>
+                                <%= for prediction <- @predictions["draw"] do %>
+                                <div class="prediction-item">
+                                    <.link navigate={Routes.football_user_path(@socket, :view, prediction.user.id)} class="user-link"><%= prediction.user.name %></.link>
+                                    <span class="prediction-score"><%= prediction.home_score %>:<%= prediction.away_score %></span>
+                                </div>
+                                <% end %>
+                            <% else %>
+                                <p class="no-predictions">Ennustusi pole</p>
+                            <% end %>
+                        </div>
+                        <div class="prediction-column">
+                            <h3 class="prediction-column-title"><%= TeamTranslations.translate(@selected_match.away_team.name) %> võidab</h3>
+                            <%= if @predictions["away"] do %>
+                                <%= for prediction <- @predictions["away"] do %>
+                                <div class="prediction-item">
+                                    <.link navigate={Routes.football_user_path(@socket, :view, prediction.user.id)} class="user-link"><%= prediction.user.name %></.link>
+                                    <span class="prediction-score"><%= prediction.home_score %>:<%= prediction.away_score %></span>
+                                </div>
+                                <% end %>
+                            <% else %>
+                                <p class="no-predictions">Ennustusi pole</p>
+                            <% end %>
+                        </div>
+                    </div>
+                <% end %>
+
+                <!-- Link to full match page -->
+                <div class="bottom-sheet-footer">
+                    <.link navigate={Routes.football_game_path(@socket, :view, @selected_match.id)} class="button button-secondary">
+                        Vaata kõiki detaile →
+                    </.link>
+                </div>
+            </div>
+        </div>
+    <% end %>
 </main>

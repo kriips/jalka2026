@@ -2,9 +2,9 @@ defmodule Jalka2026.Football.BracketResult do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias Jalka2026.Football.{Team, Competition}
+  alias Jalka2026.Football.{Competition, Team}
 
-  @rounds ~w(round_of_32 round_of_16 quarter_final semi_final final winner)
+  @rounds ~w(round_of_32 round_of_16 quarter_final semi_final final)
 
   schema "bracket_results" do
     belongs_to(:team, Team)

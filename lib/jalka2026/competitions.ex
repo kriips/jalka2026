@@ -9,8 +9,9 @@ defmodule Jalka2026.Competitions do
   """
 
   import Ecto.Query, warn: false
-  alias Jalka2026.Repo
+
   alias Jalka2026.Football.Competition
+  alias Jalka2026.Repo
 
   @type competition :: Competition.t()
 

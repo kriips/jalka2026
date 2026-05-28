@@ -106,8 +106,8 @@ defmodule Jalka2026Web.UserResetPasswordControllerTest do
 
       response = html_response(conn, 200)
       assert response =~ "<h1>Reset password</h1>"
-      assert response =~ "should be at least 5 character(s)"
-      assert response =~ "does not match password"
+      assert response =~ "peab olema vähemalt 5 tähemärki"
+      assert response =~ "paroolid ei kattu"
     end
 
     test "does not reset password with invalid token", %{conn: conn} do

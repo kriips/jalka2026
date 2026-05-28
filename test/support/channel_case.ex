@@ -28,11 +28,13 @@ defmodule Jalka2026Web.ChannelCase do
     end
   end
 
+  alias Ecto.Adapters.SQL.Sandbox
+
   setup tags do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(Jalka2026.Repo)
+    :ok = Sandbox.checkout(Jalka2026.Repo)
 
     if !tags[:async] do
-      Ecto.Adapters.SQL.Sandbox.mode(Jalka2026.Repo, {:shared, self()})
+      Sandbox.mode(Jalka2026.Repo, {:shared, self()})
     end
 
     :ok

@@ -12,8 +12,8 @@ defmodule Jalka2026.Accounts do
   """
 
   import Ecto.Query, warn: false
+  alias Jalka2026.Accounts.{AllowedUser, User, UserNotifier, UserToken}
   alias Jalka2026.Repo
-  alias Jalka2026.Accounts.{User, AllowedUser, UserToken, UserNotifier}
 
   @type user :: User.t()
   @type changeset :: Ecto.Changeset.t()
@@ -46,13 +46,22 @@ defmodule Jalka2026.Accounts do
 
   def get_allowed_users_by_name(query) when is_binary(query) do
     competition_id = competition_id()
-    Repo.all(from(a in AllowedUser, where: ilike(a.name, ^"%#{query}%") and a.competition_id == ^competition_id))
+
+    Repo.all(
+      from(a in AllowedUser,
+        where: ilike(a.name, ^"%#{query}%") and a.competition_id == ^competition_id
+      )
+    )
   end
 
   def get_allowed_users_by_name(_name), do: []
 
   def get_allowed_users_exactly_by_name(query, competition_id) when is_binary(query) do
-    Repo.all(from(a in AllowedUser, where: like(a.name, ^"#{query}") and a.competition_id == ^competition_id))
+    Repo.all(
+      from(a in AllowedUser,
+        where: like(a.name, ^"#{query}") and a.competition_id == ^competition_id
+      )
+    )
   end
 
   def get_allowed_users_exactly_by_name(_name, _competition_id), do: []

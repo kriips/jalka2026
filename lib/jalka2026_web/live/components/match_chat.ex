@@ -1,8 +1,9 @@
 defmodule Jalka2026Web.Live.Components.MatchChat do
+  @moduledoc false
   use Phoenix.LiveComponent
 
-  alias Jalka2026.Chat
   alias Jalka2026.Accounts.User
+  alias Jalka2026.Chat
 
   @impl true
   def mount(socket) do

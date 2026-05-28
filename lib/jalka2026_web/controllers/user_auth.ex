@@ -1,4 +1,5 @@
 defmodule Jalka2026Web.UserAuth do
+  @moduledoc false
   import Plug.Conn
   import Phoenix.Controller
 

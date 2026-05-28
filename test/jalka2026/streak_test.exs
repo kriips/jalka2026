@@ -24,7 +24,9 @@ defmodule Jalka2026.StreakTest do
         3 => %{result: "draw"}
       }
 
-      {current, longest, bonus} = Streak.calculate_streak_stats([match1, match2, match3], predictions)
+      {current, longest, bonus} =
+        Streak.calculate_streak_stats([match1, match2, match3], predictions)
+
       assert current == 3
       assert longest == 3
       assert bonus == 0
@@ -37,11 +39,14 @@ defmodule Jalka2026.StreakTest do
 
       predictions = %{
         1 => %{result: "home"},
-        2 => %{result: "home"},  # Wrong
+        # Wrong
+        2 => %{result: "home"},
         3 => %{result: "draw"}
       }
 
-      {current, longest, bonus} = Streak.calculate_streak_stats([match1, match2, match3], predictions)
+      {current, longest, bonus} =
+        Streak.calculate_streak_stats([match1, match2, match3], predictions)
+
       assert current == 1
       assert longest == 1
       assert bonus == 0
@@ -75,7 +80,8 @@ defmodule Jalka2026.StreakTest do
         1 => %{result: "home"},
         2 => %{result: "home"},
         3 => %{result: "home"},
-        4 => %{result: "away"},  # Break at 4
+        # Break at 4
+        4 => %{result: "away"},
         5 => %{result: "home"},
         6 => %{result: "home"},
         7 => %{result: "home"},
@@ -146,12 +152,106 @@ defmodule Jalka2026.StreakTest do
         user: user,
         match: match,
         home_score: 3,
-        away_score: 0  # Different score but same result (home)
+        # Different score but same result (home)
+        away_score: 0
       })
 
       result = Streak.calculate_and_save_streak(user.id, [match])
       assert result.current_streak == 1
       assert result.longest_streak == 1
+    end
+  end
+
+  describe "recalculate_all_streaks/0" do
+    test "recalculates streaks for all users" do
+      user = user_fixture()
+      match = finished_match_fixture(%{home_score: 2, away_score: 1})
+
+      group_prediction_fixture(%{
+        user: user,
+        match: match,
+        home_score: 3,
+        away_score: 0
+      })
+
+      result = Streak.recalculate_all_streaks()
+
+      assert is_map(result)
+      assert Map.has_key?(result, user.id)
+      assert result[user.id].current_streak == 1
+      assert result[user.id].longest_streak == 1
+    end
+
+    test "handles users with no predictions" do
+      user = user_fixture()
+      _match = finished_match_fixture(%{home_score: 2, away_score: 1})
+
+      result = Streak.recalculate_all_streaks()
+
+      assert is_map(result)
+      assert Map.has_key?(result, user.id)
+      assert result[user.id].current_streak == 0
+    end
+  end
+
+  describe "recalculate_all_streaks/3" do
+    test "recalculates streaks using pre-loaded data" do
+      user = user_fixture()
+      match = finished_match_fixture(%{home_score: 2, away_score: 1})
+
+      prediction =
+        group_prediction_fixture(%{
+          user: user,
+          match: match,
+          home_score: 3,
+          away_score: 0
+        })
+
+      predictions_by_user = %{
+        user.id => %{match.id => prediction}
+      }
+
+      result = Streak.recalculate_all_streaks([user], [match], predictions_by_user)
+
+      assert is_map(result)
+      assert Map.has_key?(result, user.id)
+      assert result[user.id].current_streak == 1
+    end
+
+    test "creates new streak records for users without existing ones" do
+      user = user_fixture()
+
+      result = Streak.recalculate_all_streaks([user], [], %{})
+
+      assert is_map(result)
+      assert Map.has_key?(result, user.id)
+      assert result[user.id].current_streak == 0
+      assert result[user.id].bonus_points == 0
+    end
+
+    test "updates existing streak records" do
+      user = user_fixture()
+      # Create initial streak
+      _initial = Streak.get_or_create_streak(user.id)
+
+      match = finished_match_fixture(%{home_score: 1, away_score: 0})
+
+      prediction =
+        group_prediction_fixture(%{
+          user: user,
+          match: match,
+          home_score: 2,
+          away_score: 0
+        })
+
+      result =
+        Streak.recalculate_all_streaks(
+          [user],
+          [match],
+          %{user.id => %{match.id => prediction}}
+        )
+
+      assert result[user.id].current_streak == 1
     end
   end
 end

@@ -31,7 +31,13 @@ defmodule Jalka2026.RivalryNotifications do
     - rival_prediction: The rival's prediction
     - user_prediction: The user's prediction (for comparison)
   """
-  def broadcast_differing_prediction(user_id, rival_id, match_id, rival_prediction, user_prediction) do
+  def broadcast_differing_prediction(
+        user_id,
+        rival_id,
+        match_id,
+        rival_prediction,
+        user_prediction
+      ) do
     Phoenix.PubSub.broadcast(@pubsub, user_topic(user_id), {
       :rivalry_prediction_diff,
       %{
@@ -97,7 +103,8 @@ defmodule Jalka2026.RivalryNotifications do
     # Find users who have this user as a rival with notifications enabled
     query =
       from(ur in Football.UserRivalry,
-        where: ur.rival_id == ^user_id and ur.status == "active" and ur.notifications_enabled == true,
+        where:
+          ur.rival_id == ^user_id and ur.status == "active" and ur.notifications_enabled == true,
         select: ur.user_id
       )
 

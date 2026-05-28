@@ -2,9 +2,9 @@ defmodule Jalka2026.Football.PlayoffPrediction do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Jalka2026.Accounts.User
   alias Jalka2026.Football.Team
   alias Jalka2026.Repo
-  alias Jalka2026.Accounts.User
 
   schema "playoff_predictions" do
     belongs_to(:user, User)
@@ -21,7 +21,7 @@ defmodule Jalka2026.Football.PlayoffPrediction do
   end
 
   def get_playoff_prediction!(id) do
-    Repo.get!(PlayoffPrediction, id)
+    Repo.get!(__MODULE__, id)
   end
 
   @doc false

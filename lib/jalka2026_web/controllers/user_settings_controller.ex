@@ -4,7 +4,7 @@ defmodule Jalka2026Web.UserSettingsController do
   alias Jalka2026.Accounts
   alias Jalka2026Web.UserAuth
 
-  plug :assign_email_and_password_changesets when action not in [:update_theme]
+  plug(:assign_email_and_password_changesets when action not in [:update_theme])
 
   def edit(conn, _params) do
     render(conn, "edit.html")

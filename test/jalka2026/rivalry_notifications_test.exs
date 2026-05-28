@@ -29,12 +29,12 @@ defmodule Jalka2026.RivalryNotificationsTest do
       )
 
       assert_receive {:rivalry_prediction_diff,
-                       %{
-                         rival_id: 2,
-                         match_id: 10,
-                         rival_prediction: %{result: "home"},
-                         user_prediction: %{result: "away"}
-                       }}
+                      %{
+                        rival_id: 2,
+                        match_id: 10,
+                        rival_prediction: %{result: "home"},
+                        user_prediction: %{result: "away"}
+                      }}
     end
   end
 end

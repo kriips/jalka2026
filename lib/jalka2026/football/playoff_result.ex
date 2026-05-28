@@ -2,7 +2,7 @@ defmodule Jalka2026.Football.PlayoffResult do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias Jalka2026.Football.{Team, Competition}
+  alias Jalka2026.Football.{Competition, Team}
   alias Jalka2026.Repo
 
   schema "playoff_results" do
@@ -20,7 +20,7 @@ defmodule Jalka2026.Football.PlayoffResult do
   end
 
   def get_playoff_result!(id) do
-    Repo.get!(PlayoffResult, id)
+    Repo.get!(__MODULE__, id)
   end
 
   @doc false

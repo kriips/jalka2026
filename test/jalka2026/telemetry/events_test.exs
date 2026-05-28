@@ -34,11 +34,15 @@ defmodule Jalka2026.Telemetry.EventsTest do
       metadata = %{user_id: 42, match_id: 7}
       Events.span_group_prediction(metadata, fn -> :done end)
 
-      assert_receive {:telemetry_event, [:jalka2026, :prediction, :group, :start], _measurements, recv_meta}
+      assert_receive {:telemetry_event, [:jalka2026, :prediction, :group, :start], _measurements,
+                      recv_meta}
+
       assert recv_meta.user_id == 42
       assert recv_meta.match_id == 7
 
-      assert_receive {:telemetry_event, [:jalka2026, :prediction, :group, :stop], stop_measurements, _stop_meta}
+      assert_receive {:telemetry_event, [:jalka2026, :prediction, :group, :stop],
+                      stop_measurements, _stop_meta}
+
       assert Map.has_key?(stop_measurements, :duration)
     end
   end
@@ -57,7 +61,9 @@ defmodule Jalka2026.Telemetry.EventsTest do
       metadata = %{user_id: 5, team_id: 10, phase: 16, action: :add}
       Events.span_playoff_prediction(metadata, fn -> :ok end)
 
-      assert_receive {:telemetry_event, [:jalka2026, :prediction, :playoff, :start], _m, recv_meta}
+      assert_receive {:telemetry_event, [:jalka2026, :prediction, :playoff, :start], _m,
+                      recv_meta}
+
       assert recv_meta.user_id == 5
       assert recv_meta.phase == 16
 
@@ -80,10 +86,14 @@ defmodule Jalka2026.Telemetry.EventsTest do
       metadata = %{user_count: 3, match_count: 2}
       Events.span_leaderboard_calculation(metadata, fn -> :done end)
 
-      assert_receive {:telemetry_event, [:jalka2026, :leaderboard, :calculation, :start], _m, recv_meta}
+      assert_receive {:telemetry_event, [:jalka2026, :leaderboard, :calculation, :start], _m,
+                      recv_meta}
+
       assert recv_meta.user_count == 3
 
-      assert_receive {:telemetry_event, [:jalka2026, :leaderboard, :calculation, :stop], stop_m, _meta}
+      assert_receive {:telemetry_event, [:jalka2026, :leaderboard, :calculation, :stop], stop_m,
+                      _meta}
+
       assert Map.has_key?(stop_m, :duration)
     end
   end
@@ -125,10 +135,14 @@ defmodule Jalka2026.Telemetry.EventsTest do
       metadata = %{view: "GameLive", event: "save_prediction"}
       Events.span_live_view_event(metadata, fn -> :ok end)
 
-      assert_receive {:telemetry_event, [:jalka2026, :live_view, :handle_event, :start], _m, recv_meta}
+      assert_receive {:telemetry_event, [:jalka2026, :live_view, :handle_event, :start], _m,
+                      recv_meta}
+
       assert recv_meta.event == "save_prediction"
 
-      assert_receive {:telemetry_event, [:jalka2026, :live_view, :handle_event, :stop], stop_m, _meta}
+      assert_receive {:telemetry_event, [:jalka2026, :live_view, :handle_event, :stop], stop_m,
+                      _meta}
+
       assert Map.has_key?(stop_m, :duration)
     end
   end
@@ -170,7 +184,9 @@ defmodule Jalka2026.Telemetry.EventsTest do
 
       Events.emit_prediction_count(:group)
 
-      assert_receive {:telemetry_event, [:jalka2026, :prediction, :group, :count], measurements, _meta}
+      assert_receive {:telemetry_event, [:jalka2026, :prediction, :group, :count], measurements,
+                      _meta}
+
       assert measurements.count == 1
     end
 
@@ -179,7 +195,9 @@ defmodule Jalka2026.Telemetry.EventsTest do
 
       Events.emit_prediction_count(:playoff)
 
-      assert_receive {:telemetry_event, [:jalka2026, :prediction, :playoff, :count], measurements, _meta}
+      assert_receive {:telemetry_event, [:jalka2026, :prediction, :playoff, :count], measurements,
+                      _meta}
+
       assert measurements.count == 1
     end
   end
@@ -228,10 +246,14 @@ defmodule Jalka2026.Telemetry.EventsTest do
       metadata = %{source: :all_predictions_by_user}
       Events.span_prediction_load(metadata, fn -> :done end)
 
-      assert_receive {:telemetry_event, [:jalka2026, :query_group, :prediction_load, :start], _m, recv_meta}
+      assert_receive {:telemetry_event, [:jalka2026, :query_group, :prediction_load, :start], _m,
+                      recv_meta}
+
       assert recv_meta.source == :all_predictions_by_user
 
-      assert_receive {:telemetry_event, [:jalka2026, :query_group, :prediction_load, :stop], stop_m, _meta}
+      assert_receive {:telemetry_event, [:jalka2026, :query_group, :prediction_load, :stop],
+                      stop_m, _meta}
+
       assert Map.has_key?(stop_m, :duration)
     end
   end
@@ -250,10 +272,14 @@ defmodule Jalka2026.Telemetry.EventsTest do
       metadata = %{source: :finished_matches}
       Events.span_match_listing(metadata, fn -> [] end)
 
-      assert_receive {:telemetry_event, [:jalka2026, :query_group, :match_listing, :start], _m, recv_meta}
+      assert_receive {:telemetry_event, [:jalka2026, :query_group, :match_listing, :start], _m,
+                      recv_meta}
+
       assert recv_meta.source == :finished_matches
 
-      assert_receive {:telemetry_event, [:jalka2026, :query_group, :match_listing, :stop], stop_m, _meta}
+      assert_receive {:telemetry_event, [:jalka2026, :query_group, :match_listing, :stop], stop_m,
+                      _meta}
+
       assert Map.has_key?(stop_m, :duration)
     end
   end
@@ -272,10 +298,14 @@ defmodule Jalka2026.Telemetry.EventsTest do
       metadata = %{source: :recalculate_leaderboard}
       Events.span_leaderboard_data_load(metadata, fn -> :done end)
 
-      assert_receive {:telemetry_event, [:jalka2026, :query_group, :leaderboard_data_load, :start], _m, recv_meta}
+      assert_receive {:telemetry_event,
+                      [:jalka2026, :query_group, :leaderboard_data_load, :start], _m, recv_meta}
+
       assert recv_meta.source == :recalculate_leaderboard
 
-      assert_receive {:telemetry_event, [:jalka2026, :query_group, :leaderboard_data_load, :stop], stop_m, _meta}
+      assert_receive {:telemetry_event, [:jalka2026, :query_group, :leaderboard_data_load, :stop],
+                      stop_m, _meta}
+
       assert Map.has_key?(stop_m, :duration)
     end
   end

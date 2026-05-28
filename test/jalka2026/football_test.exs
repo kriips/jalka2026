@@ -12,7 +12,7 @@ defmodule Jalka2026.FootballTest do
 
       result = Football.get_matches_by_group("Alagrupp A")
 
-      assert length(result) >= 1
+      assert result != []
       match_ids = Enum.map(result, & &1.id)
       assert match.id in match_ids
     end
@@ -45,7 +45,7 @@ defmodule Jalka2026.FootballTest do
 
       result = Football.get_matches()
 
-      assert length(result) >= 1
+      assert result != []
       match_result = Enum.find(result, &(&1.id == match.id))
       assert match_result != nil
       assert match_result.home_team != nil
@@ -234,7 +234,7 @@ defmodule Jalka2026.FootballTest do
 
       result = Football.get_playoff_predictions()
 
-      assert length(result) >= 1
+      assert result != []
       prediction_ids = Enum.map(result, & &1.id)
       assert prediction.id in prediction_ids
     end
@@ -316,7 +316,7 @@ defmodule Jalka2026.FootballTest do
 
       results = Football.get_playoff_results()
 
-      assert length(results) >= 1
+      assert results != []
       result_ids = Enum.map(results, & &1.id)
       assert result_fixture.id in result_ids
     end

@@ -112,7 +112,7 @@ defmodule Jalka2026.Telemetry.PerformanceAlerter do
         recent = Enum.filter(entries, fn {ts, _} -> ts > cutoff end)
         durations = Enum.map(recent, fn {_, d} -> d end)
 
-        if length(durations) > 0 do
+        if durations != [] do
           {key,
            %{
              count: length(durations),
@@ -215,34 +215,42 @@ defmodule Jalka2026.Telemetry.PerformanceAlerter do
     now = System.monotonic_time(:millisecond)
     cutoff = now - @window_size_ms
 
-    case Map.get(state.metrics, key) do
-      entries when is_list(entries) and length(entries) >= @min_samples ->
-        recent = Enum.filter(entries, fn {ts, _} -> ts > cutoff end)
+    state.metrics
+    |> Map.get(key)
+    |> recent_entries(cutoff)
+    |> maybe_emit_rate_alert(state, key)
+  end
 
-        if length(recent) >= @min_samples do
-          threshold = Map.get(@thresholds, key, :infinity)
-          violations = Enum.count(recent, fn {_, d} -> d > threshold end)
-          rate = violations / length(recent)
+  defp recent_entries(entries, cutoff)
+       when is_list(entries) and length(entries) >= @min_samples do
+    recent = Enum.filter(entries, fn {ts, _} -> ts > cutoff end)
+    if length(recent) >= @min_samples, do: {:ok, recent}, else: :insufficient
+  end
 
-          if rate > @alert_rate_threshold do
-            alert =
-              create_alert(key, rate * 100, @alert_rate_threshold * 100, :high_violation_rate)
+  defp recent_entries(_entries, _cutoff), do: :insufficient
 
-            if not recently_alerted?(state.alerts, key, :high_violation_rate) do
-              log_alert(alert)
-              %{state | alerts: [alert | state.alerts]}
-            else
-              state
-            end
-          else
-            state
-          end
-        else
-          state
-        end
+  defp maybe_emit_rate_alert({:ok, recent}, state, key) do
+    threshold = Map.get(@thresholds, key, :infinity)
+    violations = Enum.count(recent, fn {_, d} -> d > threshold end)
+    rate = violations / length(recent)
 
-      _ ->
-        state
+    if rate > @alert_rate_threshold do
+      emit_rate_alert_if_new(state, key, rate)
+    else
+      state
+    end
+  end
+
+  defp maybe_emit_rate_alert(:insufficient, state, _key), do: state
+
+  defp emit_rate_alert_if_new(state, key, rate) do
+    alert = create_alert(key, rate * 100, @alert_rate_threshold * 100, :high_violation_rate)
+
+    if recently_alerted?(state.alerts, key, :high_violation_rate) do
+      state
+    else
+      log_alert(alert)
+      %{state | alerts: [alert | state.alerts]}
     end
   end
 
@@ -276,9 +284,6 @@ defmodule Jalka2026.Telemetry.PerformanceAlerter do
         :high_violation_rate ->
           "[PerformanceAlerter] ALERT: #{alert.key} high violation rate - " <>
             "#{Float.round(alert.value * 1.0, 1)}% > #{alert.threshold}%"
-
-        _ ->
-          "[PerformanceAlerter] ALERT: #{alert.key} - #{inspect(alert)}"
       end
 
     Logger.warning(message)

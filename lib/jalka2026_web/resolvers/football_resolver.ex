@@ -1,5 +1,7 @@
 defmodule Jalka2026Web.Resolvers.FootballResolver do
+  @moduledoc false
   alias Jalka2026.Football
+  alias Jalka2026.Football.TeamTranslations
   alias Jalka2026.Scoring
 
   def list_matches_by_group(group) do
@@ -139,20 +141,7 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
   end
 
   def filled_predictions(user_id) do
-    user_predictions = %{
-      "Alagrupp A" => 0,
-      "Alagrupp B" => 0,
-      "Alagrupp C" => 0,
-      "Alagrupp D" => 0,
-      "Alagrupp E" => 0,
-      "Alagrupp F" => 0,
-      "Alagrupp G" => 0,
-      "Alagrupp H" => 0,
-      "Alagrupp I" => 0,
-      "Alagrupp J" => 0,
-      "Alagrupp K" => 0,
-      "Alagrupp L" => 0
-    }
+    user_predictions = Football.empty_match_group_map()
 
     Football.get_predictions_by_user(user_id)
     |> Enum.reduce(user_predictions, fn prediction, acc ->
@@ -167,8 +156,7 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
       16 => [],
       8 => [],
       4 => [],
-      2 => [],
-      1 => []
+      2 => []
     }
 
     Football.get_playoff_predictions_by_user(user_id)
@@ -178,15 +166,12 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
   end
 
   def get_playoff_predictions_with_team_names(user_id) do
-    alias Jalka2026.Football.TeamTranslations
-
     user_playoff_predictions = %{
       32 => [],
       16 => [],
       8 => [],
       4 => [],
-      2 => [],
-      1 => []
+      2 => []
     }
 
     Football.get_playoff_predictions_by_user(user_id)
@@ -237,18 +222,17 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
   def add_playoff_correctness(user_playoff_predictions) do
     user_playoff_predictions
     |> Enum.reduce(%{}, fn {phase, team_names}, acc ->
-      modified_team_names =
-        team_names
-        |> Enum.map(fn team_name ->
-          if team_reached_phase(team_name, phase) do
-            "<b style=\"color:green\">" <> team_name <> "</b>"
-          else
-            team_name
-          end
-        end)
-
+      modified_team_names = Enum.map(team_names, &highlight_if_reached(&1, phase))
       Map.put(acc, phase, modified_team_names)
     end)
+  end
+
+  defp highlight_if_reached(team_name, phase) do
+    if team_name_reached_phase(team_name, phase) do
+      "<b style=\"color:green\">" <> team_name <> "</b>"
+    else
+      team_name
+    end
   end
 
   defp group_by_result(predictions) do
@@ -257,10 +241,7 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
   end
 
   defp group_by_phase(predictions) do
-    alias Jalka2026.Football.TeamTranslations
-
     playoff_predictions = %{
-      1 => [],
       2 => [],
       4 => [],
       8 => [],
@@ -273,7 +254,7 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
       translated_name = TeamTranslations.translate(prediction.team.name)
 
       Map.put(acc, prediction.phase, [
-        %{team_name: translated_name, user_name: prediction.user.name}
+        %{team_name: translated_name, team_id: prediction.team.id, user_name: prediction.user.name}
         | acc[prediction.phase]
       ])
     end)
@@ -282,7 +263,12 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
   defp group_by_team(predictions) do
     predictions
     |> Enum.map(fn {phase, user_prediction} ->
-      {phase, Enum.group_by(user_prediction, & &1.team_name, & &1.user_name) |> Map.to_list()}
+      grouped =
+        user_prediction
+        |> Enum.group_by(fn p -> {p.team_name, p.team_id} end, & &1.user_name)
+        |> Enum.map(fn {{team_name, team_id}, users} -> {team_name, team_id, users} end)
+
+      {phase, grouped}
     end)
   end
 
@@ -294,17 +280,20 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
   end
 
   defp add_playoff_result_to_predictions(phase, user_predictions) do
-    modified_predictions =
-      Enum.map(user_predictions, fn {team_name, users} ->
-        {team_name, team_reached_phase(team_name, phase), users}
-      end)
-
-    modified_predictions
+    Enum.map(user_predictions, fn {team_name, team_id, users} ->
+      {team_name, team_reached_phase(team_id, phase), users}
+    end)
   end
 
-  defp team_reached_phase(team_name, phase) do
-    team_id = Football.get_team_by_name(team_name) |> hd() |> Map.get(:id)
+  defp team_reached_phase(team_id, phase) do
     Football.get_playoff_result_by_phase_team(phase, team_id) != nil
+  end
+
+  defp team_name_reached_phase(team_name, phase) do
+    case Football.get_team_by_name(team_name) do
+      [team | _] -> Football.get_playoff_result_by_phase_team(phase, team.id) != nil
+      _ -> false
+    end
   end
 
   defp sort_by_count(predictions) do
@@ -381,33 +370,40 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
   end
 
   defp format_prediction(nil), do: nil
-  defp format_prediction(pred), do: %{home_score: pred.home_score, away_score: pred.away_score, result: pred.result}
+
+  defp format_prediction(pred),
+    do: %{home_score: pred.home_score, away_score: pred.away_score, result: pred.result}
 
   defp calculate_prediction_points(nil, _match), do: {0, false, false}
   defp calculate_prediction_points(_pred, %{finished: false}), do: {0, false, false}
+
   defp calculate_prediction_points(pred, match) do
     correct_result = pred.result == match.result
-    correct_score = correct_result && pred.home_score == match.home_score && pred.away_score == match.away_score
 
-    points = cond do
-      correct_score -> 2
-      correct_result -> 1
-      true -> 0
-    end
+    correct_score =
+      correct_result && pred.home_score == match.home_score && pred.away_score == match.away_score
+
+    points =
+      cond do
+        correct_score -> 2
+        correct_result -> 1
+        true -> 0
+      end
 
     {points, correct_result, correct_score}
   end
 
   defp compare_playoff_predictions(user1_playoff, user2_playoff) do
     phases = Scoring.phases()
+
     phase_names = %{
       32 => "32 parimat",
       16 => "Kaheksandikfinalistid",
       8 => "Veerandfinalistid",
       4 => "Poolfinalistid",
-      2 => "Finalistid",
-      1 => "Võitja"
+      2 => "Finalistid"
     }
+
     phase_points = Scoring.playoff_phase_points_map()
 
     Enum.map(phases, fn phase ->
@@ -444,7 +440,7 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
     points_per_correct = phase_points[phase]
 
     Enum.reduce(teams, 0, fn team_name, acc ->
-      if team_reached_phase(team_name, phase) do
+      if team_name_reached_phase(team_name, phase) do
         acc + points_per_correct
       else
         acc
@@ -456,21 +452,38 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
     # Only count finished matches for group points
     finished_group_comparisons = Enum.filter(group_comparisons, fn c -> c.match.finished end)
 
-    user1_group_points = Enum.reduce(finished_group_comparisons, 0, fn c, acc -> acc + c.user1_points end)
-    user2_group_points = Enum.reduce(finished_group_comparisons, 0, fn c, acc -> acc + c.user2_points end)
+    user1_group_points =
+      Enum.reduce(finished_group_comparisons, 0, fn c, acc -> acc + c.user1_points end)
 
-    user1_playoff_points = Enum.reduce(playoff_comparisons, 0, fn c, acc -> acc + c.user1_points end)
-    user2_playoff_points = Enum.reduce(playoff_comparisons, 0, fn c, acc -> acc + c.user2_points end)
+    user2_group_points =
+      Enum.reduce(finished_group_comparisons, 0, fn c, acc -> acc + c.user2_points end)
 
-    user1_correct_results = Enum.count(finished_group_comparisons, fn c -> c.user1_correct_result end)
-    user2_correct_results = Enum.count(finished_group_comparisons, fn c -> c.user2_correct_result end)
+    user1_playoff_points =
+      Enum.reduce(playoff_comparisons, 0, fn c, acc -> acc + c.user1_points end)
 
-    user1_correct_scores = Enum.count(finished_group_comparisons, fn c -> c.user1_correct_score end)
-    user2_correct_scores = Enum.count(finished_group_comparisons, fn c -> c.user2_correct_score end)
+    user2_playoff_points =
+      Enum.reduce(playoff_comparisons, 0, fn c, acc -> acc + c.user2_points end)
 
-    matches_user1_won = Enum.count(finished_group_comparisons, fn c -> c.user1_points > c.user2_points end)
-    matches_user2_won = Enum.count(finished_group_comparisons, fn c -> c.user2_points > c.user1_points end)
-    matches_tied = Enum.count(finished_group_comparisons, fn c -> c.user1_points == c.user2_points end)
+    user1_correct_results =
+      Enum.count(finished_group_comparisons, fn c -> c.user1_correct_result end)
+
+    user2_correct_results =
+      Enum.count(finished_group_comparisons, fn c -> c.user2_correct_result end)
+
+    user1_correct_scores =
+      Enum.count(finished_group_comparisons, fn c -> c.user1_correct_score end)
+
+    user2_correct_scores =
+      Enum.count(finished_group_comparisons, fn c -> c.user2_correct_score end)
+
+    matches_user1_won =
+      Enum.count(finished_group_comparisons, fn c -> c.user1_points > c.user2_points end)
+
+    matches_user2_won =
+      Enum.count(finished_group_comparisons, fn c -> c.user2_points > c.user1_points end)
+
+    matches_tied =
+      Enum.count(finished_group_comparisons, fn c -> c.user1_points == c.user2_points end)
 
     %{
       user1_group_points: user1_group_points,
@@ -517,9 +530,10 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
 
   defp calculate_group_stats(predictions_with_correctness) do
     # Filter to only finished matches
-    finished_predictions = Enum.filter(predictions_with_correctness, fn {pred, _, _} ->
-      pred.match.finished
-    end)
+    finished_predictions =
+      Enum.filter(predictions_with_correctness, fn {pred, _, _} ->
+        pred.match.finished
+      end)
 
     total_finished = length(finished_predictions)
 
@@ -538,40 +552,30 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
         worst_group: nil
       }
     else
-      correct_results = Enum.count(finished_predictions, fn {_, correct_result, _} -> correct_result end)
-      correct_scores = Enum.count(finished_predictions, fn {_, _, correct_score} -> correct_score end)
+      correct_results =
+        Enum.count(finished_predictions, fn {_, correct_result, _} -> correct_result end)
+
+      correct_scores =
+        Enum.count(finished_predictions, fn {_, _, correct_score} -> correct_score end)
 
       points_earned = correct_results + correct_scores
       max_possible = total_finished * 2
 
       # Group by group name and calculate stats per group
-      by_group = finished_predictions
-      |> Enum.group_by(fn {pred, _, _} -> pred.match.group end)
-      |> Enum.map(fn {group, preds} ->
-        group_total = length(preds)
-        group_correct_results = Enum.count(preds, fn {_, cr, _} -> cr end)
-        group_correct_scores = Enum.count(preds, fn {_, _, cs} -> cs end)
-        group_points = group_correct_results + group_correct_scores
-
-        accuracy = if group_total > 0, do: Float.round(group_correct_results / group_total * 100, 1), else: 0.0
-
-        {group, %{
-          total: group_total,
-          correct_results: group_correct_results,
-          correct_scores: group_correct_scores,
-          points: group_points,
-          result_accuracy: accuracy,
-          score_accuracy: if(group_total > 0, do: Float.round(group_correct_scores / group_total * 100, 1), else: 0.0)
-        }}
-      end)
-      |> Map.new()
+      by_group =
+        finished_predictions
+        |> Enum.group_by(fn {pred, _, _} -> pred.match.group end)
+        |> Enum.map(&calculate_single_group_stats/1)
+        |> Map.new()
 
       # Find best and worst groups (minimum 3 matches to qualify)
       qualifying_groups = Enum.filter(by_group, fn {_, stats} -> stats.total >= 3 end)
 
       {best_group, worst_group} =
-        if length(qualifying_groups) >= 1 do
-          sorted = Enum.sort_by(qualifying_groups, fn {_, stats} -> stats.result_accuracy end, :desc)
+        if qualifying_groups != [] do
+          sorted =
+            Enum.sort_by(qualifying_groups, fn {_, stats} -> stats.result_accuracy end, :desc)
+
           {best, _} = hd(sorted)
           {worst, _} = List.last(sorted)
           {best, worst}
@@ -595,6 +599,29 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
     end
   end
 
+  defp calculate_single_group_stats({group, preds}) do
+    group_total = length(preds)
+    group_correct_results = Enum.count(preds, fn {_, cr, _} -> cr end)
+    group_correct_scores = Enum.count(preds, fn {_, _, cs} -> cs end)
+    group_points = group_correct_results + group_correct_scores
+
+    accuracy =
+      if group_total > 0, do: Float.round(group_correct_results / group_total * 100, 1), else: 0.0
+
+    score_acc =
+      if group_total > 0, do: Float.round(group_correct_scores / group_total * 100, 1), else: 0.0
+
+    {group,
+     %{
+       total: group_total,
+       correct_results: group_correct_results,
+       correct_scores: group_correct_scores,
+       points: group_points,
+       result_accuracy: accuracy,
+       score_accuracy: score_acc
+     }}
+  end
+
   defp calculate_playoff_analytics(playoff_predictions) do
     phases = Scoring.phases()
     phase_points_map = Scoring.playoff_phase_points_map()
@@ -602,10 +629,11 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
     Enum.map(phases, fn phase ->
       teams = Map.get(playoff_predictions, phase, [])
 
-      team_results = Enum.map(teams, fn team_name ->
-        reached = team_reached_phase_for_analytics(team_name, phase)
-        %{team_name: team_name, reached_phase: reached}
-      end)
+      team_results =
+        Enum.map(teams, fn team_name ->
+          reached = team_reached_phase_for_analytics(team_name, phase)
+          %{team_name: team_name, reached_phase: reached}
+        end)
 
       correct_count = Enum.count(team_results, fn t -> t.reached_phase end)
       points_per_correct = phase_points_map[phase]
@@ -617,7 +645,8 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
         correct_predictions: correct_count,
         points_earned: correct_count * points_per_correct,
         points_per_correct: points_per_correct,
-        accuracy: if(length(teams) > 0, do: Float.round(correct_count / length(teams) * 100, 1), else: 0.0)
+        accuracy:
+          if(teams != [], do: Float.round(correct_count / length(teams) * 100, 1), else: 0.0)
       }
     end)
   end
@@ -635,43 +664,55 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
       16 => "Kaheksandikfinaalid",
       8 => "Veerandfinaalid",
       4 => "Poolfinaalid",
-      2 => "Finaal",
-      1 => "Voitja"
+      2 => "Finaal"
     }
 
-    total_predictions = Enum.reduce(playoff_analytics, 0, fn p, acc -> acc + p.total_predictions end)
-    total_correct = Enum.reduce(playoff_analytics, 0, fn p, acc -> acc + p.correct_predictions end)
+    total_predictions =
+      Enum.reduce(playoff_analytics, 0, fn p, acc -> acc + p.total_predictions end)
+
+    total_correct =
+      Enum.reduce(playoff_analytics, 0, fn p, acc -> acc + p.correct_predictions end)
+
     total_points = Enum.reduce(playoff_analytics, 0, fn p, acc -> acc + p.points_earned end)
 
-    by_phase = playoff_analytics
-    |> Enum.map(fn p ->
-      {phase_names[p.phase], %{
-        phase: p.phase,
-        total: p.total_predictions,
-        correct: p.correct_predictions,
-        points: p.points_earned,
-        accuracy: p.accuracy
-      }}
-    end)
-    |> Map.new()
+    by_phase =
+      playoff_analytics
+      |> Enum.map(fn p ->
+        {phase_names[p.phase],
+         %{
+           phase: p.phase,
+           total: p.total_predictions,
+           correct: p.correct_predictions,
+           points: p.points_earned,
+           accuracy: p.accuracy
+         }}
+      end)
+      |> Map.new()
 
     # Find best phase (with at least 1 prediction and some results)
-    phases_with_predictions = Enum.filter(playoff_analytics, fn p ->
-      p.total_predictions > 0 and (p.correct_predictions > 0 or has_playoff_results_for_phase(p.phase))
-    end)
+    phases_with_predictions =
+      Enum.filter(playoff_analytics, fn p ->
+        p.total_predictions > 0 and
+          (p.correct_predictions > 0 or has_playoff_results_for_phase(p.phase))
+      end)
 
-    best_phase = if length(phases_with_predictions) > 0 do
-      best = Enum.max_by(phases_with_predictions, fn p -> p.accuracy end)
-      phase_names[best.phase]
-    else
-      nil
-    end
+    best_phase =
+      if phases_with_predictions != [] do
+        best = Enum.max_by(phases_with_predictions, fn p -> p.accuracy end)
+        phase_names[best.phase]
+      else
+        nil
+      end
 
     %{
       total_predictions: total_predictions,
       total_correct: total_correct,
       total_points: total_points,
-      overall_accuracy: if(total_predictions > 0, do: Float.round(total_correct / total_predictions * 100, 1), else: 0.0),
+      overall_accuracy:
+        if(total_predictions > 0,
+          do: Float.round(total_correct / total_predictions * 100, 1),
+          else: 0.0
+        ),
       by_phase: by_phase,
       best_phase: best_phase,
       details: playoff_analytics
@@ -685,11 +726,12 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
 
   defp calculate_trend_data(predictions_with_correctness) do
     # Sort predictions by date
-    sorted = predictions_with_correctness
-    |> Enum.filter(fn {pred, _, _} -> pred.match.finished end)
-    |> Enum.sort_by(fn {pred, _, _} -> pred.match.date end)
+    sorted =
+      predictions_with_correctness
+      |> Enum.filter(fn {pred, _, _} -> pred.match.finished end)
+      |> Enum.sort_by(fn {pred, _, _} -> pred.match.date end)
 
-    if length(sorted) == 0 do
+    if sorted == [] do
       %{
         cumulative_accuracy: [],
         recent_form: [],
@@ -697,20 +739,7 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
       }
     else
       # Calculate cumulative accuracy over time
-      {cumulative, _} = Enum.reduce(sorted, {[], {0, 0}}, fn {pred, correct_result, _}, {acc, {total_correct, total}} ->
-        new_correct = if correct_result, do: total_correct + 1, else: total_correct
-        new_total = total + 1
-        accuracy = Float.round(new_correct / new_total * 100, 1)
-
-        data_point = %{
-          date: pred.match.date,
-          match: "#{pred.match.home_team.name} vs #{pred.match.away_team.name}",
-          accuracy: accuracy,
-          correct: correct_result
-        }
-
-        {[data_point | acc], {new_correct, new_total}}
-      end)
+      {cumulative, _} = Enum.reduce(sorted, {[], {0, 0}}, &accumulate_trend_point/2)
 
       cumulative_data = Enum.reverse(cumulative)
 
@@ -728,10 +757,25 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
     end
   end
 
+  defp accumulate_trend_point({pred, correct_result, _}, {acc, {total_correct, total}}) do
+    new_correct = if correct_result, do: total_correct + 1, else: total_correct
+    new_total = total + 1
+    accuracy = Float.round(new_correct / new_total * 100, 1)
+
+    data_point = %{
+      date: pred.match.date,
+      match: "#{TeamTranslations.translate(pred.match.home_team.name)} vs #{TeamTranslations.translate(pred.match.away_team.name)}",
+      accuracy: accuracy,
+      correct: correct_result
+    }
+
+    {[data_point | acc], {new_correct, new_total}}
+  end
+
   defp calculate_streaks(sorted_predictions) do
     results = Enum.map(sorted_predictions, fn {_, correct_result, _} -> correct_result end)
 
-    if length(results) == 0 do
+    if results == [] do
       %{current: 0, longest: 0, type: nil}
     else
       # Calculate current streak
@@ -751,10 +795,14 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
   end
 
   defp calculate_current_streak([]), do: {0, nil}
+
   defp calculate_current_streak([first | rest]) do
-    count = 1 + Enum.reduce_while(rest, 0, fn result, acc ->
-      if result == first, do: {:cont, acc + 1}, else: {:halt, acc}
-    end)
+    count =
+      1 +
+        Enum.reduce_while(rest, 0, fn result, acc ->
+          if result == first, do: {:cont, acc + 1}, else: {:halt, acc}
+        end)
+
     type = if first, do: :correct, else: :incorrect
     {count, type}
   end
@@ -778,7 +826,11 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
       playoff_points: playoff_stats.total_points,
       total_predictions: total_predictions,
       total_correct: total_correct,
-      overall_accuracy: if(total_predictions > 0, do: Float.round(total_correct / total_predictions * 100, 1), else: 0.0)
+      overall_accuracy:
+        if(total_predictions > 0,
+          do: Float.round(total_correct / total_predictions * 100, 1),
+          else: 0.0
+        )
     }
   end
 end

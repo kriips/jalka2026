@@ -42,8 +42,6 @@ defmodule Jalka2026Web.Router do
       live("/football/games/:id", FootballLive.Game, :view)
       live("/football/games", FootballLive.Games, :view)
       live("/football/playoffs", FootballLive.Playoffs, :view)
-      live("/football/scenarios", FootballLive.GroupScenarios, :view)
-      live("/football/scenarios/:group", FootballLive.GroupScenarios, :view)
       live("/football/simulate", FootballLive.MatchSimulation, :view)
       live("/football/user/:id", FootballLive.User, :view)
       live("/football/user/:id/analytics", FootballLive.Analytics, :view)
@@ -59,7 +57,8 @@ defmodule Jalka2026Web.Router do
     live_session :authenticated_bracket,
       on_mount: [
         {Jalka2026Web.Hooks.AuthHook, :require_user},
-        {Jalka2026Web.Hooks.CompetitionHook, :default}
+        {Jalka2026Web.Hooks.CompetitionHook, :default},
+        {Jalka2026Web.Hooks.PredictionsHook, :assign_status}
       ] do
       live("/bracket", BracketLive.Bracket, :view)
       live("/bracket/user/:user_id", BracketLive.Bracket, :view)
@@ -171,10 +170,12 @@ defmodule Jalka2026Web.Router do
     live_session :authenticated_predictions,
       on_mount: [
         {Jalka2026Web.Hooks.AuthHook, :require_user},
-        {Jalka2026Web.Hooks.CompetitionHook, :default}
+        {Jalka2026Web.Hooks.CompetitionHook, :default},
+        {Jalka2026Web.Hooks.PredictionsHook, :require_open}
       ] do
       live("/football/predict", UserPredictionLive.Navigate, :navigate)
       live("/football/predict/playoffs", UserPredictionLive.Playoffs, :edit)
+      live("/football/predict/playoffs/:stage", UserPredictionLive.Playoffs, :edit)
       live("/football/predict/:group", UserPredictionLive.Groups, :edit)
     end
   end

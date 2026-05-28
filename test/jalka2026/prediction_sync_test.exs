@@ -24,7 +24,7 @@ defmodule Jalka2026.PredictionSyncTest do
       PredictionSync.broadcast_group_prediction(1, 10, 2, 1)
 
       assert_receive {:prediction_sync, :group_prediction_changed,
-                       %{match_id: 10, home_score: 2, away_score: 1}}
+                      %{match_id: 10, home_score: 2, away_score: 1}}
     end
 
     test "includes source_pid in broadcast" do
@@ -34,7 +34,7 @@ defmodule Jalka2026.PredictionSyncTest do
       PredictionSync.broadcast_group_prediction(2, 10, 2, 1, pid)
 
       assert_receive {:prediction_sync, :group_prediction_changed,
-                       %{match_id: 10, source_pid: ^pid}}
+                      %{match_id: 10, source_pid: ^pid}}
     end
   end
 
@@ -45,7 +45,7 @@ defmodule Jalka2026.PredictionSyncTest do
       PredictionSync.broadcast_playoff_prediction(3, 5, 16, true)
 
       assert_receive {:prediction_sync, :playoff_prediction_changed,
-                       %{team_id: 5, phase: 16, include: true}}
+                      %{team_id: 5, phase: 16, include: true}}
     end
 
     test "includes source_pid in broadcast" do
@@ -55,7 +55,7 @@ defmodule Jalka2026.PredictionSyncTest do
       PredictionSync.broadcast_playoff_prediction(4, 5, 16, false, pid)
 
       assert_receive {:prediction_sync, :playoff_prediction_changed,
-                       %{team_id: 5, phase: 16, include: false, source_pid: ^pid}}
+                      %{team_id: 5, phase: 16, include: false, source_pid: ^pid}}
     end
   end
 end

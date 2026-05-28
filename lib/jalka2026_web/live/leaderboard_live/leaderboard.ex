@@ -1,10 +1,10 @@
 defmodule Jalka2026Web.LeaderboardLive.Leaderboard do
   use Jalka2026Web, :live_view
 
+  alias Jalka2026.Badges
+  alias Jalka2026.Football
   alias Jalka2026.Leaderboard
   alias Jalka2026.Leaderboard.Entry
-  alias Jalka2026.Football
-  alias Jalka2026.Badges
   alias Jalka2026Web.TelemetryHooks
 
   @sort_options [
@@ -37,6 +37,7 @@ defmodule Jalka2026Web.LeaderboardLive.Leaderboard do
 
       # Get rivalry leaderboard for current user if logged in
       current_user = Map.get(socket.assigns, :current_user)
+
       rivalry_leaderboard =
         case current_user do
           nil -> []
@@ -61,13 +62,23 @@ defmodule Jalka2026Web.LeaderboardLive.Leaderboard do
          sort_options: @sort_options,
          points_filter_options: @points_filter_options
        )
-       |> stream(:leaderboard_rows, leaderboard_to_stream_items(leaderboard, %{}, false, user_favorite_teams, user_badges))}
+       |> stream(
+         :leaderboard_rows,
+         leaderboard_to_stream_items(leaderboard, %{}, false, user_favorite_teams, user_badges)
+       )}
     end)
   end
 
-  defp leaderboard_to_stream_items(leaderboard, changes, flash_updates, user_favorite_teams, user_badges) do
+  defp leaderboard_to_stream_items(
+         leaderboard,
+         changes,
+         flash_updates,
+         user_favorite_teams,
+         user_badges
+       ) do
     Enum.map(leaderboard, fn %Entry{} = entry ->
       change = Map.get(changes, entry.user_id, %{})
+
       %{
         id: "leaderboard-row-#{entry.user_id}",
         user_id: entry.user_id,
@@ -102,7 +113,17 @@ defmodule Jalka2026Web.LeaderboardLive.Leaderboard do
        points_filter: points_filter,
        leaderboard: leaderboard
      )
-     |> stream(:leaderboard_rows, leaderboard_to_stream_items(leaderboard, socket.assigns.changes, socket.assigns.flash_updates, socket.assigns.user_favorite_teams, socket.assigns.user_badges), reset: true)}
+     |> stream(
+       :leaderboard_rows,
+       leaderboard_to_stream_items(
+         leaderboard,
+         socket.assigns.changes,
+         socket.assigns.flash_updates,
+         socket.assigns.user_favorite_teams,
+         socket.assigns.user_badges
+       ),
+       reset: true
+     )}
   end
 
   @impl true
@@ -112,7 +133,11 @@ defmodule Jalka2026Web.LeaderboardLive.Leaderboard do
 
     {:noreply,
      push_patch(socket,
-       to: Routes.leaderboard_leaderboard_path(socket, :view, sort_by: sort_by, points_filter: points_filter)
+       to:
+         Routes.leaderboard_leaderboard_path(socket, :view,
+           sort_by: sort_by,
+           points_filter: points_filter
+         )
      )}
   end
 
@@ -124,13 +149,15 @@ defmodule Jalka2026Web.LeaderboardLive.Leaderboard do
 
     # Update rivalry leaderboard
     current_user = Map.get(socket.assigns, :current_user)
+
     rivalry_leaderboard =
       case current_user do
         nil -> []
         user -> build_rivalry_leaderboard(user.id, leaderboard)
       end
 
-    sorted_leaderboard = apply_filters_and_sort(leaderboard, socket.assigns.sort_by, socket.assigns.points_filter)
+    sorted_leaderboard =
+      apply_filters_and_sort(leaderboard, socket.assigns.sort_by, socket.assigns.points_filter)
 
     {:noreply,
      socket
@@ -143,7 +170,17 @@ defmodule Jalka2026Web.LeaderboardLive.Leaderboard do
        changes: changes,
        flash_updates: true
      )
-     |> stream(:leaderboard_rows, leaderboard_to_stream_items(sorted_leaderboard, changes, true, user_favorite_teams, user_badges), reset: true)
+     |> stream(
+       :leaderboard_rows,
+       leaderboard_to_stream_items(
+         sorted_leaderboard,
+         changes,
+         true,
+         user_favorite_teams,
+         user_badges
+       ),
+       reset: true
+     )
      |> push_event("leaderboard-updated", %{changes: changes})}
   end
 
@@ -231,38 +268,47 @@ defmodule Jalka2026Web.LeaderboardLive.Leaderboard do
     if rivalries == [] do
       []
     else
-      leaderboard_map = Map.new(leaderboard, fn %Entry{} = entry ->
-        {entry.user_id, %{id: entry.user_id, rank: entry.rank, name: entry.name,
-          group_points: entry.group_points, playoff_points: entry.playoff_points,
-          bonus_points: entry.bonus_points, current_streak: entry.current_streak,
-          longest_streak: entry.longest_streak, total_points: entry.total_points}}
-      end)
+      leaderboard_map =
+        Map.new(leaderboard, fn %Entry{} = entry ->
+          {entry.user_id,
+           %{
+             id: entry.user_id,
+             rank: entry.rank,
+             name: entry.name,
+             group_points: entry.group_points,
+             playoff_points: entry.playoff_points,
+             bonus_points: entry.bonus_points,
+             current_streak: entry.current_streak,
+             longest_streak: entry.longest_streak,
+             total_points: entry.total_points
+           }}
+        end)
 
       # Get current user from leaderboard
       current_user_data = Map.get(leaderboard_map, user_id)
 
       # Get rivals from leaderboard
-      rival_data = rivalries
-      |> Enum.map(fn rivalry ->
-        rival = Map.get(leaderboard_map, rivalry.rival_id)
-        if rival do
-          stats = Football.get_rivalry_stats(user_id, rivalry.rival_id)
-          %{
-            user: rival,
-            rivalry: rivalry,
-            stats: stats
-          }
-        else
-          nil
-        end
-      end)
-      |> Enum.reject(&is_nil/1)
-      |> Enum.sort_by(fn r -> r.user.total_points end, :desc)
+      rival_data =
+        rivalries
+        |> Enum.map(&build_rival_entry(&1, leaderboard_map, user_id))
+        |> Enum.reject(&is_nil/1)
+        |> Enum.sort_by(fn r -> r.user.total_points end, :desc)
 
       %{
         current_user: current_user_data,
         rivals: rival_data
       }
+    end
+  end
+
+  defp build_rival_entry(rivalry, leaderboard_map, user_id) do
+    case Map.get(leaderboard_map, rivalry.rival_id) do
+      nil ->
+        nil
+
+      rival ->
+        stats = Football.get_rivalry_stats(user_id, rivalry.rival_id)
+        %{user: rival, rivalry: rivalry, stats: stats}
     end
   end
 end

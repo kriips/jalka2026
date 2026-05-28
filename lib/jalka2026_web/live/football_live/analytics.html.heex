@@ -237,7 +237,7 @@
 
                     <div class="playoff-phases-grid">
                         <%= for phase_data <- @analytics.playoff_stats.details do %>
-                            <% phase_names = %{32 => "32 parimat", 16 => "Kaheksandikfinaalid", 8 => "Veerandfinaalid", 4 => "Poolfinaalid", 2 => "Finaal", 1 => "Voitja"} %>
+                            <% phase_names = %{32 => "32 parimat", 16 => "Kaheksandikfinaalid", 8 => "Veerandfinaalid", 4 => "Poolfinaalid", 2 => "Finaal"} %>
                             <div class="playoff-phase-card">
                                 <div class="phase-header">
                                     <span class="phase-name"><%= phase_names[phase_data.phase] %></span>

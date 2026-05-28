@@ -1,52 +1,115 @@
 defmodule Jalka2026Web.UserPredictionLive.Playoffs do
   use Jalka2026Web, :live_view
 
-  alias Jalka2026Web.Resolvers.FootballResolver
-  alias Jalka2026.Football.GroupScenarios
+  alias Jalka2026.Football
+  alias Jalka2026.Football.{BracketPrediction, BracketSeeding, GroupScenarios, ThirdPlaceSeeding}
   alias Jalka2026.PredictionSync
   alias Jalka2026Web.TelemetryHooks
+
+  @rounds ["round_of_32", "round_of_16", "quarter_final", "semi_final", "final"]
 
   @impl true
   def mount(_params, _session, socket) do
     TelemetryHooks.with_mount_telemetry(__MODULE__, socket, fn ->
-      # Subscribe to prediction sync for multi-device updates
+      user_id = socket.assigns.current_user.id
+
       if connected?(socket) do
-        PredictionSync.subscribe(socket.assigns.current_user.id)
+        PredictionSync.subscribe(user_id)
       end
 
-      socket = add_teams(socket)
-      # Get predicted qualifiers from user's group predictions
-      predicted_qualifiers = GroupScenarios.get_all_predicted_qualifiers(socket.assigns.current_user.id)
-      {:ok, assign(socket, predicted_qualifiers: predicted_qualifiers)}
+      socket =
+        socket
+        |> assign(
+          prediction_deadline: Application.get_env(:jalka2026, :prediction_deadline),
+          predictions_open: Jalka2026Web.LiveHelpers.predictions_open?(),
+          swap_slot: nil
+        )
+        |> load_bracket(user_id)
+
+      {:ok, socket}
     end)
   end
 
   @impl true
-  def handle_event("toggle-team", user_params, socket) do
+  def handle_params(params, _uri, socket) do
+    stage = Map.get(params, "stage", "round_of_32")
+
+    stage =
+      if stage in @rounds do
+        stage
+      else
+        "round_of_32"
+      end
+
+    stage_index = Enum.find_index(@rounds, &(&1 == stage))
+
+    prev_stage =
+      if stage_index > 0 do
+        Enum.at(@rounds, stage_index - 1)
+      end
+
+    next_stage =
+      if stage_index < length(@rounds) - 1 do
+        Enum.at(@rounds, stage_index + 1)
+      end
+
+    current_round = Enum.find(socket.assigns.rounds, &(&1.round == stage))
+
+    {:noreply,
+     assign(socket,
+       current_stage: stage,
+       current_round: current_round,
+       prev_stage: prev_stage,
+       next_stage: next_stage,
+       stage_index: stage_index,
+       stage_count: length(@rounds)
+     )}
+  end
+
+  @impl true
+  def handle_event("predictions_locked", _params, socket) do
+    {:noreply,
+     socket
+     |> Phoenix.LiveView.put_flash(:error, "Ennustamine on suletud - turniir on alanud")
+     |> Phoenix.LiveView.redirect(to: "/")}
+  end
+
+  @impl true
+  def handle_event("select-winner", %{"round" => round, "position" => pos, "team-id" => team_id_str}, socket) do
     if Jalka2026Web.LiveHelpers.predictions_open?() do
       case Jalka2026Web.LiveRateLimiter.check_playoff_prediction_rate(socket.assigns.current_user.id) do
         :ok ->
-          team_id = String.to_integer(user_params["team"])
-          phase = String.to_integer(user_params["phase"])
-          include = user_params["value"] == "on"
+          user_id = socket.assigns.current_user.id
+          team_id = String.to_integer(team_id_str)
+          position = String.to_integer(pos)
 
-          FootballResolver.change_playoff_prediction(%{
-            user_id: socket.assigns.current_user.id,
-            team_id: team_id,
-            phase: phase,
-            include: include
+          # If switching from a different team, cascade-remove the old team first
+          case Football.get_bracket_prediction(user_id, round, position) do
+            %{team_id: old_team_id} when not is_nil(old_team_id) and old_team_id != team_id ->
+              Football.cascade_bracket_removal(user_id, old_team_id, round)
+              sync_to_playoff_prediction(user_id, old_team_id, round, false)
+
+            _ ->
+              :ok
+          end
+
+          Football.set_bracket_prediction(%{
+            user_id: user_id,
+            round: round,
+            position: position,
+            team_id: team_id
           })
 
-          # Broadcast to other devices
+          # Also sync to playoff_predictions for backward compatibility
+          sync_to_playoff_prediction(user_id, team_id, round, true)
+
           PredictionSync.broadcast_playoff_prediction(
-            socket.assigns.current_user.id,
-            team_id,
-            phase,
-            include,
-            self()
+            user_id, team_id, round_to_phase(round), true, self()
           )
 
-          {:noreply, add_teams(socket)}
+          socket = load_bracket(socket, user_id)
+          current_round = Enum.find(socket.assigns.rounds, &(&1.round == socket.assigns.current_stage))
+          {:noreply, assign(socket, current_round: current_round, swap_slot: nil)}
 
         {:error, :rate_limited} ->
           {:noreply,
@@ -61,162 +124,487 @@ defmodule Jalka2026Web.UserPredictionLive.Playoffs do
     end
   end
 
-  # Handle prediction sync from other devices
   @impl true
-  def handle_info({:prediction_sync, :playoff_prediction_changed, %{source_pid: source_pid}}, socket)
-      when source_pid != self() do
-    # Reload teams to reflect changes from another device
-    {:noreply, add_teams(socket)}
+  def handle_event("open-swap", %{"round" => round, "position" => pos} = params, socket) do
+    position = String.to_integer(pos)
+    side = Map.get(params, "side")
+
+    swap_slot =
+      if side do
+        {round, position, side}
+      else
+        {round, position}
+      end
+
+    # Toggle: if already open on same slot, close it
+    swap_slot = if socket.assigns.swap_slot == swap_slot, do: nil, else: swap_slot
+
+    {:noreply, assign(socket, swap_slot: swap_slot)}
   end
 
-  # Ignore sync messages from self
-  def handle_info({:prediction_sync, :playoff_prediction_changed, %{source_pid: source_pid}}, socket)
+  @impl true
+  def handle_event("close-swap", _params, socket) do
+    {:noreply, assign(socket, swap_slot: nil)}
+  end
+
+  @impl true
+  def handle_event("swap-team", %{"round" => round, "position" => pos, "team-id" => team_id_str} = params, socket) do
+    if Jalka2026Web.LiveHelpers.predictions_open?() do
+      case Jalka2026Web.LiveRateLimiter.check_playoff_prediction_rate(socket.assigns.current_user.id) do
+        :ok ->
+          user_id = socket.assigns.current_user.id
+          team_id = String.to_integer(team_id_str)
+          position = String.to_integer(pos)
+          side = Map.get(params, "side")
+
+          if side do
+            # Store a matchup override — replaces team_a or team_b display without selecting a winner
+            # Find the old team currently displayed at this side
+            slot = Enum.find(socket.assigns.current_round.slots, &(&1.position == position))
+            old_team = if side == "a", do: slot && slot.team_a, else: slot && slot.team_b
+            old_team_id = old_team && old_team.id
+
+            # Clear winner if it was the team being swapped out
+            if old_team_id do
+              case Football.get_bracket_prediction(user_id, round, position) do
+                %{team_id: ^old_team_id} ->
+                  Football.cascade_bracket_removal(user_id, old_team_id, round)
+                  sync_to_playoff_prediction(user_id, old_team_id, round, false)
+                  Football.clear_bracket_prediction(user_id, round, position)
+
+                _ ->
+                  :ok
+              end
+            end
+
+            # Set the matchup override
+            Football.set_bracket_override(%{
+              user_id: user_id,
+              round: round,
+              position: position,
+              side: side,
+              team_id: team_id
+            })
+          else
+            # Winner slot swap (no side): set as winner directly
+            case Football.get_bracket_prediction(user_id, round, position) do
+              %{team_id: old_team_id} when not is_nil(old_team_id) and old_team_id != team_id ->
+                Football.cascade_bracket_removal(user_id, old_team_id, round)
+                sync_to_playoff_prediction(user_id, old_team_id, round, false)
+
+              _ ->
+                :ok
+            end
+
+            Football.set_bracket_prediction(%{
+              user_id: user_id,
+              round: round,
+              position: position,
+              team_id: team_id
+            })
+
+            sync_to_playoff_prediction(user_id, team_id, round, true)
+
+            PredictionSync.broadcast_playoff_prediction(
+              user_id, team_id, round_to_phase(round), true, self()
+            )
+          end
+
+          socket = load_bracket(socket, user_id)
+          current_round = Enum.find(socket.assigns.rounds, &(&1.round == socket.assigns.current_stage))
+          {:noreply, assign(socket, current_round: current_round, swap_slot: nil)}
+
+        {:error, :rate_limited} ->
+          {:noreply,
+           socket
+           |> Phoenix.LiveView.put_flash(:error, "Liiga palju muudatusi. Oota veidi.")
+           |> assign(swap_slot: nil)}
+      end
+    else
+      {:noreply,
+       socket
+       |> Phoenix.LiveView.put_flash(:error, "Ennustamine on suletud - turniir on alanud")
+       |> Phoenix.LiveView.redirect(to: "/")}
+    end
+  end
+
+  @impl true
+  def handle_event("clear-winner", %{"round" => round, "position" => pos}, socket) do
+    if Jalka2026Web.LiveHelpers.predictions_open?() do
+      user_id = socket.assigns.current_user.id
+      position = String.to_integer(pos)
+
+      # Get team before clearing for cascade
+      case Football.get_bracket_prediction(user_id, round, position) do
+        nil ->
+          :ok
+
+        prediction when not is_nil(prediction.team_id) ->
+          Football.cascade_bracket_removal(user_id, prediction.team_id, round)
+          sync_to_playoff_prediction(user_id, prediction.team_id, round, false)
+
+        _ ->
+          :ok
+      end
+
+      Football.clear_bracket_prediction(user_id, round, position)
+
+      socket = load_bracket(socket, user_id)
+      current_round = Enum.find(socket.assigns.rounds, &(&1.round == socket.assigns.current_stage))
+      {:noreply, assign(socket, current_round: current_round, swap_slot: nil)}
+    else
+      {:noreply,
+       socket
+       |> Phoenix.LiveView.put_flash(:error, "Ennustamine on suletud - turniir on alanud")
+       |> Phoenix.LiveView.redirect(to: "/")}
+    end
+  end
+
+  # Handle prediction sync from other devices
+  @impl true
+  def handle_info(
+        {:prediction_sync, :playoff_prediction_changed, %{source_pid: source_pid}},
+        socket
+      )
+      when source_pid != self() do
+    socket = load_bracket(socket, socket.assigns.current_user.id)
+    current_round = Enum.find(socket.assigns.rounds, &(&1.round == socket.assigns.current_stage))
+    {:noreply, assign(socket, current_round: current_round)}
+  end
+
+  def handle_info(
+        {:prediction_sync, :playoff_prediction_changed, %{source_pid: source_pid}},
+        socket
+      )
       when source_pid == self() do
     {:noreply, socket}
   end
 
-  # Ignore group sync messages in Playoffs view (they're handled in Groups view)
+  # When group predictions change, re-seed the R32
   def handle_info({:prediction_sync, :group_prediction_changed, _data}, socket) do
-    {:noreply, socket}
+    socket = load_bracket(socket, socket.assigns.current_user.id)
+    current_round = Enum.find(socket.assigns.rounds, &(&1.round == socket.assigns.current_stage))
+    {:noreply, assign(socket, current_round: current_round)}
   end
 
-  defp add_predictions(teams_with_group, predictions, phase) do
-    teams_with_group
-    |> Enum.map(fn {group, teams} ->
-      teams =
-        Enum.map(teams, fn {id, name} ->
-          if Enum.member?(predictions[phase], id) do
-            {id, name, "checked"}
-          else
-            {id, name, ""}
-          end
-        end)
+  # --- Private: Load bracket data ---
 
-      {group, teams}
-    end)
-  end
+  defp load_bracket(socket, user_id) do
+    # Get predicted group standings
+    all_standings = GroupScenarios.get_all_predicted_standings(user_id)
 
-  defp add_predictions_without_group(teams_without_group, predictions, phase) do
-    teams_without_group
-    |> Enum.map(fn {id, name} ->
-      if Enum.member?(predictions[phase], id) do
-        {id, name, "checked"}
-      else
-        {id, name, ""}
-      end
-    end)
-  end
+    # Build standings map: %{"A" => [team1, team2, team3, team4], ...}
+    standings_teams = build_standings_team_map(all_standings)
 
-  defp get_teams_from_predictions(teams_with_group, predictions, phase) do
-    teams_with_group
-    |> Enum.reduce([], fn {_group, teams}, acc ->
-      [teams | acc]
-    end)
-    |> List.flatten()
-    |> Enum.reduce([], fn {id, name}, acc ->
-      if Enum.member?(predictions[phase], id) do
-        [{id, name} | acc]
-      else
-        acc
-      end
-    end)
-  end
+    # Determine which 3rd place teams qualify
+    third_place_info = build_third_place_info(all_standings)
+    qualifying_third_groups = third_place_info.qualifying_groups
 
-  defp count_left_with_group(teams_with_group) do
-    teams_with_group
-    |> Enum.map(fn {_group, teams} ->
-      teams
-    end)
-    |> List.flatten()
-    |> count_left
-  end
-
-  defp count_left(teams) do
-    teams
-    |> Enum.count(fn {_id, _name, checked} ->
-      checked == "checked"
-    end)
-  end
-
-  defp is_disabled(count_left) do
-    if count_left == 0 do
-      "disabled"
-    else
-      ""
+    # Get seeding for 3rd place teams
+    seeding = if length(qualifying_third_groups) == 8 do
+      ThirdPlaceSeeding.get_seeding(Enum.map(qualifying_third_groups, &String.to_atom/1))
     end
-  end
 
-  defp add_teams(socket) do
-    predictions = FootballResolver.get_playoff_predictions(socket.assigns.current_user.id)
-    teams = FootballResolver.get_teams_by_group()
+    # Resolve R32 matchups to actual teams
+    r32_matchups = resolve_matchups(standings_teams, qualifying_third_groups, seeding, third_place_info)
 
-    teams32 =
-      teams
-      |> add_predictions(predictions, 32)
+    # Get existing bracket predictions and matchup overrides
+    predictions_by_round = Football.get_bracket_predictions_by_round(user_id)
+    overrides_by_round = Football.get_bracket_overrides_by_round(user_id)
 
-    teams16 =
-      teams
-      |> get_teams_from_predictions(predictions, 32)
-      |> add_predictions_without_group(predictions, 16)
+    # Get all tournament teams for swap candidates
+    all_tournament_teams = Football.get_teams()
 
-    teams8 =
-      teams
-      |> get_teams_from_predictions(predictions, 16)
-      |> add_predictions_without_group(predictions, 8)
+    # Build bracket structure for display
+    rounds = build_rounds(r32_matchups, predictions_by_round, overrides_by_round, all_tournament_teams)
 
-    teams4 =
-      teams
-      |> get_teams_from_predictions(predictions, 8)
-      |> add_predictions_without_group(predictions, 4)
+    # Count progress
+    total_slots = 16 + 8 + 4 + 2 + 1
+    filled = Enum.reduce(rounds, 0, fn round_data, acc ->
+      acc + Enum.count(round_data.slots, & &1.predicted_team)
+    end)
 
-    teams2 =
-      teams
-      |> get_teams_from_predictions(predictions, 4)
-      |> add_predictions_without_group(predictions, 2)
+    predictions_done = if filled == total_slots, do: nil, else: "button-outline"
 
-    teams1 =
-      teams
-      |> get_teams_from_predictions(predictions, 2)
-      |> add_predictions_without_group(predictions, 1)
-
-    left32 = 32 - count_left_with_group(teams32)
-    left16 = 16 - count_left(teams16)
-    left8 = 8 - count_left(teams8)
-    left4 = 4 - count_left(teams4)
-    left2 = 2 - count_left(teams2)
-    left1 = 1 - count_left(teams1)
-
-    progress = 63 - left32 - left16 - left8 - left4 - left2 - left1
-
-    predictions_done =
-      if progress != 63 do
-        "button-outline"
-      end
-
-    if progress == 63 do
+    if filled == total_slots do
       Jalka2026.Leaderboard.recalc_leaderboard()
     end
 
     assign(socket,
-      teams32: teams32,
-      left32: left32,
-      disabled32: is_disabled(left32),
-      teams16: teams16,
-      left16: left16,
-      disabled16: is_disabled(left16),
-      teams8: teams8,
-      left8: left8,
-      disabled8: is_disabled(left8),
-      teams4: teams4,
-      left4: left4,
-      disabled4: is_disabled(left4),
-      teams2: teams2,
-      left2: left2,
-      disabled2: is_disabled(left2),
-      teams1: teams1,
-      left1: left1,
-      disabled1: is_disabled(left1),
-      predictions_done: predictions_done
+      rounds: rounds,
+      r32_matchups: r32_matchups,
+      third_place_info: third_place_info,
+      progress: filled,
+      total_slots: total_slots,
+      predictions_done: predictions_done,
+      all_standings_ready: map_size(all_standings) == 12
     )
   end
+
+  defp build_standings_team_map(all_standings) do
+    Map.new(all_standings, fn {group, standings} ->
+      {group, Enum.map(standings, & &1.team)}
+    end)
+  end
+
+  defp build_third_place_info(all_standings) do
+    # Get 3rd place team from each group with their stats
+    third_place_entries =
+      all_standings
+      |> Enum.map(fn {group, standings} ->
+        case Enum.at(standings, 2) do
+          nil -> nil
+          entry -> Map.put(entry, :group, group)
+        end
+      end)
+      |> Enum.reject(&is_nil/1)
+
+    # Sort by points desc, goal_difference desc, goals_for desc
+    sorted =
+      third_place_entries
+      |> Enum.sort_by(&{-&1.points, -&1.goal_difference, -&1.goals_for})
+
+    qualifying = Enum.take(sorted, 8)
+    qualifying_groups = qualifying |> Enum.map(& &1.group) |> Enum.sort()
+
+    %{
+      all_third_place: sorted,
+      qualifying: qualifying,
+      qualifying_groups: qualifying_groups,
+      eliminated: Enum.drop(sorted, 8)
+    }
+  end
+
+  defp resolve_matchups(standings_teams, qualifying_third_groups, seeding, third_place_info) do
+    r32_structure = BracketSeeding.r32_structure()
+
+    # Build third place lookup from seeding map or fallback
+    third_lookup = build_third_lookup(standings_teams, qualifying_third_groups, seeding, third_place_info)
+
+    Enum.map(r32_structure, fn {pos, home_seed, away_seed} ->
+      home = resolve_seed(home_seed, standings_teams, third_lookup)
+      away = resolve_seed(away_seed, standings_teams, third_lookup)
+      %{position: pos, home: home, away: away}
+    end)
+  end
+
+  # Build third-place lookup from the seeding map (when available)
+  defp build_third_lookup(standings_teams, _qualifying_groups, seeding, _third_place_info) when is_map(seeding) do
+    # Seeding map: %{a: :E, b: :J, ...} means "winner of group A faces 3rd-place from group E"
+    # Map from slot atoms (:vs_1A, :vs_1B, ...) to the seeding key (:a, :b, ...)
+    slot_to_key = %{
+      vs_1A: :a, vs_1B: :b, vs_1D: :d, vs_1E: :e,
+      vs_1G: :g, vs_1I: :i, vs_1K: :k, vs_1L: :l
+    }
+
+    Map.new(slot_to_key, fn {slot, key} ->
+      case Map.get(seeding, key) do
+        nil -> {slot, nil}
+        group_atom ->
+          group = group_atom |> Atom.to_string() |> String.upcase()
+          {slot, get_team_at(standings_teams, group, 2)}
+        end
+    end)
+  end
+
+  # Fallback when seeding combination is not in the lookup table:
+  # Assign qualifying 3rd-place teams to slots in sorted order
+  defp build_third_lookup(standings_teams, qualifying_groups, _seeding, third_place_info)
+       when is_list(qualifying_groups) and length(qualifying_groups) == 8 do
+    slots = [:vs_1A, :vs_1B, :vs_1D, :vs_1E, :vs_1G, :vs_1I, :vs_1K, :vs_1L]
+
+    # Use the qualifying teams from third_place_info (already sorted by performance)
+    qualifying_teams =
+      third_place_info.qualifying
+      |> Enum.map(fn entry ->
+        get_team_at(standings_teams, entry.group, 2)
+      end)
+
+    Enum.zip(slots, qualifying_teams)
+    |> Map.new()
+  end
+
+  defp build_third_lookup(_standings_teams, _qualifying_groups, _seeding, _third_place_info) do
+    %{}
+  end
+
+  defp resolve_seed({:winner, group}, standings_teams, _third_lookup) do
+    get_team_at(standings_teams, group, 0)
+  end
+
+  defp resolve_seed({:runner_up, group}, standings_teams, _third_lookup) do
+    get_team_at(standings_teams, group, 1)
+  end
+
+  defp resolve_seed({:third, slot}, _standings_teams, third_lookup) do
+    Map.get(third_lookup, slot)
+  end
+
+  defp get_team_at(standings_teams, group, index) do
+    case Map.get(standings_teams, group) do
+      teams when is_list(teams) -> Enum.at(teams, index)
+      _ -> nil
+    end
+  end
+
+  defp build_rounds(r32_matchups, predictions_by_round, overrides_by_round, all_tournament_teams) do
+    Enum.map(@rounds, fn round ->
+      positions = BracketPrediction.positions_for_round(round)
+      round_predictions = Map.get(predictions_by_round, round, [])
+      round_overrides = Map.get(overrides_by_round, round, [])
+
+      # Collect all teams already placed in this round
+      placed_team_ids =
+        round_predictions
+        |> Enum.filter(& &1.team_id)
+        |> Enum.map(& &1.team_id)
+        |> MapSet.new()
+
+      # Get the pool of teams available for swapping into this round
+      swap_pool = get_swap_pool(round, r32_matchups, predictions_by_round, all_tournament_teams)
+
+      # Collect ALL teams displayed on this stage (all matchup teams across all positions)
+      all_displayed_team_ids =
+        Enum.reduce(1..positions, MapSet.new(), fn pos, acc ->
+          {team_a, team_b} = get_matchup_teams(round, pos, r32_matchups, predictions_by_round, round_overrides)
+
+          acc
+          |> then(fn s -> if team_a, do: MapSet.put(s, team_a.id), else: s end)
+          |> then(fn s -> if team_b, do: MapSet.put(s, team_b.id), else: s end)
+        end)
+        |> MapSet.union(placed_team_ids)
+
+      slots =
+        Enum.map(1..positions, fn pos ->
+          prediction = Enum.find(round_predictions, &(&1.position == pos))
+
+          # Determine the two teams in this matchup (with overrides applied)
+          {team_a, team_b} = get_matchup_teams(round, pos, r32_matchups, predictions_by_round, round_overrides)
+
+          # Swap candidates: teams from the pool not already displayed on this stage
+          swap_candidates =
+            swap_pool
+            |> Enum.reject(fn team ->
+              MapSet.member?(all_displayed_team_ids, team.id)
+            end)
+
+          %{
+            position: pos,
+            predicted_team: prediction && prediction.team,
+            team_a: team_a,
+            team_b: team_b,
+            swap_candidates: swap_candidates
+          }
+        end)
+
+      %{
+        round: round,
+        display_name: BracketPrediction.round_display_name(round),
+        slots: slots,
+        slot_count: positions
+      }
+    end)
+  end
+
+  # For R32: all tournament teams are potential swap candidates
+  defp get_swap_pool("round_of_32", _r32_matchups, _predictions_by_round, all_tournament_teams) do
+    all_tournament_teams
+  end
+
+  # For later rounds: teams that won their previous round match
+  defp get_swap_pool(round, _r32_matchups, predictions_by_round, _all_tournament_teams) do
+    case prev_round(round) do
+      nil ->
+        []
+
+      prev ->
+        predictions_by_round
+        |> Map.get(prev, [])
+        |> Enum.filter(& &1.team)
+        |> Enum.map(& &1.team)
+    end
+  end
+
+  defp get_matchup_teams("round_of_32", pos, r32_matchups, _predictions_by_round, overrides) do
+    {base_a, base_b} =
+      case Enum.find(r32_matchups, &(&1.position == pos)) do
+        %{home: home, away: away} -> {home, away}
+        nil -> {nil, nil}
+      end
+
+    # Apply overrides if they exist
+    team_a = find_override_team(overrides, pos, "a") || base_a
+    team_b = find_override_team(overrides, pos, "b") || base_b
+
+    {team_a, team_b}
+  end
+
+  defp get_matchup_teams(round, pos, _r32_matchups, predictions_by_round, overrides) do
+    # For later rounds, the two candidates are winners of the two feeder positions
+    prev_round = prev_round(round)
+    prev_predictions = Map.get(predictions_by_round, prev_round, [])
+
+    # Position N in round R gets winners from positions (2N-1) and (2N) in prev round
+    feeder_pos_1 = 2 * pos - 1
+    feeder_pos_2 = 2 * pos
+
+    base_a = prev_predictions |> Enum.find(&(&1.position == feeder_pos_1)) |> team_from_pred()
+    base_b = prev_predictions |> Enum.find(&(&1.position == feeder_pos_2)) |> team_from_pred()
+
+    # Apply overrides if they exist
+    team_a = find_override_team(overrides, pos, "a") || base_a
+    team_b = find_override_team(overrides, pos, "b") || base_b
+
+    {team_a, team_b}
+  end
+
+  defp find_override_team(overrides, position, side) do
+    case Enum.find(overrides, &(&1.position == position && &1.side == side)) do
+      %{team: team} when not is_nil(team) -> team
+      _ -> nil
+    end
+  end
+
+  defp team_from_pred(nil), do: nil
+  defp team_from_pred(pred), do: pred.team
+
+  defp prev_round("round_of_16"), do: "round_of_32"
+  defp prev_round("quarter_final"), do: "round_of_16"
+  defp prev_round("semi_final"), do: "quarter_final"
+  defp prev_round("final"), do: "semi_final"
+  defp prev_round(_), do: nil
+
+  # Sync bracket predictions to playoff_predictions for backward compat
+  defp sync_to_playoff_prediction(user_id, team_id, round, include) do
+    phase = round_to_phase(round)
+
+    if include do
+      Football.add_playoff_prediction(%{
+        user_id: user_id,
+        team_id: team_id,
+        phase: phase
+      })
+    else
+      Football.remove_playoff_prediction(%{
+        user_id: user_id,
+        team_id: team_id,
+        phase: phase
+      })
+    end
+  end
+
+  # Short labels for stage indicator dots
+  def stage_short_label("round_of_32"), do: "32"
+  def stage_short_label("round_of_16"), do: "16"
+  def stage_short_label("quarter_final"), do: "VF"
+  def stage_short_label("semi_final"), do: "PF"
+  def stage_short_label("final"), do: "F"
+  def stage_short_label(_), do: "?"
+
+  defp round_to_phase("round_of_32"), do: 32
+  defp round_to_phase("round_of_16"), do: 16
+  defp round_to_phase("quarter_final"), do: 8
+  defp round_to_phase("semi_final"), do: 4
+  defp round_to_phase("final"), do: 2
+  defp round_to_phase(_), do: nil
 end

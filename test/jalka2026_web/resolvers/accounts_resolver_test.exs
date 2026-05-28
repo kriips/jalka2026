@@ -9,7 +9,7 @@ defmodule Jalka2026Web.Resolvers.AccountsResolverTest do
       _user = user_fixture()
       users = AccountsResolver.list_users()
       assert is_list(users)
-      assert length(users) >= 1
+      assert users != []
     end
   end
 
@@ -37,7 +37,7 @@ defmodule Jalka2026Web.Resolvers.AccountsResolverTest do
     test "returns matching allowed users" do
       allowed = allowed_user_fixture(%{name: "SearchTestUser"})
       result = AccountsResolver.list_allowed_users("SearchTestUser")
-      assert length(result) >= 1
+      assert result != []
       assert Enum.any?(result, fn a -> a.name == allowed.name end)
     end
   end

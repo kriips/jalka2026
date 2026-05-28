@@ -1,11 +1,12 @@
 defmodule Jalka2026Web.FootballLive.Analytics do
   use Jalka2026Web, :live_view
 
-  alias Jalka2026Web.Resolvers.{FootballResolver, AccountsResolver}
+  alias Jalka2026.Badges
   alias Jalka2026.Football
   alias Jalka2026.Leaderboard
   alias Jalka2026.Leaderboard.Entry
-  alias Jalka2026.Badges
+  alias Jalka2026Web.Resolvers.AccountsResolver
+  alias Jalka2026Web.Resolvers.FootballResolver
 
   @impl true
   def mount(params, _session, socket) do

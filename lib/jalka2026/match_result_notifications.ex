@@ -8,9 +8,10 @@ defmodule Jalka2026.MatchResultNotifications do
 
   require Logger
 
-  alias Jalka2026.Football
+  alias Ecto.Adapters.SQL.Sandbox
   alias Jalka2026.Accounts
   alias Jalka2026.Accounts.UserNotifier
+  alias Jalka2026.Football
   alias Jalka2026.Leaderboard
   alias Jalka2026.Scoring
   alias Jalka2026Web.Resolvers.FootballResolver
@@ -30,9 +31,10 @@ defmodule Jalka2026.MatchResultNotifications do
   """
   def send_notifications(match_id, leaderboard_changes \\ %{}) do
     parent = self()
+
     Task.start(fn ->
       try do
-        Ecto.Adapters.SQL.Sandbox.allow(Jalka2026.Repo, parent, self())
+        Sandbox.allow(Jalka2026.Repo, parent, self())
         send_notifications_sync(match_id, leaderboard_changes)
       rescue
         _ -> :ok
@@ -61,7 +63,10 @@ defmodule Jalka2026.MatchResultNotifications do
         end)
 
       sent_count = Enum.count(results, fn result -> match?({{:ok, _}, _}, result) end)
-      skipped_count = Enum.count(results, fn result -> match?({{:ok, :skipped_no_email}, _}, result) end)
+
+      skipped_count =
+        Enum.count(results, fn result -> match?({{:ok, :skipped_no_email}, _}, result) end)
+
       error_count = Enum.count(results, fn result -> match?({{:error, _}, _}, result) end)
 
       Logger.info(
@@ -79,15 +84,18 @@ defmodule Jalka2026.MatchResultNotifications do
   defp send_notification_to_user(user, match, leaderboard, leaderboard_changes) do
     prediction = Football.get_prediction_by_user_match(user.id, match.id)
     points_earned = calculate_points_for_match(match, prediction)
-    leaderboard_position = get_user_leaderboard_position(user.id, leaderboard, leaderboard_changes)
 
-    result = UserNotifier.deliver_match_result_notification(
-      user,
-      match,
-      prediction,
-      points_earned,
-      leaderboard_position
-    )
+    leaderboard_position =
+      get_user_leaderboard_position(user.id, leaderboard, leaderboard_changes)
+
+    result =
+      UserNotifier.deliver_match_result_notification(
+        user,
+        match,
+        prediction,
+        points_earned,
+        leaderboard_position
+      )
 
     {result, user.id}
   end
@@ -103,11 +111,12 @@ defmodule Jalka2026.MatchResultNotifications do
 
     case user_entry do
       %Entry{rank: rank, total_points: total_points} ->
-        rank_change = case Map.get(leaderboard_changes, user_id) do
-          nil -> nil
-          %{rank_change: :new} -> nil
-          %{rank_change: change} -> change
-        end
+        rank_change =
+          case Map.get(leaderboard_changes, user_id) do
+            nil -> nil
+            %{rank_change: :new} -> nil
+            %{rank_change: change} -> change
+          end
 
         %{
           rank: rank,
@@ -132,9 +141,10 @@ defmodule Jalka2026.MatchResultNotifications do
   """
   def send_playoff_notifications(phase, team_id, leaderboard_changes \\ %{}) do
     parent = self()
+
     Task.start(fn ->
       try do
-        Ecto.Adapters.SQL.Sandbox.allow(Jalka2026.Repo, parent, self())
+        Sandbox.allow(Jalka2026.Repo, parent, self())
         send_playoff_notifications_sync(phase, team_id, leaderboard_changes)
       rescue
         _ -> :ok
@@ -159,8 +169,7 @@ defmodule Jalka2026.MatchResultNotifications do
       16 => "Kaheksandikfinaalid",
       8 => "Veerandfinaalid",
       4 => "Poolfinaalid",
-      2 => "Finaal",
-      1 => "Võitja"
+      2 => "Finaal"
     }
 
     phase_points = Scoring.playoff_phase_points_map()
@@ -181,58 +190,79 @@ defmodule Jalka2026.MatchResultNotifications do
 
     sent_count = Enum.count(results, fn result -> match?({{:ok, _}, _}, result) end)
 
-    Logger.info(
-      "Playoff result notifications for phase #{phase}: #{sent_count} sent"
-    )
+    Logger.info("Playoff result notifications for phase #{phase}: #{sent_count} sent")
 
     {:ok, %{sent: sent_count}}
   end
 
-  defp send_playoff_notification_to_user(user, team, phase, phase_name, phase_points, leaderboard, leaderboard_changes) do
+  defp send_playoff_notification_to_user(
+         user,
+         team,
+         phase,
+         phase_name,
+         phase_points,
+         leaderboard,
+         leaderboard_changes
+       ) do
     # Check if user predicted this team for this phase
     user_playoff_predictions = FootballResolver.get_playoff_predictions(user.id)
     predicted_teams = Map.get(user_playoff_predictions, phase, [])
     user_predicted = Enum.member?(predicted_teams, team.id)
 
     points_earned = if user_predicted, do: phase_points, else: 0
-    leaderboard_position = get_user_leaderboard_position(user.id, leaderboard, leaderboard_changes)
 
-    result = deliver_playoff_notification(
-      user,
-      team,
-      phase_name,
-      user_predicted,
-      points_earned,
-      leaderboard_position
-    )
+    leaderboard_position =
+      get_user_leaderboard_position(user.id, leaderboard, leaderboard_changes)
+
+    result =
+      deliver_playoff_notification(
+        user,
+        team,
+        phase_name,
+        user_predicted,
+        points_earned,
+        leaderboard_position
+      )
 
     {result, user.id}
   end
 
-  defp deliver_playoff_notification(user, team, phase_name, user_predicted, points_earned, leaderboard_position) do
+  defp deliver_playoff_notification(
+         user,
+         team,
+         phase_name,
+         user_predicted,
+         points_earned,
+         leaderboard_position
+       ) do
     if user.email && user.email != "" do
       alias Jalka2026.Football.TeamTranslations
       team_name = TeamTranslations.translate(team.name)
 
       subject = "Playoff tulemus: #{team_name} - Jalka2026"
 
-      prediction_text = if user_predicted do
-        "Sa ennustasid, et #{team_name} jõuab sellesse vooru - tubli!"
-      else
-        "Sa ei ennustanud, et #{team_name} jõuab sellesse vooru."
-      end
+      prediction_text =
+        if user_predicted do
+          "Sa ennustasid, et #{team_name} jõuab sellesse vooru - tubli!"
+        else
+          "Sa ei ennustanud, et #{team_name} jõuab sellesse vooru."
+        end
 
-      points_text = if points_earned > 0 do
-        "Teenisid #{points_earned} punkti!"
-      else
-        "Punkte ei teenitud selle tulemuse eest."
-      end
+      points_text =
+        if points_earned > 0 do
+          "Teenisid #{points_earned} punkti!"
+        else
+          "Punkte ei teenitud selle tulemuse eest."
+        end
 
-      position_text = case leaderboard_position do
-        %{rank: rank, total_points: total_points} ->
-          "Sinu koht edetabelis: #{rank}. koht\nKokku punkte: #{total_points}"
-        _ -> ""
-      end
+      position_text =
+        case leaderboard_position do
+          %{rank: rank, total_points: total_points} ->
+            "Sinu koht edetabelis: #{rank}. koht\nKokku punkte: #{total_points}"
+
+          _ ->
+            ""
+        end
 
       body = """
 
@@ -255,7 +285,8 @@ defmodule Jalka2026.MatchResultNotifications do
       ==============================
       """
 
-      {from_name, from_email} = Application.get_env(:jalka2026, :email_from, {"Jalka2026", "noreply@jalka.eys.ee"})
+      {from_name, from_email} =
+        Application.get_env(:jalka2026, :email_from, {"Jalka2026", "noreply@jalka.eys.ee"})
 
       email =
         Bamboo.Email.new_email()
@@ -264,18 +295,22 @@ defmodule Jalka2026.MatchResultNotifications do
         |> Bamboo.Email.subject(subject)
         |> Bamboo.Email.text_body(body)
 
-      if Application.get_env(:jalka2026, :environment) == :dev do
-        Logger.info("Email to #{user.email}:\nSubject: #{subject}\n#{body}")
-        {:ok, email}
-      else
-        case Jalka2026.Mailer.deliver_now(email) do
-          {:ok, _} = result -> result
-          {:error, _} = error -> error
-          email -> {:ok, email}
-        end
-      end
+      deliver_email(email, subject, body, user.email)
     else
       {:ok, :skipped_no_email}
+    end
+  end
+
+  defp deliver_email(email, subject, body, recipient) do
+    if Application.get_env(:jalka2026, :environment) == :dev do
+      Logger.info("Email to #{recipient}:\nSubject: #{subject}\n#{body}")
+      {:ok, email}
+    else
+      case Jalka2026.Mailer.deliver_now(email) do
+        {:ok, _} = result -> result
+        {:error, _} = error -> error
+        email -> {:ok, email}
+      end
     end
   end
 end

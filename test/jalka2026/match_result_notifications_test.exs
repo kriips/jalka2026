@@ -1,9 +1,9 @@
 defmodule Jalka2026.MatchResultNotificationsTest do
   use Jalka2026.DataCase, async: false
 
-  alias Jalka2026.MatchResultNotifications
   alias Jalka2026.Accounts.UserNotifier
   alias Jalka2026.Football
+  alias Jalka2026.MatchResultNotifications
 
   import Jalka2026.AccountsFixtures
   import Jalka2026.FootballFixtures
@@ -74,9 +74,12 @@ defmodule Jalka2026.MatchResultNotificationsTest do
 
       # Verify the specific user received a notification
       sent_emails = Bamboo.SentEmail.all()
-      user_email = Enum.find(sent_emails, fn email ->
-        email.to == [nil: user.email]
-      end)
+
+      user_email =
+        Enum.find(sent_emails, fn email ->
+          email.to == [nil: user.email]
+        end)
+
       assert user_email != nil, "Expected notification email to be sent to #{user.email}"
     end
 
@@ -179,38 +182,158 @@ defmodule Jalka2026.MatchResultNotificationsTest do
 
     test "formats points correctly for exact score match" do
       user = %{id: 1, email: "test@example.com", name: "Test"}
-      match = %{home_team: %{name: "GER"}, away_team: %{name: "FRA"}, home_score: 2, away_score: 1}
+
+      match = %{
+        home_team: %{name: "GER"},
+        away_team: %{name: "FRA"},
+        home_score: 2,
+        away_score: 1
+      }
+
       prediction = %{home_score: 2, away_score: 1, result: "home"}
 
-      {:ok, email} = UserNotifier.deliver_match_result_notification(user, match, prediction, 2, nil)
+      {:ok, email} =
+        UserNotifier.deliver_match_result_notification(user, match, prediction, 2, nil)
+
       assert email.text_body =~ "Suurepärane! Teenisid 2 punkti! (Täpne skoor)"
     end
 
     test "formats points correctly for correct result only" do
       user = %{id: 1, email: "test@example.com", name: "Test"}
-      match = %{home_team: %{name: "GER"}, away_team: %{name: "FRA"}, home_score: 2, away_score: 1, result: "home"}
+
+      match = %{
+        home_team: %{name: "GER"},
+        away_team: %{name: "FRA"},
+        home_score: 2,
+        away_score: 1,
+        result: "home"
+      }
+
       prediction = %{home_score: 3, away_score: 1, result: "home"}
 
-      {:ok, email} = UserNotifier.deliver_match_result_notification(user, match, prediction, 1, nil)
+      {:ok, email} =
+        UserNotifier.deliver_match_result_notification(user, match, prediction, 1, nil)
+
       assert email.text_body =~ "Teenisid 1 punkti! (Oige tulemus)"
     end
 
     test "formats points correctly for wrong result" do
       user = %{id: 1, email: "test@example.com", name: "Test"}
-      match = %{home_team: %{name: "GER"}, away_team: %{name: "FRA"}, home_score: 2, away_score: 1, result: "home"}
+
+      match = %{
+        home_team: %{name: "GER"},
+        away_team: %{name: "FRA"},
+        home_score: 2,
+        away_score: 1,
+        result: "home"
+      }
+
       prediction = %{home_score: 0, away_score: 2, result: "away"}
 
-      {:ok, email} = UserNotifier.deliver_match_result_notification(user, match, prediction, 0, nil)
+      {:ok, email} =
+        UserNotifier.deliver_match_result_notification(user, match, prediction, 0, nil)
+
       assert email.text_body =~ "Punkte ei teenitud (vale tulemus)"
     end
 
     test "formats points correctly for missing prediction" do
       user = %{id: 1, email: "test@example.com", name: "Test"}
-      match = %{home_team: %{name: "GER"}, away_team: %{name: "FRA"}, home_score: 2, away_score: 1}
+
+      match = %{
+        home_team: %{name: "GER"},
+        away_team: %{name: "FRA"},
+        home_score: 2,
+        away_score: 1
+      }
 
       {:ok, email} = UserNotifier.deliver_match_result_notification(user, match, nil, 0, nil)
       assert email.text_body =~ "Sa ei teinud selle mängu kohta ennustust"
       assert email.text_body =~ "Punkte ei teenitud (ennustus puudus)"
+    end
+  end
+
+  describe "send_playoff_notifications/3" do
+    test "returns queued status immediately" do
+      team = team_fixture()
+
+      assert {:ok, :notifications_queued} =
+               MatchResultNotifications.send_playoff_notifications(32, team.id, %{})
+    end
+  end
+
+  describe "send_playoff_notifications_sync/3" do
+    test "sends playoff notifications to users" do
+      user = user_fixture()
+      team = team_fixture(%{name: "Playoff Notif Team"})
+      playoff_prediction_fixture(%{user: user, team: team, phase: 32})
+
+      # Enter the playoff result
+      Football.enter_playoff_result(team.name, 32)
+
+      Bamboo.SentEmail.reset()
+
+      result = MatchResultNotifications.send_playoff_notifications_sync(32, team.id, %{})
+
+      assert {:ok, %{sent: sent}} = result
+      assert sent >= 1
+    end
+
+    test "sends notification with correct points for predicting user" do
+      user = user_fixture()
+      team = team_fixture(%{name: "Predicted Team"})
+      playoff_prediction_fixture(%{user: user, team: team, phase: 16})
+
+      Football.enter_playoff_result(team.name, 16)
+
+      Bamboo.SentEmail.reset()
+
+      MatchResultNotifications.send_playoff_notifications_sync(16, team.id, %{})
+
+      sent_emails = Bamboo.SentEmail.all()
+
+      user_email =
+        Enum.find(sent_emails, fn email ->
+          email.to == [nil: user.email]
+        end)
+
+      assert user_email != nil
+      assert user_email.subject =~ "Playoff tulemus"
+      assert user_email.text_body =~ "ennustasid"
+    end
+
+    test "sends notification with zero points for non-predicting user" do
+      user = user_fixture()
+      team = team_fixture(%{name: "Unpredicted Team"})
+
+      Football.enter_playoff_result(team.name, 8)
+
+      Bamboo.SentEmail.reset()
+
+      MatchResultNotifications.send_playoff_notifications_sync(8, team.id, %{})
+
+      sent_emails = Bamboo.SentEmail.all()
+
+      user_email =
+        Enum.find(sent_emails, fn email ->
+          email.to == [nil: user.email]
+        end)
+
+      if user_email do
+        assert user_email.text_body =~ "Punkte ei teenitud"
+      end
+    end
+
+    test "handles leaderboard changes in playoff notifications" do
+      user = user_fixture()
+      team = team_fixture(%{name: "Leaderboard Team"})
+      playoff_prediction_fixture(%{user: user, team: team, phase: 4})
+
+      Football.enter_playoff_result(team.name, 4)
+
+      changes = %{user.id => %{rank_change: -2}}
+
+      result = MatchResultNotifications.send_playoff_notifications_sync(4, team.id, changes)
+      assert {:ok, %{sent: _}} = result
     end
   end
 end

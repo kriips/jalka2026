@@ -7,17 +7,17 @@ defmodule Jalka2026.Football.Competition do
   @valid_types ~w(world_cup euros)
 
   @type t :: %__MODULE__{
-    id: String.t() | nil,
-    name: String.t() | nil,
-    short_name: String.t() | nil,
-    type: String.t() | nil,
-    year: integer() | nil,
-    start_date: Date.t() | nil,
-    end_date: Date.t() | nil,
-    prediction_deadline: DateTime.t() | nil,
-    is_active: boolean(),
-    config: map()
-  }
+          id: String.t() | nil,
+          name: String.t() | nil,
+          short_name: String.t() | nil,
+          type: String.t() | nil,
+          year: integer() | nil,
+          start_date: Date.t() | nil,
+          end_date: Date.t() | nil,
+          prediction_deadline: DateTime.t() | nil,
+          is_active: boolean(),
+          config: map()
+        }
 
   schema "competitions" do
     field(:name, :string)

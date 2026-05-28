@@ -29,6 +29,7 @@ defmodule Jalka2026.Telemetry.PerformanceAlerterTest do
       # Simulations are expected to take longer than individual predictions
       assert thresholds.match_simulation > thresholds.prediction_group,
              "Simulation threshold should be higher than prediction threshold"
+
       assert thresholds.match_simulation > thresholds.prediction_playoff,
              "Simulation threshold should be higher than playoff prediction threshold"
     end

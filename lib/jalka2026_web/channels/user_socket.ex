@@ -4,11 +4,11 @@ defmodule Jalka2026Web.UserSocket do
   alias Jalka2026.Accounts
 
   ## Channels
-  channel "match_chat:*", Jalka2026Web.MatchChatChannel
+  channel("match_chat:*", Jalka2026Web.MatchChatChannel)
 
   @impl true
   def connect(%{"token" => token}, socket, _connect_info) do
-    case Phoenix.Token.verify(Jalka2026Web.Endpoint, "user socket", token, max_age: 86400) do
+    case Phoenix.Token.verify(Jalka2026Web.Endpoint, "user socket", token, max_age: 86_400) do
       {:ok, user_id} ->
         case Accounts.get_user(user_id) do
           nil -> :error

@@ -1,4 +1,4 @@
-<main role="main" class="container" aria-label={"Alagrupp #{@group} ennustused"}>
+<main role="main" class="container" aria-label={"Alagrupp #{@group} ennustused"} id="swipe-container" phx-hook="SwipeNavigation">
     <div class="prediction-page-header">
         <h1 id="page-title">Alagrupp <%= @group%></h1>
         <p class="sr-only" aria-live="polite" id="predictions-status">
@@ -6,6 +6,30 @@
         </p>
     </div>
     <div class="container" id="main-content">
+        <%= if @prediction_deadline do %>
+        <div class="countdown-container countdown-compact" id="countdown-groups" phx-hook="Countdown" phx-update="ignore" data-deadline={DateTime.to_iso8601(@prediction_deadline)}>
+            <div data-countdown-timer style={if @predictions_open, do: "", else: "display:none"}>
+                <div class="countdown-inline">
+                    <span class="countdown-inline-label">Tähtajani:</span>
+                    <span class="countdown-inline-digits">
+                        <span data-cd-days>--</span>p
+                        <span data-cd-hours>--</span>t
+                        <span data-cd-minutes>--</span>m
+                        <span data-cd-seconds>--</span>s
+                    </span>
+                </div>
+            </div>
+            <div data-countdown-locked style={if @predictions_open, do: "display:none", else: ""}>
+                <div class="countdown-locked-compact">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="countdown-lock-icon-sm" aria-hidden="true">
+                        <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+                    </svg>
+                    <span>Ennustamine on suletud</span>
+                </div>
+            </div>
+        </div>
+        <% end %>
+
         <div role="list" aria-label="Mängude nimekiri" id="predictions-stream" phx-update="stream">
         <div :for={{dom_id, item} <- @streams.prediction_items} id={dom_id} role="listitem">
         <% match = item.match %>
@@ -60,10 +84,36 @@
                         >−</button>
                     </div>
 
-                    <div class="score-display" role="status" aria-live="polite" aria-atomic="true" aria-label={"Praegune skoor: #{home_team_name} #{home_score}, #{away_team_name} #{away_score}"}>
-                        <span class={"score-value #{if home_score == "-", do: "empty", else: ""}"} aria-hidden="true"><%= home_score %></span>
+                    <div class="score-display" role="status" aria-live="polite" aria-atomic="true" aria-label={"Praegune skoor: #{home_team_name} #{home_score}, #{away_team_name} #{away_score}"} id={"score-display-#{match.id}"} phx-hook="ScoreInput">
+                        <span class={"score-value #{if home_score == "-", do: "empty", else: ""}"} aria-hidden="true" data-score-tap="home"><%= home_score %></span>
+                        <input
+                            type="number"
+                            inputmode="numeric"
+                            min="0"
+                            max="99"
+                            class="score-direct-input"
+                            data-score-input="home"
+                            data-match-id={match.id}
+                            data-home-score={home_score}
+                            data-away-score={away_score}
+                            aria-label={"Sisesta #{home_team_name} skoor otse"}
+                            tabindex="-1"
+                        />
                         <span class="score-separator" aria-hidden="true">:</span>
-                        <span class={"score-value #{if away_score == "-", do: "empty", else: ""}"} aria-hidden="true"><%= away_score %></span>
+                        <span class={"score-value #{if away_score == "-", do: "empty", else: ""}"} aria-hidden="true" data-score-tap="away"><%= away_score %></span>
+                        <input
+                            type="number"
+                            inputmode="numeric"
+                            min="0"
+                            max="99"
+                            class="score-direct-input"
+                            data-score-input="away"
+                            data-match-id={match.id}
+                            data-home-score={home_score}
+                            data-away-score={away_score}
+                            aria-label={"Sisesta #{away_team_name} skoor otse"}
+                            tabindex="-1"
+                        />
                         <span class="sr-only"><%= home_score %> - <%= away_score %></span>
                     </div>
 
@@ -99,6 +149,26 @@
                     </div>
                 </div>
 
+                <div class="simulate-dice-container">
+                    <button
+                        type="button"
+                        class="score-btn simulate-dice-btn"
+                        phx-click="simulate_random_score"
+                        phx-value-match-id={match.id}
+                        aria-label="Simuleeri juhuslik tulemus"
+                        title="Simuleeri tulemus"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22" aria-hidden="true">
+                            <rect x="2" y="2" width="20" height="20" rx="3" ry="3" fill="none" stroke="currentColor" stroke-width="2"/>
+                            <circle cx="7.5" cy="7.5" r="1.5"/>
+                            <circle cx="12" cy="12" r="1.5"/>
+                            <circle cx="16.5" cy="16.5" r="1.5"/>
+                            <circle cx="7.5" cy="16.5" r="1.5"/>
+                            <circle cx="16.5" cy="7.5" r="1.5"/>
+                        </svg>
+                    </button>
+                </div>
+
                 <div class="team-section away">
                     <div class="team-flag-container">
                         <%= if match.away_team.flag && match.away_team.flag != "" do %>
@@ -129,25 +199,11 @@
                     aria-controls={"analysis-panel-#{match.id}"}
                 >
                     <span class="analysis-toggle-icon"><%= if @expanded_match_id == match.id, do: "▼", else: "▶" %></span>
-                    <span class="analysis-toggle-text">Analüüs ja simulatsioon</span>
+                    <span class="analysis-toggle-text">Ajalugu</span>
                 </button>
 
                 <%= if @expanded_match_id == match.id do %>
                     <div class="match-analysis-panel" id={"analysis-panel-#{match.id}"}>
-                        <!-- Simulate Random Score Button - Primary Action -->
-                        <div class="simulate-random-action">
-                            <button
-                                type="button"
-                                class="button button-simulate-random"
-                                phx-click="simulate_random_score"
-                                phx-value-match-id={match.id}
-                                aria-label="Simuleeri juhuslik tulemus"
-                            >
-                                🎲 Simuleeri tulemus
-                            </button>
-                            <span class="simulate-hint">Valib simulatsiooni põhjal juhusliku tõenäolise tulemuse</span>
-                        </div>
-
                         <!-- Loading or Content -->
                         <%= if @simulating or @detailed_history == nil do %>
                             <div class="analysis-loading">
@@ -190,9 +246,9 @@
                                             <%= for wc_match <- @detailed_history.world_cup_matches do %>
                                                 <div class="wc-match-item-compact">
                                                     <span class="wc-match-date"><%= format_date(wc_match.date) %></span>
-                                                    <span class="wc-match-score"><%= wc_match.home_team_name %> <%= wc_match.home_score %>-<%= wc_match.away_score %> <%= wc_match.away_team_name %></span>
+                                                    <span class="wc-match-score"><%= TeamTranslations.translate(wc_match.home_team_name) %> <%= wc_match.home_score %>-<%= wc_match.away_score %> <%= TeamTranslations.translate(wc_match.away_team_name) %></span>
                                                     <%= if wc_match.stage do %>
-                                                        <span class="wc-match-stage"><%= wc_match.stage %></span>
+                                                        <span class="wc-match-stage"><%= Football.stage_display_name(wc_match.stage) %></span>
                                                     <% end %>
                                                 </div>
                                             <% end %>
@@ -214,8 +270,8 @@
                                                     <span class="wc-stats-total-line">V/Vi/K: <%= @detailed_history.team1_wc_stats.wins %>/<%= @detailed_history.team1_wc_stats.draws %>/<%= @detailed_history.team1_wc_stats.losses %></span>
                                                     <%= if @detailed_history.team1_wc_positions.total_top_4 > 0 do %>
                                                         <span class="wc-stats-positions">
-                                                            <%= if @detailed_history.team1_wc_positions.counts.gold > 0 do %><span class="wc-position wc-gold" title="Maailmameister"><%= @detailed_history.team1_wc_positions.counts.gold %>x</span><% end %>
-                                                            <%= if @detailed_history.team1_wc_positions.counts.silver > 0 do %><span class="wc-position wc-silver" title="Finalist"><%= @detailed_history.team1_wc_positions.counts.silver %>x</span><% end %>
+                                                            <%= if @detailed_history.team1_wc_positions.counts.gold > 0 do %><span class="wc-position wc-gold" title="1. koht"><%= @detailed_history.team1_wc_positions.counts.gold %>x</span><% end %>
+                                                            <%= if @detailed_history.team1_wc_positions.counts.silver > 0 do %><span class="wc-position wc-silver" title="2. koht"><%= @detailed_history.team1_wc_positions.counts.silver %>x</span><% end %>
                                                             <%= if @detailed_history.team1_wc_positions.counts.bronze > 0 do %><span class="wc-position wc-bronze" title="3. koht"><%= @detailed_history.team1_wc_positions.counts.bronze %>x</span><% end %>
                                                             <%= if @detailed_history.team1_wc_positions.counts.fourth > 0 do %><span class="wc-position wc-fourth" title="4. koht"><%= @detailed_history.team1_wc_positions.counts.fourth %>x</span><% end %>
                                                         </span>
@@ -231,8 +287,8 @@
                                                     <span class="wc-stats-total-line">V/Vi/K: <%= @detailed_history.team2_wc_stats.wins %>/<%= @detailed_history.team2_wc_stats.draws %>/<%= @detailed_history.team2_wc_stats.losses %></span>
                                                     <%= if @detailed_history.team2_wc_positions.total_top_4 > 0 do %>
                                                         <span class="wc-stats-positions">
-                                                            <%= if @detailed_history.team2_wc_positions.counts.gold > 0 do %><span class="wc-position wc-gold" title="Maailmameister"><%= @detailed_history.team2_wc_positions.counts.gold %>x</span><% end %>
-                                                            <%= if @detailed_history.team2_wc_positions.counts.silver > 0 do %><span class="wc-position wc-silver" title="Finalist"><%= @detailed_history.team2_wc_positions.counts.silver %>x</span><% end %>
+                                                            <%= if @detailed_history.team2_wc_positions.counts.gold > 0 do %><span class="wc-position wc-gold" title="1. koht"><%= @detailed_history.team2_wc_positions.counts.gold %>x</span><% end %>
+                                                            <%= if @detailed_history.team2_wc_positions.counts.silver > 0 do %><span class="wc-position wc-silver" title="2. koht"><%= @detailed_history.team2_wc_positions.counts.silver %>x</span><% end %>
                                                             <%= if @detailed_history.team2_wc_positions.counts.bronze > 0 do %><span class="wc-position wc-bronze" title="3. koht"><%= @detailed_history.team2_wc_positions.counts.bronze %>x</span><% end %>
                                                             <%= if @detailed_history.team2_wc_positions.counts.fourth > 0 do %><span class="wc-position wc-fourth" title="4. koht"><%= @detailed_history.team2_wc_positions.counts.fourth %>x</span><% end %>
                                                         </span>
@@ -376,7 +432,7 @@
         <nav class="group-navigation" aria-label="Alagruppi vahel navigeerimine">
             <div class="group-nav-buttons">
                 <%= if @prev_group do %>
-                    <.link navigate={Routes.user_prediction_groups_path(@socket, :edit, @prev_group)} class="group-nav-btn group-nav-btn-secondary" aria-label={"Eelmine alagrupp #{@prev_group}"}>
+                    <.link navigate={Routes.user_prediction_groups_path(@socket, :edit, @prev_group)} class="group-nav-btn group-nav-btn-secondary" aria-label={"Eelmine alagrupp #{@prev_group}"} data-nav-prev>
                         ← <%= @prev_group %>
                     </.link>
                 <% else %>
@@ -386,7 +442,7 @@
                 <.link navigate={Routes.user_prediction_navigate_path(@socket, :navigate)} class={"group-nav-btn group-nav-btn-primary #{@predictions_done}"} aria-label="Tagasi ennustuste navigeerimise juurde">Tagasi</.link>
 
                 <%= if @next_group do %>
-                    <.link navigate={Routes.user_prediction_groups_path(@socket, :edit, @next_group)} class="group-nav-btn group-nav-btn-secondary" aria-label={"Järgmine alagrupp #{@next_group}"}>
+                    <.link navigate={Routes.user_prediction_groups_path(@socket, :edit, @next_group)} class="group-nav-btn group-nav-btn-secondary" aria-label={"Järgmine alagrupp #{@next_group}"} data-nav-next>
                         <%= @next_group %> →
                     </.link>
                 <% else %>
@@ -394,5 +450,7 @@
                 <% end %>
             </div>
         </nav>
+        <!-- Spacer to prevent fixed bottom nav from obscuring content on mobile -->
+        <div class="group-nav-spacer"></div>
     </div>
 </main>

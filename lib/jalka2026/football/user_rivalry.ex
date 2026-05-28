@@ -5,11 +5,11 @@ defmodule Jalka2026.Football.UserRivalry do
   alias Jalka2026.Accounts.User
 
   schema "user_rivalries" do
-    field :status, :string, default: "active"
-    field :notifications_enabled, :boolean, default: true
+    field(:status, :string, default: "active")
+    field(:notifications_enabled, :boolean, default: true)
 
-    belongs_to :user, User
-    belongs_to :rival, User
+    belongs_to(:user, User)
+    belongs_to(:rival, User)
 
     timestamps()
   end

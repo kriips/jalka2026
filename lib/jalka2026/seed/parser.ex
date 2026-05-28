@@ -57,7 +57,13 @@ defmodule Jalka2026.Seed.Parser do
     "NLD" => "nl",
     "NOR" => "no",
     "SCO" => "gb-sct",
-    "ANT" => "cw"
+    "ANT" => "cw",
+    "SWE" => "se",
+    "CZE" => "cz",
+    "TUR" => "tr",
+    "BIH" => "ba",
+    "COD" => "cd",
+    "IRQ" => "iq"
   }
 
   # -------------------------------------------------------------------

@@ -4,16 +4,16 @@ defmodule Jalka2026.Accounts.User do
   alias Jalka2026.Accounts
 
   @type t :: %__MODULE__{
-    id: pos_integer() | nil,
-    email: String.t() | nil,
-    name: String.t() | nil,
-    is_admin: boolean(),
-    competition_id: String.t(),
-    theme: String.t(),
-    confirmed_at: NaiveDateTime.t() | nil,
-    inserted_at: NaiveDateTime.t() | nil,
-    updated_at: NaiveDateTime.t() | nil
-  }
+          id: pos_integer() | nil,
+          email: String.t() | nil,
+          name: String.t() | nil,
+          is_admin: boolean(),
+          competition_id: String.t(),
+          theme: String.t(),
+          confirmed_at: NaiveDateTime.t() | nil,
+          inserted_at: NaiveDateTime.t() | nil,
+          updated_at: NaiveDateTime.t() | nil
+        }
 
   @derive {Inspect, except: [:password]}
   schema "users" do
@@ -82,7 +82,9 @@ defmodule Jalka2026.Accounts.User do
   defp validate_email(changeset) do
     changeset
     |> validate_required([:email])
-    |> validate_format(:email, ~r/^[^\s]+@[^\s]+$/, message: "must have the @ sign and no spaces")
+    |> validate_format(:email, ~r/^[^\s]+@[^\s]+$/,
+      message: "peab sisaldama @ märki ja mitte tühikuid"
+    )
     |> validate_length(:email, max: 160)
     |> unsafe_validate_unique(:email, Jalka2026.Repo)
     |> unique_constraint(:email)
@@ -159,7 +161,7 @@ defmodule Jalka2026.Accounts.User do
     |> validate_email()
     |> case do
       %{changes: %{email: _}} = changeset -> changeset
-      %{} = changeset -> add_error(changeset, :email, "did not change")
+      %{} = changeset -> add_error(changeset, :email, "ei muutunud")
     end
   end
 
@@ -178,7 +180,7 @@ defmodule Jalka2026.Accounts.User do
   def password_changeset(user, attrs, opts \\ []) do
     user
     |> cast(attrs, [:password])
-    |> validate_confirmation(:password, message: "does not match password")
+    |> validate_confirmation(:password, message: "paroolid ei kattu")
     |> validate_password(opts)
   end
 
@@ -213,7 +215,7 @@ defmodule Jalka2026.Accounts.User do
     if valid_password?(changeset.data, password) do
       changeset
     else
-      add_error(changeset, :current_password, "is not valid")
+      add_error(changeset, :current_password, "on vale")
     end
   end
 end

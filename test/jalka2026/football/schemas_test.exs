@@ -5,16 +5,16 @@ defmodule Jalka2026.Football.SchemasTest do
   import Jalka2026.AccountsFixtures
 
   alias Jalka2026.Football.{
-    Match,
-    Team,
-    GroupPrediction,
-    PlayoffPrediction,
-    PlayoffResult,
-    Competition,
-    HistoricalMatch,
-    TournamentStanding,
     BracketPrediction,
     BracketResult,
+    Competition,
+    GroupPrediction,
+    HistoricalMatch,
+    Match,
+    PlayoffPrediction,
+    PlayoffResult,
+    Team,
+    TournamentStanding,
     UserBadge,
     UserFavoriteTeam,
     UserRivalry,
@@ -43,6 +43,12 @@ defmodule Jalka2026.Football.SchemasTest do
       assert %{group: ["is invalid"]} = errors_on(changeset)
     end
 
+    test "get_match!/1 returns match by id" do
+      match = match_fixture()
+      result = Match.get_match!(match.id)
+      assert result.id == match.id
+    end
+
     test "create_changeset casts score fields" do
       changeset =
         Match.create_changeset(%Match{}, %{
@@ -59,8 +65,17 @@ defmodule Jalka2026.Football.SchemasTest do
   describe "Team" do
     test "changeset with valid attributes" do
       ensure_competition_exists()
-      changeset = Team.changeset(%Team{}, %{name: "Test", code: "TST", flag: "test.png", group: "A"})
+
+      changeset =
+        Team.changeset(%Team{}, %{name: "Test", code: "TST", flag: "test.png", group: "A"})
+
       assert changeset.valid?
+    end
+
+    test "get_team!/1 returns team by id" do
+      team = team_fixture()
+      result = Team.get_team!(team.id)
+      assert result.id == team.id
     end
 
     test "changeset validates group inclusion" do
@@ -85,6 +100,13 @@ defmodule Jalka2026.Football.SchemasTest do
 
       assert changeset.valid?
     end
+
+    test "get_group_prediction!/1 returns prediction by id" do
+      prediction = group_prediction_fixture()
+      result = GroupPrediction.get_group_prediction!(prediction.id)
+      assert result.id == prediction.id
+    end
+
   end
 
   describe "PlayoffPrediction" do
@@ -100,6 +122,17 @@ defmodule Jalka2026.Football.SchemasTest do
         })
 
       assert changeset.valid?
+    end
+
+    test "get_playoff_prediction!/1 returns prediction by id" do
+      prediction = playoff_prediction_fixture()
+      result = PlayoffPrediction.get_playoff_prediction!(prediction.id)
+      assert result.id == prediction.id
+    end
+
+    test "changeset/2 casts fields" do
+      changeset = PlayoffPrediction.changeset(%PlayoffPrediction{}, %{})
+      assert %Ecto.Changeset{} = changeset
     end
   end
 
@@ -117,6 +150,13 @@ defmodule Jalka2026.Football.SchemasTest do
 
       assert changeset.valid?
     end
+
+    test "get_playoff_result!/1 returns result by id" do
+      result = playoff_result_fixture()
+      fetched = PlayoffResult.get_playoff_result!(result.id)
+      assert fetched.id == result.id
+    end
+
   end
 
   describe "Competition" do
@@ -271,7 +311,7 @@ defmodule Jalka2026.Football.SchemasTest do
       assert "quarter_final" in rounds
       assert "semi_final" in rounds
       assert "final" in rounds
-      assert "winner" in rounds
+      refute "winner" in rounds
     end
 
     test "positions_for_round/1 returns correct positions" do
@@ -280,7 +320,6 @@ defmodule Jalka2026.Football.SchemasTest do
       assert BracketPrediction.positions_for_round("quarter_final") == 4
       assert BracketPrediction.positions_for_round("semi_final") == 2
       assert BracketPrediction.positions_for_round("final") == 1
-      assert BracketPrediction.positions_for_round("winner") == 1
       assert BracketPrediction.positions_for_round("unknown") == 0
     end
 
@@ -289,8 +328,7 @@ defmodule Jalka2026.Football.SchemasTest do
       assert BracketPrediction.next_round("round_of_16") == "quarter_final"
       assert BracketPrediction.next_round("quarter_final") == "semi_final"
       assert BracketPrediction.next_round("semi_final") == "final"
-      assert BracketPrediction.next_round("final") == "winner"
-      assert BracketPrediction.next_round("winner") == nil
+      assert BracketPrediction.next_round("final") == nil
       assert BracketPrediction.next_round("unknown") == nil
     end
 
@@ -300,7 +338,6 @@ defmodule Jalka2026.Football.SchemasTest do
       assert BracketPrediction.round_display_name("quarter_final") == "Veerandfinaal"
       assert BracketPrediction.round_display_name("semi_final") == "Poolfinaal"
       assert BracketPrediction.round_display_name("final") == "Finaal"
-      assert BracketPrediction.round_display_name("winner") == "Võitja"
       assert BracketPrediction.round_display_name("unknown") == "unknown"
     end
   end
@@ -324,7 +361,7 @@ defmodule Jalka2026.Football.SchemasTest do
 
     test "rounds/0 returns all valid rounds" do
       rounds = BracketResult.rounds()
-      assert length(rounds) == 6
+      assert length(rounds) == 5
     end
   end
 

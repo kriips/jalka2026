@@ -17,6 +17,37 @@ defmodule Jalka2026.Football.TeamTranslations do
     "Austria" => "Austria",
     "Scotland" => "Šotimaa",
     "Norway" => "Norra",
+    "Sweden" => "Rootsi",
+    "Czechia" => "Tšehhi",
+    "Czech Republic" => "Tšehhi",
+    "Turkey" => "Türgi",
+    "Bosnia-Herzegovina" => "Bosnia ja Hertsegoviina",
+    "Bosnia and Herzegovina" => "Bosnia ja Hertsegoviina",
+    "Bulgaria" => "Bulgaaria",
+    "Denmark" => "Taani",
+    "Greece" => "Kreeka",
+    "Hungary" => "Ungari",
+    "Iceland" => "Island",
+    "Israel" => "Iisrael",
+    "Italy" => "Itaalia",
+    "Northern Ireland" => "Põhja-Iirimaa",
+    "Poland" => "Poola",
+    "Republic of Ireland" => "Iirimaa",
+    "Romania" => "Rumeenia",
+    "Russia" => "Venemaa",
+    "Serbia" => "Serbia",
+    "Serbia and Montenegro" => "Serbia ja Montenegro",
+    "Slovakia" => "Slovakkia",
+    "Slovenia" => "Sloveenia",
+    "Ukraine" => "Ukraina",
+    "Wales" => "Wales",
+
+    # Historical European teams
+    "Czechoslovakia" => "Tšehhoslovakkia",
+    "East Germany" => "Ida-Saksamaa",
+    "West Germany" => "Lääne-Saksamaa",
+    "Soviet Union" => "Nõukogude Liit",
+    "Yugoslavia" => "Jugoslaavia",
 
     # South America
     "Brazil" => "Brasiilia",
@@ -25,6 +56,9 @@ defmodule Jalka2026.Football.TeamTranslations do
     "Colombia" => "Colombia",
     "Ecuador" => "Ecuador",
     "Paraguay" => "Paraguay",
+    "Bolivia" => "Boliivia",
+    "Chile" => "Tšiili",
+    "Peru" => "Peruu",
 
     # North/Central America & Caribbean
     "United States" => "Ameerika Ühendriigid",
@@ -33,6 +67,12 @@ defmodule Jalka2026.Football.TeamTranslations do
     "Panama" => "Panama",
     "Haiti" => "Haiti",
     "Curaçao" => "Curaçao",
+    "Costa Rica" => "Costa Rica",
+    "Cuba" => "Kuuba",
+    "El Salvador" => "El Salvador",
+    "Honduras" => "Honduras",
+    "Jamaica" => "Jamaica",
+    "Trinidad and Tobago" => "Trinidad ja Tobago",
 
     # Asia
     "Japan" => "Jaapan",
@@ -42,6 +82,14 @@ defmodule Jalka2026.Football.TeamTranslations do
     "Qatar" => "Katar",
     "Jordan" => "Jordaania",
     "Uzbekistan" => "Usbekistan",
+    "Iraq" => "Iraak",
+    "China" => "Hiina",
+    "Kuwait" => "Kuveit",
+    "North Korea" => "Põhja-Korea",
+    "United Arab Emirates" => "Araabia Ühendemiraadid",
+
+    # Historical Asian teams
+    "Dutch East Indies" => "Hollandi Ida-India",
 
     # Africa
     "Morocco" => "Maroko",
@@ -52,7 +100,16 @@ defmodule Jalka2026.Football.TeamTranslations do
     "Ghana" => "Ghana",
     "South Africa" => "Lõuna-Aafrika Vabariik",
     "Côte d'Ivoire" => "Elevandiluurannik",
+    "Ivory Coast" => "Elevandiluurannik",
     "Cape Verde Islands" => "Roheneemesaared",
+    "Congo DR" => "Kongo DV",
+    "Angola" => "Angola",
+    "Cameroon" => "Kamerun",
+    "Nigeria" => "Nigeeria",
+    "Togo" => "Togo",
+
+    # Historical African teams
+    "Zaire" => "Zaire",
 
     # Oceania
     "Australia" => "Austraalia",

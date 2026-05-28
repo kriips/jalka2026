@@ -1,171 +1,259 @@
-<main role="main" class="container" aria-label="Play-off ennustused">
-    <h1 id="page-title">Play-offid</h1>
-    <p class="sr-only" aria-live="polite" id="playoffs-status">
-        Vali meeskonnad, kes sinu arvates edasi pääsevad igast faasist
-    </p>
+<main role="main" class="container playoff-stage-container" aria-label="Play-off ennustused" id="swipe-container" phx-hook="SwipeNavigation">
+    <div class="prediction-page-header">
+        <h1 id="page-title"><%= @current_round && @current_round.display_name || "Play-off" %></h1>
+        <p class="page-subtitle">Vali igast paarist võitja, kes pääseb edasi</p>
+    </div>
+
     <div class="container" id="main-content">
-        <section aria-labelledby="phase32-heading">
-            <h2 id="phase32-heading">32 parimat (<span aria-label={"#{@left32} valikut jäänud"}><%= @left32 %></span>)</h2>
-            <p class="sr-only" id="phase32-desc">Vali 32 meeskonda, kes pääsevad edasi alagrupifaasist</p>
-            <%= if length(@predicted_qualifiers) > 0 do %>
-                <p class="playoff-suggestion-hint">
-                    ⭐ Sinu alagrupiennustuste põhjal edasipääsejad on tähistatud tärniga.
-                </p>
-            <% end %>
-            <%= for row <- Enum.chunk_every(@teams32, 4) do %>
-                <div class="row" role="group">
-                    <%= for {_group, teams} <- row do %>
-                        <div class="column" role="group">
-                        <%= for {team_id, team_name, checked} <- teams do %>
-                            <% is_disabled = checked != "checked" && @disabled32 == "disabled" %>
-                            <% is_suggested = team_id in @predicted_qualifiers %>
-                            <div class={"checkbox-item #{if is_suggested, do: "suggested-team", else: ""}"}>
-                                <input
-                                        type="checkbox"
-                                        id={"team32-#{team_id}"}
-                                        phx-click="toggle-team"
-                                        phx-value-team={team_id}
-                                        phx-value-phase={32}
-                                        checked={checked == "checked"}
-                                        disabled={is_disabled}
-                                        aria-disabled={if is_disabled, do: "true", else: "false"}
-                                        aria-describedby="phase32-desc"
-                                        aria-label={"#{team_name} - #{if checked == "checked", do: "valitud", else: "pole valitud"}#{if is_suggested, do: " - soovitatud sinu alagrupiennustuste põhjal", else: ""}"}
-                                />
-                                <label class="label-inline" for={"team32-#{team_id}"}>
-                                    <%= if is_suggested do %><span class="suggestion-star" title="Sinu alagrupiennustuste põhjal">⭐</span><% end %>
-                                    <%= team_name %>
-                                </label>
-                            </div>
-                        <% end %>
-                        </div>
-                    <% end %>
+        <%= if @prediction_deadline do %>
+        <div class="countdown-container countdown-compact" id="countdown-playoffs" phx-hook="Countdown" phx-update="ignore" data-deadline={DateTime.to_iso8601(@prediction_deadline)}>
+            <div data-countdown-timer style={if @predictions_open, do: "", else: "display:none"}>
+                <div class="countdown-inline">
+                    <span class="countdown-inline-label">Tähtajani:</span>
+                    <span class="countdown-inline-digits">
+                        <span data-cd-days>--</span>p
+                        <span data-cd-hours>--</span>t
+                        <span data-cd-minutes>--</span>m
+                        <span data-cd-seconds>--</span>s
+                    </span>
                 </div>
-                <hr aria-hidden="true" />
-            <% end %>
-        </section>
-
-        <section aria-labelledby="phase16-heading">
-            <h2 id="phase16-heading">Kaheksandikfinalistid (<span aria-label={"#{@left16} valikut jäänud"}><%= @left16 %></span>)</h2>
-            <p class="sr-only" id="phase16-desc">Vali 16 meeskonda kaheksandikfinaali. Saad valida ainult meeskondi, kes on valitud eelmises faasis.</p>
-            <%= for {team_id, team_name, checked} <- @teams16 do %>
-            <% is_disabled = checked != "checked" && @disabled16 == "disabled" %>
-            <div class="checkbox-item">
-                <input
-                        type="checkbox"
-                        id={"team16-#{team_id}"}
-                        phx-click="toggle-team"
-                        phx-value-team={team_id}
-                        phx-value-phase={16}
-                        checked={checked == "checked"}
-                        disabled={is_disabled}
-                        aria-disabled={if is_disabled, do: "true", else: "false"}
-                        aria-describedby="phase16-desc"
-                        aria-label={"#{team_name} - #{if checked == "checked", do: "valitud", else: "pole valitud"}"}
-                />
-                <label class="label-inline" for={"team16-#{team_id}"}><%= team_name %></label>
             </div>
-            <% end %>
-        </section>
-        <hr aria-hidden="true" />
-
-        <section aria-labelledby="phase8-heading">
-            <h2 id="phase8-heading">Veerandfinalistid (<span aria-label={"#{@left8} valikut jäänud"}><%= @left8 %></span>)</h2>
-            <p class="sr-only" id="phase8-desc">Vali 8 meeskonda veerandfinaali. Saad valida ainult meeskondi, kes on valitud eelmises faasis.</p>
-            <%= for {team_id, team_name, checked} <- @teams8 do %>
-            <% is_disabled = checked != "checked" && @disabled8 == "disabled" %>
-            <div class="checkbox-item">
-                <input
-                        type="checkbox"
-                        id={"team8-#{team_id}"}
-                        phx-click="toggle-team"
-                        phx-value-team={team_id}
-                        phx-value-phase={8}
-                        checked={checked == "checked"}
-                        disabled={is_disabled}
-                        aria-disabled={if is_disabled, do: "true", else: "false"}
-                        aria-describedby="phase8-desc"
-                        aria-label={"#{team_name} - #{if checked == "checked", do: "valitud", else: "pole valitud"}"}
-                />
-                <label class="label-inline" for={"team8-#{team_id}"}><%= team_name %></label>
+            <div data-countdown-locked style={if @predictions_open, do: "display:none", else: ""}>
+                <div class="countdown-locked-compact">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="countdown-lock-icon-sm" aria-hidden="true">
+                        <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+                    </svg>
+                    <span>Ennustamine on suletud</span>
+                </div>
             </div>
-            <% end %>
-        </section>
-        <hr aria-hidden="true" />
+        </div>
+        <% end %>
 
-        <section aria-labelledby="phase4-heading">
-            <h2 id="phase4-heading">Poolfinalistid (<span aria-label={"#{@left4} valikut jäänud"}><%= @left4 %></span>)</h2>
-            <p class="sr-only" id="phase4-desc">Vali 4 meeskonda poolfinaali. Saad valida ainult meeskondi, kes on valitud eelmises faasis.</p>
-            <%= for {team_id, team_name, checked} <- @teams4 do %>
-            <% is_disabled = checked != "checked" && @disabled4 == "disabled" %>
-            <div class="checkbox-item">
-                <input
-                        type="checkbox"
-                        id={"team4-#{team_id}"}
-                        phx-click="toggle-team"
-                        phx-value-team={team_id}
-                        phx-value-phase={4}
-                        checked={checked == "checked"}
-                        disabled={is_disabled}
-                        aria-disabled={if is_disabled, do: "true", else: "false"}
-                        aria-describedby="phase4-desc"
-                        aria-label={"#{team_name} - #{if checked == "checked", do: "valitud", else: "pole valitud"}"}
-                />
-                <label class="label-inline" for={"team4-#{team_id}"}><%= team_name %></label>
+        <%= unless @all_standings_ready do %>
+        <div class="alert alert-info" role="alert">
+            Täida kõigepealt kõikide alagrupide ennustused, et turniiri tabel täituks automaatselt.
+        </div>
+        <% end %>
+
+        <div class="bracket-progress-bar">
+            <div class="progress-info">
+                <span class="progress-label">Täidetud</span>
+                <span class="progress-value"><%= @progress %>/<%= @total_slots %></span>
             </div>
-            <% end %>
-        </section>
-        <hr aria-hidden="true" />
-
-        <section aria-labelledby="phase2-heading">
-            <h2 id="phase2-heading">Finalistid (<span aria-label={"#{@left2} valikut jäänud"}><%= @left2 %></span>)</h2>
-            <p class="sr-only" id="phase2-desc">Vali 2 meeskonda finaali. Saad valida ainult meeskondi, kes on valitud eelmises faasis.</p>
-            <%= for {team_id, team_name, checked} <- @teams2 do %>
-            <% is_disabled = checked != "checked" && @disabled2 == "disabled" %>
-            <div class="checkbox-item">
-                <input
-                        type="checkbox"
-                        id={"team2-#{team_id}"}
-                        phx-click="toggle-team"
-                        phx-value-team={team_id}
-                        phx-value-phase={2}
-                        checked={checked == "checked"}
-                        disabled={is_disabled}
-                        aria-disabled={if is_disabled, do: "true", else: "false"}
-                        aria-describedby="phase2-desc"
-                        aria-label={"#{team_name} - #{if checked == "checked", do: "valitud", else: "pole valitud"}"}
-                />
-                <label class="label-inline" for={"team2-#{team_id}"}><%= team_name %></label>
+            <div class="progress-bar-modern" role="progressbar" aria-valuenow={round(@progress * 100 / max(@total_slots, 1))} aria-valuemin="0" aria-valuemax="100">
+                <div class="progress-bar-fill-modern" style={"width: #{round(@progress * 100 / max(@total_slots, 1))}%;"} aria-hidden="true"></div>
             </div>
-            <% end %>
-        </section>
-        <hr aria-hidden="true" />
+        </div>
 
-        <section aria-labelledby="phase1-heading">
-            <h2 id="phase1-heading">Võitja (<span aria-label={"#{@left1} valikut jäänud"}><%= @left1 %></span>)</h2>
-            <p class="sr-only" id="phase1-desc">Vali turniiri võitja. Saad valida ainult meeskondi, kes on valitud finalistidena.</p>
-            <%= for {team_id, team_name, checked} <- @teams1 do %>
-            <% is_disabled = checked != "checked" && @disabled1 == "disabled" %>
-            <div class="checkbox-item">
-                <input
-                        type="checkbox"
-                        id={"team1-#{team_id}"}
-                        phx-click="toggle-team"
-                        phx-value-team={team_id}
-                        phx-value-phase={1}
-                        checked={checked == "checked"}
-                        disabled={is_disabled}
-                        aria-disabled={if is_disabled, do: "true", else: "false"}
-                        aria-describedby="phase1-desc"
-                        aria-label={"#{team_name} - #{if checked == "checked", do: "valitud", else: "pole valitud"}"}
-                />
-                <label class="label-inline" for={"team1-#{team_id}"}><%= team_name %></label>
+        <%!-- Stage indicator dots --%>
+        <div class="stage-indicators">
+            <%= for {round_data, idx} <- Enum.with_index(@rounds) do %>
+                <.link
+                    navigate={"/football/predict/playoffs/#{round_data.round}"}
+                    class={"stage-dot #{if round_data.round == @current_stage, do: "active", else: ""} #{if Enum.all?(round_data.slots, & &1.predicted_team), do: "filled", else: ""}"}
+                    title={round_data.display_name}
+                    aria-label={"#{round_data.display_name} - voor #{idx + 1}/#{@stage_count}"}
+                >
+                    <span class="stage-dot-label"><%= stage_short_label(round_data.round) %></span>
+                </.link>
+            <% end %>
+        </div>
+
+        <%!-- Current stage matchups --%>
+        <%= if @current_round do %>
+        <div class="playoff-stage-matchups" data-round={@current_round.round}>
+            <%= for slot <- @current_round.slots do %>
+                <div class={"playoff-stage-matchup #{if slot.predicted_team, do: "decided", else: "pending"}"}>
+                        <%!-- Matchup slot: show both teams and selection --%>
+                        <div class={"playoff-stage-slot #{if slot.predicted_team, do: "filled", else: "empty"}"}>
+                            <div class="playoff-stage-pair">
+                                <%!-- Team A row --%>
+                                <div class="playoff-stage-team-row">
+                                    <%= if slot.team_a do %>
+                                        <button
+                                            class={"playoff-stage-team-btn #{cond do slot.predicted_team && slot.predicted_team.id == slot.team_a.id -> "selected"; slot.predicted_team -> "not-selected"; true -> "" end}"}
+                                            phx-click={if slot.predicted_team && slot.predicted_team.id == slot.team_a.id, do: "clear-winner", else: "select-winner"}
+                                            phx-value-round={@current_round.round}
+                                            phx-value-position={slot.position}
+                                            phx-value-team-id={slot.team_a.id}
+                                            disabled={not @predictions_open}
+                                        >
+                                            <%= if slot.team_a.flag && slot.team_a.flag != "" do %>
+                                                <img class="playoff-team-flag-img" src={slot.team_a.flag} alt={"#{TeamTranslations.translate(slot.team_a.name)} lipp"} />
+                                            <% else %>
+                                                <span class="playoff-team-flag-code"><%= slot.team_a.code %></span>
+                                            <% end %>
+                                            <span class="playoff-team-name"><%= TeamTranslations.translate(slot.team_a.name) %></span>
+                                            <%= if slot.predicted_team && slot.predicted_team.id == slot.team_a.id && @predictions_open do %>
+                                                <span class="playoff-clear-indicator" title="Eemalda valik">×</span>
+                                            <% end %>
+                                        </button>
+                                    <% else %>
+                                        <div class="playoff-stage-team-btn placeholder">
+                                            <span class="playoff-team-name">—</span>
+                                        </div>
+                                    <% end %>
+                                    <%= if @predictions_open && length(slot.swap_candidates) > 0 do %>
+                                        <button class="playoff-swap-btn-inline" phx-click="open-swap" phx-value-round={@current_round.round} phx-value-position={slot.position} phx-value-side="a" title="Vaheta meeskond">
+                                            <span class="playoff-swap-icon">&#8644;</span>
+                                        </button>
+                                    <% end %>
+                                </div>
+                                <%!-- Swap dropdown for team A --%>
+                                <%= if @swap_slot == {@current_round.round, slot.position, "a"} do %>
+                                    <div class="playoff-swap-dropdown">
+                                        <div class="playoff-swap-dropdown-header">
+                                            <div class="playoff-swap-dropdown-label">Vaheta meeskond:</div>
+                                            <button class="playoff-swap-close-btn" phx-click="close-swap" title="Sulge">×</button>
+                                        </div>
+                                        <%= for candidate <- slot.swap_candidates do %>
+                                            <button
+                                                class="playoff-swap-candidate"
+                                                phx-click="swap-team"
+                                                phx-value-round={@current_round.round}
+                                                phx-value-position={slot.position}
+                                                phx-value-team-id={candidate.id}
+                                                phx-value-side="a"
+                                            >
+                                                <%= if candidate.flag && candidate.flag != "" do %>
+                                                    <img class="playoff-team-flag-img" src={candidate.flag} alt={"#{TeamTranslations.translate(candidate.name)} lipp"} />
+                                                <% else %>
+                                                    <span class="playoff-team-flag-code"><%= candidate.code %></span>
+                                                <% end %>
+                                                <span class="playoff-team-name"><%= TeamTranslations.translate(candidate.name) %></span>
+                                            </button>
+                                        <% end %>
+                                    </div>
+                                <% end %>
+
+                                <span class="playoff-stage-vs">vs</span>
+
+                                <%!-- Team B row --%>
+                                <div class="playoff-stage-team-row">
+                                    <%= if slot.team_b do %>
+                                        <button
+                                            class={"playoff-stage-team-btn #{cond do slot.predicted_team && slot.predicted_team.id == slot.team_b.id -> "selected"; slot.predicted_team -> "not-selected"; true -> "" end}"}
+                                            phx-click={if slot.predicted_team && slot.predicted_team.id == slot.team_b.id, do: "clear-winner", else: "select-winner"}
+                                            phx-value-round={@current_round.round}
+                                            phx-value-position={slot.position}
+                                            phx-value-team-id={slot.team_b.id}
+                                            disabled={not @predictions_open}
+                                        >
+                                            <%= if slot.team_b.flag && slot.team_b.flag != "" do %>
+                                                <img class="playoff-team-flag-img" src={slot.team_b.flag} alt={"#{TeamTranslations.translate(slot.team_b.name)} lipp"} />
+                                            <% else %>
+                                                <span class="playoff-team-flag-code"><%= slot.team_b.code %></span>
+                                            <% end %>
+                                            <span class="playoff-team-name"><%= TeamTranslations.translate(slot.team_b.name) %></span>
+                                            <%= if slot.predicted_team && slot.predicted_team.id == slot.team_b.id && @predictions_open do %>
+                                                <span class="playoff-clear-indicator" title="Eemalda valik">×</span>
+                                            <% end %>
+                                        </button>
+                                    <% else %>
+                                        <div class="playoff-stage-team-btn placeholder">
+                                            <span class="playoff-team-name">—</span>
+                                        </div>
+                                    <% end %>
+                                    <%= if @predictions_open && length(slot.swap_candidates) > 0 do %>
+                                        <button class="playoff-swap-btn-inline" phx-click="open-swap" phx-value-round={@current_round.round} phx-value-position={slot.position} phx-value-side="b" title="Vaheta meeskond">
+                                            <span class="playoff-swap-icon">&#8644;</span>
+                                        </button>
+                                    <% end %>
+                                </div>
+                                <%!-- Swap dropdown for team B --%>
+                                <%= if @swap_slot == {@current_round.round, slot.position, "b"} do %>
+                                    <div class="playoff-swap-dropdown">
+                                        <div class="playoff-swap-dropdown-header">
+                                            <div class="playoff-swap-dropdown-label">Vaheta meeskond:</div>
+                                            <button class="playoff-swap-close-btn" phx-click="close-swap" title="Sulge">×</button>
+                                        </div>
+                                        <%= for candidate <- slot.swap_candidates do %>
+                                            <button
+                                                class="playoff-swap-candidate"
+                                                phx-click="swap-team"
+                                                phx-value-round={@current_round.round}
+                                                phx-value-position={slot.position}
+                                                phx-value-team-id={candidate.id}
+                                                phx-value-side="b"
+                                            >
+                                                <%= if candidate.flag && candidate.flag != "" do %>
+                                                    <img class="playoff-team-flag-img" src={candidate.flag} alt={"#{TeamTranslations.translate(candidate.name)} lipp"} />
+                                                <% else %>
+                                                    <span class="playoff-team-flag-code"><%= candidate.code %></span>
+                                                <% end %>
+                                                <span class="playoff-team-name"><%= TeamTranslations.translate(candidate.name) %></span>
+                                            </button>
+                                        <% end %>
+                                    </div>
+                                <% end %>
+                            </div>
+                        </div>
+                </div>
+            <% end %>
+        </div>
+        <% end %>
+
+        <%!-- Third-place qualifying info (only on R32 page) --%>
+        <%= if @current_stage == "round_of_32" && @third_place_info && length(@third_place_info.all_third_place) > 0 do %>
+        <details class="third-place-details">
+            <summary class="third-place-summary">Parimad kolmanda koha meeskonnad</summary>
+            <div class="third-place-table-wrapper">
+                <table class="third-place-table">
+                    <thead>
+                        <tr>
+                            <th>Grupp</th>
+                            <th>Meeskond</th>
+                            <th>P</th>
+                            <th>VV</th>
+                            <th>LV</th>
+                            <th>Staatus</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <%= for entry <- @third_place_info.all_third_place do %>
+                        <tr class={if entry.group in @third_place_info.qualifying_groups, do: "qualifying", else: "eliminated"}>
+                            <td><%= entry.group %></td>
+                            <td><%= TeamTranslations.translate(entry.team.name) %></td>
+                            <td><%= entry.points %></td>
+                            <td><%= entry.goal_difference %></td>
+                            <td><%= entry.goals_for %></td>
+                            <td>
+                                <%= if entry.group in @third_place_info.qualifying_groups do %>
+                                    <span class="badge badge-success">Edasi</span>
+                                <% else %>
+                                    <span class="badge badge-muted">Väljas</span>
+                                <% end %>
+                            </td>
+                        </tr>
+                        <% end %>
+                    </tbody>
+                </table>
             </div>
-            <% end %>
-        </section>
+        </details>
+        <% end %>
 
-        <nav class="back-button-container" aria-label="Navigeerimine">
-            <.link navigate={Routes.user_prediction_navigate_path(@socket, :navigate)} class={"button button-large #{@predictions_done} button-main"} aria-label="Tagasi ennustuste navigeerimise juurde">Tagasi</.link>
+        <%!-- Stage navigation --%>
+        <nav class="group-navigation" aria-label="Play-off voorude vahel navigeerimine">
+            <div class="group-nav-buttons">
+                <%= if @prev_stage do %>
+                    <.link navigate={"/football/predict/playoffs/#{@prev_stage}"} class="group-nav-btn group-nav-btn-secondary" aria-label={"Eelmine voor"} data-nav-prev>
+                        ← <%= BracketPrediction.round_display_name(@prev_stage) %>
+                    </.link>
+                <% else %>
+                    <span class="group-nav-btn group-nav-btn-secondary disabled" aria-disabled="true">← Eelmine</span>
+                <% end %>
+
+                <.link navigate={Routes.user_prediction_navigate_path(@socket, :navigate)} class={"group-nav-btn group-nav-btn-primary #{@predictions_done}"} aria-label="Tagasi ennustuste navigeerimise juurde">Tagasi</.link>
+
+                <%= if @next_stage do %>
+                    <.link navigate={"/football/predict/playoffs/#{@next_stage}"} class="group-nav-btn group-nav-btn-secondary" aria-label={"Järgmine voor"} data-nav-next>
+                        <%= BracketPrediction.round_display_name(@next_stage) %> →
+                    </.link>
+                <% else %>
+                    <span class="group-nav-btn group-nav-btn-secondary disabled" aria-disabled="true">Järgmine →</span>
+                <% end %>
+            </div>
         </nav>
+        <div class="group-nav-spacer"></div>
     </div>
 </main>

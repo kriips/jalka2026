@@ -8,9 +8,10 @@ defmodule Jalka2026.Football.Cache do
 
   require Logger
 
-  alias Jalka2026.Repo
-  alias Jalka2026.Football.{Team, Competition}
   import Ecto.Query
+
+  alias Jalka2026.Football.{Competition, Team}
+  alias Jalka2026.Repo
 
   @teams_table :football_teams
   @competition_table :football_competitions
@@ -139,14 +140,12 @@ defmodule Jalka2026.Football.Cache do
   ## Private helpers
 
   defp populate_cache do
-    try do
-      populate_teams()
-      populate_competition()
-      Logger.info("Football cache populated successfully")
-    rescue
-      e ->
-        Logger.warning("Failed to populate football cache: #{inspect(e)}")
-    end
+    populate_teams()
+    populate_competition()
+    Logger.info("Football cache populated successfully")
+  rescue
+    e ->
+      Logger.warning("Failed to populate football cache: #{inspect(e)}")
   end
 
   defp populate_teams do
@@ -174,14 +173,8 @@ defmodule Jalka2026.Football.Cache do
     # Store teams grouped by group letter with translated names
     alias Jalka2026.Football.TeamTranslations
 
-    empty_groups = %{
-      "A" => [], "B" => [], "C" => [], "D" => [],
-      "E" => [], "F" => [], "G" => [], "H" => [],
-      "I" => [], "J" => [], "K" => [], "L" => []
-    }
-
     grouped =
-      Enum.reduce(teams, empty_groups, fn team, acc ->
+      Enum.reduce(teams, Jalka2026.Football.empty_group_map(), fn team, acc ->
         translated_name = TeamTranslations.translate(team.name)
         Map.put(acc, team.group, [{team.id, translated_name} | acc[team.group]])
       end)
@@ -219,13 +212,7 @@ defmodule Jalka2026.Football.Cache do
 
     teams = fallback_get_teams()
 
-    empty_groups = %{
-      "A" => [], "B" => [], "C" => [], "D" => [],
-      "E" => [], "F" => [], "G" => [], "H" => [],
-      "I" => [], "J" => [], "K" => [], "L" => []
-    }
-
-    Enum.reduce(teams, empty_groups, fn team, acc ->
+    Enum.reduce(teams, Jalka2026.Football.empty_group_map(), fn team, acc ->
       translated_name = TeamTranslations.translate(team.name)
       Map.put(acc, team.group, [{team.id, translated_name} | acc[team.group]])
     end)

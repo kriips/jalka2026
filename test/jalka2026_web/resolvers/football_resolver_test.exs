@@ -31,7 +31,7 @@ defmodule Jalka2026Web.Resolvers.FootballResolverTest do
 
       result = FootballResolver.list_matches_by_group("B")
 
-      assert length(result) >= 1
+      assert result != []
       match_ids = Enum.map(result, & &1.id)
       assert match.id in match_ids
     end
@@ -418,7 +418,7 @@ defmodule Jalka2026Web.Resolvers.FootballResolverTest do
       _result = playoff_result_fixture()
       results = FootballResolver.list_playoff_results()
       assert is_list(results)
-      assert length(results) >= 1
+      assert results != []
     end
   end
 
@@ -512,6 +512,170 @@ defmodule Jalka2026Web.Resolvers.FootballResolverTest do
       assert is_list(result)
       # Result should be sorted by phase descending (32 first)
       assert hd(result) |> elem(0) == 32
+    end
+  end
+
+  describe "update_match/1" do
+    test "updates match score and marks as finished" do
+      match = match_fixture()
+
+      result =
+        FootballResolver.update_match(%{
+          "game_id" => to_string(match.id),
+          "home_score" => "3",
+          "away_score" => "1"
+        })
+
+      assert {:ok, %{update_match: updated_match}} = result
+      assert updated_match.home_score == 3
+      assert updated_match.away_score == 1
+      assert updated_match.finished == true
+    end
+  end
+
+  describe "update_playoff_result/1" do
+    test "enters a playoff result for a team" do
+      team = team_fixture(%{name: "Playoff Winner Team"})
+
+      result =
+        FootballResolver.update_playoff_result(%{
+          "team_name" => team.name,
+          "phase" => 32
+        })
+
+      assert {:ok, %{toggle_playoff_result: _}} = result
+    end
+  end
+
+  describe "get_prediction_analytics/1" do
+    test "returns analytics structure with no predictions" do
+      user = user_fixture()
+
+      result = FootballResolver.get_prediction_analytics(user.id)
+
+      assert %{
+               group_stats: group_stats,
+               playoff_stats: playoff_stats,
+               trend_data: trend_data,
+               overall_stats: overall_stats
+             } = result
+
+      assert group_stats.total_predictions == 0
+      assert group_stats.total_finished == 0
+      assert group_stats.correct_results == 0
+      assert group_stats.result_accuracy == 0.0
+      assert group_stats.by_group == %{}
+      assert group_stats.best_group == nil
+      assert group_stats.worst_group == nil
+
+      assert playoff_stats.total_predictions == 0
+      assert playoff_stats.total_correct == 0
+      assert playoff_stats.overall_accuracy == 0.0
+
+      assert trend_data.cumulative_accuracy == []
+      assert trend_data.recent_form == []
+      assert trend_data.streak_data.current == 0
+
+      assert overall_stats.total_points == 0
+    end
+
+    test "returns correct group stats with finished matches" do
+      user = user_fixture()
+
+      # Create matches in different groups
+      match1 = finished_match_fixture(%{home_score: 2, away_score: 1, group: "Alagrupp A"})
+      match2 = finished_match_fixture(%{home_score: 0, away_score: 0, group: "Alagrupp A"})
+      match3 = finished_match_fixture(%{home_score: 1, away_score: 3, group: "Alagrupp B"})
+
+      # Correct result prediction
+      group_prediction_fixture(%{user: user, match: match1, home_score: 3, away_score: 0})
+      # Wrong prediction
+      group_prediction_fixture(%{user: user, match: match2, home_score: 1, away_score: 0})
+      # Exact score prediction
+      group_prediction_fixture(%{user: user, match: match3, home_score: 1, away_score: 3})
+
+      result = FootballResolver.get_prediction_analytics(user.id)
+
+      assert result.group_stats.total_finished == 3
+      # match1 correct result, match3 correct result
+      assert result.group_stats.correct_results == 2
+      # match3 exact score
+      assert result.group_stats.correct_scores == 1
+      # 2 correct results + 1 exact score = 3
+      assert result.group_stats.points_earned == 3
+      assert result.group_stats.max_possible_points == 6
+
+      assert result.overall_stats.group_points == 3
+    end
+
+    test "returns correct trend data with predictions" do
+      user = user_fixture()
+
+      match1 =
+        finished_match_fixture(%{
+          home_score: 2,
+          away_score: 1,
+          date: ~N[2026-06-10 18:00:00]
+        })
+
+      match2 =
+        finished_match_fixture(%{
+          home_score: 0,
+          away_score: 0,
+          date: ~N[2026-06-11 18:00:00]
+        })
+
+      # Correct result
+      group_prediction_fixture(%{user: user, match: match1, home_score: 3, away_score: 0})
+      # Wrong result
+      group_prediction_fixture(%{user: user, match: match2, home_score: 1, away_score: 0})
+
+      result = FootballResolver.get_prediction_analytics(user.id)
+
+      assert length(result.trend_data.cumulative_accuracy) == 2
+      assert result.trend_data.streak_data.current == 1
+      assert result.trend_data.streak_data.type == :incorrect
+    end
+
+    test "calculates playoff stats correctly" do
+      user = user_fixture()
+      team = team_fixture(%{name: "Analytics Team"})
+      _prediction = playoff_prediction_fixture(%{user: user, team: team, phase: 16})
+
+      result = FootballResolver.get_prediction_analytics(user.id)
+
+      assert result.playoff_stats.total_predictions >= 1
+      assert is_map(result.playoff_stats.by_phase)
+    end
+
+    test "identifies best and worst groups with enough data" do
+      user = user_fixture()
+
+      # Create 3 matches per group to qualify for best/worst
+      group_a_matches =
+        for _ <- 1..3 do
+          finished_match_fixture(%{home_score: 2, away_score: 1, group: "Alagrupp C"})
+        end
+
+      group_b_matches =
+        for _ <- 1..3 do
+          finished_match_fixture(%{home_score: 1, away_score: 0, group: "Alagrupp D"})
+        end
+
+      # Group C: all correct results
+      for m <- group_a_matches do
+        group_prediction_fixture(%{user: user, match: m, home_score: 3, away_score: 0})
+      end
+
+      # Group D: all wrong results
+      for m <- group_b_matches do
+        group_prediction_fixture(%{user: user, match: m, home_score: 0, away_score: 2})
+      end
+
+      result = FootballResolver.get_prediction_analytics(user.id)
+
+      assert result.group_stats.best_group == "Alagrupp C"
+      assert result.group_stats.worst_group == "Alagrupp D"
     end
   end
 end

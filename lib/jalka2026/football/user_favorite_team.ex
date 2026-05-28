@@ -6,10 +6,10 @@ defmodule Jalka2026.Football.UserFavoriteTeam do
   alias Jalka2026.Football.Team
 
   schema "user_favorite_teams" do
-    field :is_primary, :boolean, default: false
+    field(:is_primary, :boolean, default: false)
 
-    belongs_to :user, User
-    belongs_to :team, Team
+    belongs_to(:user, User)
+    belongs_to(:team, Team)
 
     timestamps()
   end

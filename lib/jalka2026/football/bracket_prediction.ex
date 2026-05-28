@@ -2,16 +2,17 @@ defmodule Jalka2026.Football.BracketPrediction do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias Jalka2026.Football.Team
   alias Jalka2026.Accounts.User
+  alias Jalka2026.Football.Team
 
-  @rounds ~w(round_of_32 round_of_16 quarter_final semi_final final winner)
+  @rounds ~w(round_of_32 round_of_16 quarter_final semi_final final)
 
   schema "bracket_predictions" do
     belongs_to(:user, User)
     belongs_to(:team, Team)
     field(:round, :string)
     field(:position, :integer)
+    field(:side, :string)
 
     timestamps()
   end
@@ -19,11 +20,17 @@ defmodule Jalka2026.Football.BracketPrediction do
   @doc false
   def changeset(bracket_prediction, attrs) do
     bracket_prediction
-    |> cast(attrs, [:user_id, :team_id, :round, :position])
+    |> cast(attrs, [:user_id, :team_id, :round, :position, :side])
     |> validate_required([:user_id, :round, :position])
     |> validate_inclusion(:round, @rounds)
+    |> validate_inclusion(:side, ["a", "b"], message: "must be a or b")
     |> validate_position()
-    |> unique_constraint([:user_id, :round, :position])
+    |> unique_constraint([:user_id, :round, :position],
+      name: :bracket_predictions_user_round_pos_winner_index
+    )
+    |> unique_constraint([:user_id, :round, :position, :side],
+      name: :bracket_predictions_user_round_pos_side_index
+    )
     |> assoc_constraint(:user)
     |> assoc_constraint(:team)
   end
@@ -37,8 +44,7 @@ defmodule Jalka2026.Football.BracketPrediction do
       "round_of_16" => 8,
       "quarter_final" => 4,
       "semi_final" => 2,
-      "final" => 1,
-      "winner" => 1
+      "final" => 1
     }
 
     if round && position do
@@ -65,7 +71,6 @@ defmodule Jalka2026.Football.BracketPrediction do
       "quarter_final" -> 4
       "semi_final" -> 2
       "final" -> 1
-      "winner" -> 1
       _ -> 0
     end
   end
@@ -77,8 +82,7 @@ defmodule Jalka2026.Football.BracketPrediction do
       "round_of_16" -> "quarter_final"
       "quarter_final" -> "semi_final"
       "semi_final" -> "final"
-      "final" -> "winner"
-      "winner" -> nil
+      "final" -> nil
       _ -> nil
     end
   end
@@ -91,7 +95,6 @@ defmodule Jalka2026.Football.BracketPrediction do
       "quarter_final" -> "Veerandfinaal"
       "semi_final" -> "Poolfinaal"
       "final" -> "Finaal"
-      "winner" -> "Võitja"
       _ -> round
     end
   end

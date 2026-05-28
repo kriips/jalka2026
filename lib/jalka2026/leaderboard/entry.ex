@@ -14,39 +14,46 @@ defmodule Jalka2026.Leaderboard.Entry do
   - `total_points` — sum of group + playoff + bonus points
   """
 
-  @enforce_keys [:user_id, :rank, :name, :group_points, :playoff_points,
-                  :bonus_points, :current_streak, :longest_streak, :total_points]
+  @enforce_keys [
+    :user_id,
+    :rank,
+    :name,
+    :group_points,
+    :playoff_points,
+    :bonus_points,
+    :current_streak,
+    :longest_streak,
+    :total_points
+  ]
   defstruct @enforce_keys
 
   @opaque t :: %__MODULE__{
-    user_id: pos_integer(),
-    rank: pos_integer(),
-    name: String.t(),
-    group_points: non_neg_integer(),
-    playoff_points: non_neg_integer(),
-    bonus_points: non_neg_integer(),
-    current_streak: non_neg_integer(),
-    longest_streak: non_neg_integer(),
-    total_points: non_neg_integer()
-  }
+            user_id: pos_integer(),
+            rank: pos_integer(),
+            name: String.t(),
+            group_points: non_neg_integer(),
+            playoff_points: non_neg_integer(),
+            bonus_points: non_neg_integer(),
+            current_streak: non_neg_integer(),
+            longest_streak: non_neg_integer(),
+            total_points: non_neg_integer()
+          }
 
   @doc """
-  Build an entry from individual values (used during leaderboard calculation).
+  Build an entry from a map of attributes (used during leaderboard calculation).
   """
-  @spec new(pos_integer(), pos_integer(), String.t(), non_neg_integer(), non_neg_integer(),
-            non_neg_integer(), non_neg_integer(), non_neg_integer(), non_neg_integer()) :: t()
-  def new(user_id, rank, name, group_points, playoff_points, bonus_points,
-          current_streak, longest_streak, total_points) do
+  @spec new(map()) :: t()
+  def new(attrs) when is_map(attrs) do
     %__MODULE__{
-      user_id: user_id,
-      rank: rank,
-      name: name,
-      group_points: group_points,
-      playoff_points: playoff_points,
-      bonus_points: bonus_points,
-      current_streak: current_streak,
-      longest_streak: longest_streak,
-      total_points: total_points
+      user_id: attrs.user_id,
+      rank: attrs.rank,
+      name: attrs.name,
+      group_points: attrs.group_points,
+      playoff_points: attrs.playoff_points,
+      bonus_points: attrs.bonus_points,
+      current_streak: attrs.current_streak,
+      longest_streak: attrs.longest_streak,
+      total_points: attrs.total_points
     }
   end
 end

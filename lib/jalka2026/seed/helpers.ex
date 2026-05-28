@@ -3,6 +3,7 @@ defmodule Jalka2026.Seed.Helpers do
   Shared utilities for seed repository implementations.
   """
 
+  alias Ecto.Adapters.SQL
   alias Jalka2026.Repo
 
   @doc """
@@ -45,7 +46,7 @@ defmodule Jalka2026.Seed.Helpers do
   """
   def column_exists?(table, column) do
     result =
-      Ecto.Adapters.SQL.query!(
+      SQL.query!(
         Repo,
         "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = $1 AND column_name = $2",
         [table, column]
@@ -60,7 +61,7 @@ defmodule Jalka2026.Seed.Helpers do
   """
   def table_exists?(table) do
     result =
-      Ecto.Adapters.SQL.query!(
+      SQL.query!(
         Repo,
         "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = $1 AND table_schema = 'public'",
         [table]
@@ -76,7 +77,7 @@ defmodule Jalka2026.Seed.Helpers do
   def row_count(table) do
     if table_exists?(table) do
       %{rows: [[count]]} =
-        Ecto.Adapters.SQL.query!(Repo, "SELECT COUNT(*) FROM #{table}", [])
+        SQL.query!(Repo, "SELECT COUNT(*) FROM #{table}", [])
 
       count
     else
@@ -88,7 +89,7 @@ defmodule Jalka2026.Seed.Helpers do
   Execute a raw SQL query via the repo.
   """
   def query!(sql, params \\ []) do
-    Ecto.Adapters.SQL.query!(Repo, sql, params)
+    SQL.query!(Repo, sql, params)
   end
 
   @doc """

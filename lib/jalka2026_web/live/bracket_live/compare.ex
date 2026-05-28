@@ -1,8 +1,8 @@
 defmodule Jalka2026Web.BracketLive.Compare do
   use Jalka2026Web, :live_view
 
-  alias Jalka2026.Football
   alias Jalka2026.Accounts
+  alias Jalka2026.Football
   alias Jalka2026Web.TelemetryHooks
 
   @impl true

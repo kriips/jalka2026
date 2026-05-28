@@ -103,6 +103,7 @@ defmodule Jalka2026.Football.MatchSimulationTest do
       matrix = MatchSimulation.generate_score_matrix(score_counts, 10)
 
       assert length(matrix) == 6
+
       Enum.each(matrix, fn row ->
         assert length(row) == 6
       end)
@@ -132,7 +133,8 @@ defmodule Jalka2026.Football.MatchSimulationTest do
       # Should differ from the default 1.0 neutral strength
       assert is_float(result)
       # BRA actually won matches, so form strength should deviate from the 1.0 default
-      assert result != 1.0, "Expected BRA to have a non-default form strength based on historical data"
+      assert result != 1.0,
+             "Expected BRA to have a non-default form strength based on historical data"
     end
   end
 
@@ -160,7 +162,9 @@ defmodule Jalka2026.Football.MatchSimulationTest do
       # BRA has World Cup historical data
       result = MatchSimulation.calculate_wc_strength("BRA")
       assert is_float(result)
-      assert result != 0.9, "Expected BRA to have a non-default WC strength based on historical data"
+
+      assert result != 0.9,
+             "Expected BRA to have a non-default WC strength based on historical data"
     end
   end
 
@@ -259,7 +263,9 @@ defmodule Jalka2026.Football.MatchSimulationTest do
     test "simulation for real teams produces different results than default teams" do
       # BRA vs ARG have real historical data - results should differ from NONEXISTENT teams
       real_result = MatchSimulation.simulate_match("BRA", "ARG", simulations: 100)
-      default_result = MatchSimulation.simulate_match("NONEXISTENT1", "NONEXISTENT2", simulations: 100)
+
+      default_result =
+        MatchSimulation.simulate_match("NONEXISTENT1", "NONEXISTENT2", simulations: 100)
 
       # Strengths should differ because real teams have data
       assert real_result.team1_strength != default_result.team1_strength

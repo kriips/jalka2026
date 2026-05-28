@@ -24,7 +24,8 @@ defmodule Jalka2026.Seed.Runner do
   Insert the default competition if it doesn't exist.
   """
   def insert_competition(attrs, competition_id) do
-    if Helpers.table_exists?("competitions") && Code.ensure_compiled(Jalka2026.Football.Competition) do
+    if Helpers.table_exists?("competitions") &&
+         Code.ensure_compiled(Jalka2026.Football.Competition) do
       case Jalka2026.Repo.get(Jalka2026.Football.Competition, competition_id) do
         nil ->
           %Jalka2026.Football.Competition{}
@@ -121,7 +122,16 @@ defmodule Jalka2026.Seed.Runner do
       if has_cid do
         Helpers.query!(
           "INSERT INTO matches (\"group\", home_team_id, away_team_id, date, competition_id, finished, inserted_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-          [match.group, match.home_team_id, match.away_team_id, match.date, competition_id, false, now, now]
+          [
+            match.group,
+            match.home_team_id,
+            match.away_team_id,
+            match.date,
+            competition_id,
+            false,
+            now,
+            now
+          ]
         )
       else
         Helpers.query!(

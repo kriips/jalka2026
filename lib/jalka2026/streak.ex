@@ -10,16 +10,17 @@ defmodule Jalka2026.Streak do
   """
 
   import Ecto.Query
-  alias Jalka2026.Repo
-  alias Jalka2026.Football.{UserStreak, GroupPrediction, Match}
+
   alias Jalka2026.Accounts
+  alias Jalka2026.Football.{GroupPrediction, Match, UserStreak}
+  alias Jalka2026.Repo
   alias Jalka2026.Scoring
 
   @type streak_stats :: %{
-    current_streak: non_neg_integer(),
-    longest_streak: non_neg_integer(),
-    bonus_points: non_neg_integer()
-  }
+          current_streak: non_neg_integer(),
+          longest_streak: non_neg_integer(),
+          bonus_points: non_neg_integer()
+        }
   @type streaks_by_user :: %{pos_integer() => streak_stats()}
 
   @doc """
@@ -78,10 +79,38 @@ defmodule Jalka2026.Streak do
   def recalculate_all_streaks do
     users = Accounts.list_users()
     finished_matches = get_finished_matches_ordered()
+    existing_streaks = get_all_streak_records()
 
-    Enum.each(users, fn user ->
-      calculate_and_save_streak(user.id, finished_matches)
-    end)
+    multi =
+      Enum.reduce(users, Ecto.Multi.new(), fn user, multi ->
+        predictions = get_user_predictions_map(user.id)
+        {current, longest, bonus} = calculate_streak_stats(finished_matches, predictions)
+
+        streak = Map.get(existing_streaks, user.id)
+
+        if streak do
+          changeset =
+            UserStreak.changeset(streak, %{
+              current_streak: current,
+              longest_streak: longest,
+              bonus_points: bonus
+            })
+
+          Ecto.Multi.update(multi, {:update_streak, user.id}, changeset)
+        else
+          changeset =
+            UserStreak.changeset(%UserStreak{}, %{
+              user_id: user.id,
+              current_streak: current,
+              longest_streak: longest,
+              bonus_points: bonus
+            })
+
+          Ecto.Multi.insert(multi, {:insert_streak, user.id}, changeset)
+        end
+      end)
+
+    Repo.transaction(multi)
 
     get_all_streaks()
   end
@@ -95,20 +124,36 @@ defmodule Jalka2026.Streak do
     # Bulk-load existing streaks to avoid N+1 get_or_create per user
     existing_streaks = get_all_streak_records()
 
-    Enum.each(users, fn user ->
-      user_predictions = Map.get(all_predictions_by_user, user.id, %{})
-      {current, longest, bonus} = calculate_streak_stats(finished_matches, user_predictions)
+    multi =
+      Enum.reduce(users, Ecto.Multi.new(), fn user, multi ->
+        user_predictions = Map.get(all_predictions_by_user, user.id, %{})
+        {current, longest, bonus} = calculate_streak_stats(finished_matches, user_predictions)
 
-      streak = Map.get(existing_streaks, user.id) || create_streak(user.id)
+        streak = Map.get(existing_streaks, user.id)
 
-      streak
-      |> UserStreak.changeset(%{
-        current_streak: current,
-        longest_streak: longest,
-        bonus_points: bonus
-      })
-      |> Repo.update!()
-    end)
+        if streak do
+          changeset =
+            UserStreak.changeset(streak, %{
+              current_streak: current,
+              longest_streak: longest,
+              bonus_points: bonus
+            })
+
+          Ecto.Multi.update(multi, {:update_streak, user.id}, changeset)
+        else
+          changeset =
+            UserStreak.changeset(%UserStreak{}, %{
+              user_id: user.id,
+              current_streak: current,
+              longest_streak: longest,
+              bonus_points: bonus
+            })
+
+          Ecto.Multi.insert(multi, {:insert_streak, user.id}, changeset)
+        end
+      end)
+
+    Repo.transaction(multi)
 
     get_all_streaks()
   end
@@ -164,12 +209,5 @@ defmodule Jalka2026.Streak do
     UserStreak
     |> Repo.all()
     |> Map.new(fn s -> {s.user_id, s} end)
-  end
-
-  # Create a new streak record
-  defp create_streak(user_id) do
-    %UserStreak{}
-    |> UserStreak.changeset(%{user_id: user_id})
-    |> Repo.insert!()
   end
 end

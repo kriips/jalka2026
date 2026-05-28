@@ -44,11 +44,13 @@ defmodule Jalka2026Web.UserLive.Rivalries do
       case Football.add_rival(user.id, rival_id) do
         {:ok, _} ->
           rivalries_with_stats = Football.get_user_rivalries_with_stats(user.id)
-          users = get_users_for_dropdown(
-            Leaderboard.get_leaderboard(),
-            user.id,
-            rivalries_with_stats
-          )
+
+          users =
+            get_users_for_dropdown(
+              Leaderboard.get_leaderboard(),
+              user.id,
+              rivalries_with_stats
+            )
 
           # Broadcast rivalry creation for notifications
           broadcast_rivalry_event(user.id, rival_id, :rivalry_created)
@@ -73,11 +75,13 @@ defmodule Jalka2026Web.UserLive.Rivalries do
     Football.remove_rival(user.id, rival_id)
 
     rivalries_with_stats = Football.get_user_rivalries_with_stats(user.id)
-    users = get_users_for_dropdown(
-      Leaderboard.get_leaderboard(),
-      user.id,
-      rivalries_with_stats
-    )
+
+    users =
+      get_users_for_dropdown(
+        Leaderboard.get_leaderboard(),
+        user.id,
+        rivalries_with_stats
+      )
 
     {:noreply,
      socket
@@ -146,7 +150,7 @@ defmodule Jalka2026Web.UserLive.Rivalries do
     rival_ids = Enum.map(rivalries, fn r -> r.rivalry.rival_id end) |> MapSet.new()
 
     leaderboard
-    |> Enum.map(fn {id, _rank, name, _gp, _pp, _bp, _cs, _ls, _total} ->
+    |> Enum.map(fn %{user_id: id, name: name} ->
       {id, name}
     end)
     |> Enum.reject(fn {id, _name} ->
@@ -300,7 +304,7 @@ defmodule Jalka2026Web.UserLive.Rivalries do
 
         <!-- Selected Rivalry Details Modal -->
         <%= if @selected_rivalry do %>
-          <div class="modal-overlay" phx-click="close_rivalry_details">
+          <div class="modal-overlay">
             <div class="modal-content rivalry-details-modal" phx-click-away="close_rivalry_details">
               <button type="button" class="modal-close" phx-click="close_rivalry_details">x</button>
 
@@ -401,7 +405,7 @@ defmodule Jalka2026Web.UserLive.Rivalries do
 
         <!-- Add Rival Modal -->
         <%= if @show_add_modal do %>
-          <div class="modal-overlay" phx-click="close_add_modal">
+          <div class="modal-overlay">
             <div class="modal-content add-rival-modal" phx-click-away="close_add_modal">
               <button type="button" class="modal-close" phx-click="close_add_modal">x</button>
 

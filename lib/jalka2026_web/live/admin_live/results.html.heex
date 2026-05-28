@@ -12,7 +12,7 @@
             <div class="info-card">
                 <h2 class="info-card-title">Vali alagrupp</h2>
                 <div class="group-selector">
-                    <%= for group <- ~w(A B C D E F G H I J K L) do %>
+                    <%= for group <- Jalka2026.Football.groups() do %>
                         <button
                             type="button"
                             class={"group-btn " <> if @selected_group == group, do: "active", else: ""}
@@ -75,7 +75,7 @@
             <div class="info-card">
                 <h2 class="info-card-title">Vali faas</h2>
                 <div class="phase-selector">
-                    <%= for phase <- [32, 16, 8, 4, 2, 1] do %>
+                    <%= for phase <- [32, 16, 8, 4, 2] do %>
                         <button
                             type="button"
                             class={"phase-btn " <> if @selected_phase == phase, do: "active", else: ""}

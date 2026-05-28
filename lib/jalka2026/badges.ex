@@ -13,9 +13,10 @@ defmodule Jalka2026.Badges do
   """
 
   import Ecto.Query
-  alias Jalka2026.Repo
-  alias Jalka2026.Football.{UserBadge, GroupPrediction, Match}
+
   alias Jalka2026.Accounts
+  alias Jalka2026.Football.{GroupPrediction, Match, UserBadge}
+  alias Jalka2026.Repo
 
   @type badge :: UserBadge.t()
   @type badges_by_user :: %{pos_integer() => [badge()]}
@@ -52,9 +53,43 @@ defmodule Jalka2026.Badges do
     finished_matches = get_finished_matches_ordered()
     playoff_results = get_playoff_results()
 
-    Enum.each(users, fn user ->
-      recalculate_user_badges(user.id, finished_matches, playoff_results)
-    end)
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+    all_existing_badges = get_all_existing_badge_types()
+
+    badge_rows =
+      Enum.flat_map(users, fn user ->
+        predictions = get_user_predictions_map(user.id)
+        playoff_predictions = get_user_playoff_predictions(user.id)
+        existing_badges = Map.get(all_existing_badges, user.id, [])
+
+        earned_badges =
+          calculate_earned_badges(
+            finished_matches,
+            predictions,
+            playoff_predictions,
+            playoff_results
+          )
+
+        new_badges = earned_badges -- existing_badges
+
+        Enum.map(new_badges, fn badge_type ->
+          %{
+            user_id: user.id,
+            badge_type: badge_type,
+            awarded_at: now,
+            inserted_at: now,
+            updated_at: now
+          }
+        end)
+      end)
+
+    if badge_rows != [] do
+      Ecto.Multi.new()
+      |> Ecto.Multi.insert_all(:insert_badges, UserBadge, badge_rows, on_conflict: :nothing)
+      |> Repo.transaction()
+    else
+      {:ok, %{insert_badges: {0, nil}}}
+    end
   end
 
   @doc """
@@ -69,30 +104,41 @@ defmodule Jalka2026.Badges do
 
     now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
 
-    Enum.each(users, fn user ->
-      user_predictions = Map.get(all_predictions_by_user, user.id, %{})
-      playoff_predictions = Map.get(all_playoff_predictions, user.id, [])
-      existing_badges = Map.get(all_existing_badges, user.id, [])
+    # Build all badge rows to insert across all users
+    badge_rows =
+      Enum.flat_map(users, fn user ->
+        user_predictions = Map.get(all_predictions_by_user, user.id, %{})
+        playoff_predictions = Map.get(all_playoff_predictions, user.id, [])
+        existing_badges = Map.get(all_existing_badges, user.id, [])
 
-      earned_badges = calculate_earned_badges(
-        finished_matches,
-        user_predictions,
-        playoff_predictions,
-        playoff_results
-      )
+        earned_badges =
+          calculate_earned_badges(
+            finished_matches,
+            user_predictions,
+            playoff_predictions,
+            playoff_results
+          )
 
-      new_badges = earned_badges -- existing_badges
+        new_badges = earned_badges -- existing_badges
 
-      Enum.each(new_badges, fn badge_type ->
-        %UserBadge{}
-        |> UserBadge.changeset(%{
-          user_id: user.id,
-          badge_type: badge_type,
-          awarded_at: now
-        })
-        |> Repo.insert(on_conflict: :nothing)
+        Enum.map(new_badges, fn badge_type ->
+          %{
+            user_id: user.id,
+            badge_type: badge_type,
+            awarded_at: now,
+            inserted_at: now,
+            updated_at: now
+          }
+        end)
       end)
-    end)
+
+    if badge_rows != [] do
+      Ecto.Multi.new()
+      |> Ecto.Multi.insert_all(:insert_badges, UserBadge, badge_rows, on_conflict: :nothing)
+      |> Repo.transaction()
+    else
+      {:ok, %{insert_badges: {0, nil}}}
+    end
   end
 
   @doc """
@@ -105,29 +151,44 @@ defmodule Jalka2026.Badges do
 
     now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
 
-    earned_badges = calculate_earned_badges(
-      finished_matches,
-      predictions,
-      playoff_predictions,
-      playoff_results
-    )
+    earned_badges =
+      calculate_earned_badges(
+        finished_matches,
+        predictions,
+        playoff_predictions,
+        playoff_results
+      )
 
     # Award new badges that haven't been awarded yet
     new_badges = earned_badges -- existing_badges
 
-    Enum.each(new_badges, fn badge_type ->
-      %UserBadge{}
-      |> UserBadge.changeset(%{
-        user_id: user_id,
-        badge_type: badge_type,
-        awarded_at: now
-      })
-      |> Repo.insert(on_conflict: :nothing)
-    end)
+    if new_badges != [] do
+      badge_rows =
+        Enum.map(new_badges, fn badge_type ->
+          %{
+            user_id: user_id,
+            badge_type: badge_type,
+            awarded_at: now,
+            inserted_at: now,
+            updated_at: now
+          }
+        end)
+
+      Ecto.Multi.new()
+      |> Ecto.Multi.insert_all(:insert_badges, UserBadge, badge_rows, on_conflict: :nothing)
+      |> Repo.transaction()
+    else
+      {:ok, %{insert_badges: {0, nil}}}
+    end
   end
 
   # Calculate which badges a user has earned based on their predictions
-  defp calculate_earned_badges(finished_matches, predictions, playoff_predictions, playoff_results) do
+  defp calculate_earned_badges(
+         finished_matches,
+         predictions,
+         playoff_predictions,
+         playoff_results
+       ) do
     badges = []
 
     {correct_results, correct_scores, upsets_correct, group_results} =
@@ -176,10 +237,12 @@ defmodule Jalka2026.Badges do
       new_groups =
         if match.group do
           group_data = Map.get(groups, match.group, %{total: 0, correct: 0})
+
           group_data = %{
             total: group_data.total + 1,
-            correct: group_data.correct + (if result_correct, do: 1, else: 0)
+            correct: group_data.correct + if(result_correct, do: 1, else: 0)
           }
+
           Map.put(groups, match.group, group_data)
         else
           groups
@@ -296,5 +359,4 @@ defmodule Jalka2026.Badges do
     |> Repo.all()
     |> Enum.group_by(& &1.user_id)
   end
-
 end

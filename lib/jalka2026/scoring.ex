@@ -16,21 +16,21 @@ defmodule Jalka2026.Scoring do
   - Quarter-finals (8): 3 points
   - Semi-finals (4): 5 points
   - Final (2): 6 points
-  - Champion (1): 8 points
 
   ## Streak bonuses
   - 5+ consecutive correct results: +1 bonus point per match from the 5th onward
   """
 
   @type match_like :: %{result: String.t(), home_score: integer(), away_score: integer()}
-  @type prediction_like :: %{result: String.t(), home_score: integer(), away_score: integer()} | nil
+  @type prediction_like ::
+          %{result: String.t(), home_score: integer(), away_score: integer()} | nil
 
   # --- Named constants (single source of truth) ---
   @group_exact_score_points 2
   @group_correct_result_points 1
   @group_wrong_points 0
 
-  @playoff_points %{32 => 1, 16 => 2, 8 => 3, 4 => 5, 2 => 6, 1 => 8}
+  @playoff_points %{32 => 1, 16 => 2, 8 => 3, 4 => 5, 2 => 6}
 
   @streak_bonus_threshold 5
   @streak_bonus_value 1
@@ -88,8 +88,8 @@ defmodule Jalka2026.Scoring do
 
       iex> Jalka2026.Scoring.playoff_phase_points(32)
       1
-      iex> Jalka2026.Scoring.playoff_phase_points(1)
-      8
+      iex> Jalka2026.Scoring.playoff_phase_points(2)
+      6
   """
   for {phase, points} <- @playoff_points do
     def playoff_phase_points(unquote(phase)), do: unquote(points)
@@ -146,14 +146,14 @@ defmodule Jalka2026.Scoring do
   ## Example
 
       iex> Jalka2026.Scoring.playoff_phase_points_map()
-      %{32 => 1, 16 => 2, 8 => 3, 4 => 5, 2 => 6, 1 => 8}
+      %{32 => 1, 16 => 2, 8 => 3, 4 => 5, 2 => 6}
   """
   def playoff_phase_points_map, do: @playoff_points
 
   @doc """
   Returns playoff phases in descending order (most teams → fewest).
   """
-  def phases, do: [32, 16, 8, 4, 2, 1]
+  def phases, do: [32, 16, 8, 4, 2]
 
   @doc """
   Unified scoring entry point.

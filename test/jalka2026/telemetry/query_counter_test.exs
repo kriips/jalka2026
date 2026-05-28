@@ -113,17 +113,18 @@ defmodule Jalka2026.Telemetry.QueryCounterTest do
       # 4. all group predictions
       # 5. all group predictions (by user)
       # 6. all playoff predictions
-      {_result, count} = count_queries(fn ->
-        Football.get_finished_matches()
-        Football.get_playoff_results()
-        Jalka2026.Accounts.list_users()
-        Football.get_all_predictions_indexed()
-        Football.get_all_predictions_by_user()
-        Football.get_all_playoff_predictions_indexed()
-      end)
+      {_result, count} =
+        count_queries(fn ->
+          Football.get_finished_matches()
+          Football.get_playoff_results()
+          Jalka2026.Accounts.list_users()
+          Football.get_all_predictions_indexed()
+          Football.get_all_predictions_by_user()
+          Football.get_all_playoff_predictions_indexed()
+        end)
 
       assert count <= 6,
-        "Leaderboard data load should use at most 6 queries, got #{count}"
+             "Leaderboard data load should use at most 6 queries, got #{count}"
     end
 
     test "query count does not scale with number of users" do
@@ -134,11 +135,12 @@ defmodule Jalka2026.Telemetry.QueryCounterTest do
         group_prediction_fixture(%{user: user, match: match, home_score: 1, away_score: 0})
       end
 
-      {_result, count_5_users} = count_queries(fn ->
-        Football.get_all_predictions_indexed()
-        Football.get_all_predictions_by_user()
-        Football.get_all_playoff_predictions_indexed()
-      end)
+      {_result, count_5_users} =
+        count_queries(fn ->
+          Football.get_all_predictions_indexed()
+          Football.get_all_predictions_by_user()
+          Football.get_all_playoff_predictions_indexed()
+        end)
 
       # Add more users
       for _ <- 1..5 do
@@ -147,15 +149,16 @@ defmodule Jalka2026.Telemetry.QueryCounterTest do
         group_prediction_fixture(%{user: user, match: match, home_score: 2, away_score: 0})
       end
 
-      {_result, count_10_users} = count_queries(fn ->
-        Football.get_all_predictions_indexed()
-        Football.get_all_predictions_by_user()
-        Football.get_all_playoff_predictions_indexed()
-      end)
+      {_result, count_10_users} =
+        count_queries(fn ->
+          Football.get_all_predictions_indexed()
+          Football.get_all_predictions_by_user()
+          Football.get_all_playoff_predictions_indexed()
+        end)
 
       # Query count should be identical regardless of user count
       assert count_5_users == count_10_users,
-        "Query count should not scale with users: #{count_5_users} vs #{count_10_users}"
+             "Query count should not scale with users: #{count_5_users} vs #{count_10_users}"
     end
   end
 
@@ -188,32 +191,27 @@ defmodule Jalka2026.Telemetry.QueryCounterTest do
     test "prediction load emits telemetry span events" do
       Football.get_all_predictions_indexed()
 
-      assert_receive {:telemetry_event,
-                      [:jalka2026, :query_group, :prediction_load, :start],
+      assert_receive {:telemetry_event, [:jalka2026, :query_group, :prediction_load, :start],
                       _measurements, %{source: :all_predictions_indexed}}
 
-      assert_receive {:telemetry_event,
-                      [:jalka2026, :query_group, :prediction_load, :stop],
+      assert_receive {:telemetry_event, [:jalka2026, :query_group, :prediction_load, :stop],
                       %{duration: _}, _metadata}
     end
 
     test "match listing emits telemetry span events" do
       Football.get_finished_matches()
 
-      assert_receive {:telemetry_event,
-                      [:jalka2026, :query_group, :match_listing, :start],
+      assert_receive {:telemetry_event, [:jalka2026, :query_group, :match_listing, :start],
                       _measurements, %{source: :finished_matches}}
 
-      assert_receive {:telemetry_event,
-                      [:jalka2026, :query_group, :match_listing, :stop],
+      assert_receive {:telemetry_event, [:jalka2026, :query_group, :match_listing, :stop],
                       %{duration: _}, _metadata}
     end
 
     test "match listing by group includes group in metadata" do
       Football.get_matches_by_group("Alagrupp A")
 
-      assert_receive {:telemetry_event,
-                      [:jalka2026, :query_group, :match_listing, :start],
+      assert_receive {:telemetry_event, [:jalka2026, :query_group, :match_listing, :start],
                       _measurements, %{source: :matches_by_group, group: "Alagrupp A"}}
     end
   end

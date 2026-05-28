@@ -7,8 +7,9 @@ defmodule Jalka2026.Chat do
   """
 
   import Ecto.Query, warn: false
-  alias Jalka2026.Repo
+
   alias Jalka2026.Chat.Comment
+  alias Jalka2026.Repo
 
   @type comment :: Comment.t()
 

@@ -20,11 +20,10 @@
 # Ignore package tarball (built via "mix hex.build").
 *.tar
 
-# If NPM crashes, it generates a log, let's ignore it too.
+# Ignore log files
 *.log
 
-# The directory NPM downloads your dependencies sources to.
-/assets/node_modules/
+# Ignore node_modules (used only for Playwright testing)
 node_modules/
 
 # Since we are building assets from assets/,
@@ -40,7 +39,13 @@ node_modules/
 # variables.
 /config/*.secret.exs
 
+# Dialyzer PLT files
+/priv/plts/
+
 # Ignore hidden files
 .*
 !.gitignore
 !.formatter.exs
+!.credo.exs
+!.dialyzer_ignore.exs
+!.github

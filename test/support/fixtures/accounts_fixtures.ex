@@ -4,8 +4,8 @@ defmodule Jalka2026.AccountsFixtures do
   entities via the `Jalka2026.Accounts` context.
   """
 
-  alias Jalka2026.Repo
   alias Jalka2026.Accounts.AllowedUser
+  alias Jalka2026.Repo
 
   def unique_user_name, do: "TestUser#{System.unique_integer([:positive])}"
   def unique_user_email, do: "user#{System.unique_integer()}@example.com"
@@ -53,11 +53,13 @@ defmodule Jalka2026.AccountsFixtures do
   def extract_user_token(fun) do
     {:ok, captured} = fun.(&"[TOKEN]#{&1}[TOKEN]")
     # Support both old-style map with :body and Bamboo.Email with :text_body
-    body = case captured do
-      %Bamboo.Email{text_body: text_body} -> text_body
-      %{body: body} -> body
-      %{text_body: text_body} -> text_body
-    end
+    body =
+      case captured do
+        %Bamboo.Email{text_body: text_body} -> text_body
+        %{body: body} -> body
+        %{text_body: text_body} -> text_body
+      end
+
     [_, token, _] = String.split(body, "[TOKEN]")
     token
   end

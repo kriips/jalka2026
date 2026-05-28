@@ -45,8 +45,7 @@ config :hammer,
 
 # Email configuration - defaults to local adapter for development
 # Production uses SMTP adapter configured in runtime.exs
-config :jalka2026, Jalka2026.Mailer,
-  adapter: Bamboo.LocalAdapter
+config :jalka2026, Jalka2026.Mailer, adapter: Bamboo.LocalAdapter
 
 # Default sender email for notifications
 config :jalka2026, :email_from, {"Jalka2026", "noreply@jalka.eys.ee"}

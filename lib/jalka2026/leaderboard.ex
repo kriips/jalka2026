@@ -18,14 +18,15 @@ defmodule Jalka2026.Leaderboard do
 
   require Logger
 
-  alias Jalka2026Web.Resolvers.{FootballResolver, AccountsResolver}
-  alias Jalka2026.Football
   alias Jalka2026.Accounts.User
+  alias Jalka2026.Badges
+  alias Jalka2026.Football
+  alias Jalka2026.Leaderboard.Entry
   alias Jalka2026.Scoring
   alias Jalka2026.Streak
-  alias Jalka2026.Badges
-  alias Jalka2026.Leaderboard.Entry
   alias Jalka2026.Telemetry.Events, as: TelemetryEvents
+  alias Jalka2026Web.Resolvers.AccountsResolver
+  alias Jalka2026Web.Resolvers.FootballResolver
 
   @type leaderboard :: [Entry.t()]
 
@@ -101,7 +102,9 @@ defmodule Jalka2026.Leaderboard do
   def handle_call(:recalc_leaderboard, from, %{recalculating: true} = state) do
     # A recalculation is already in progress — add caller to waiting list
     # with a timer for circuit breaker timeout
-    timer_ref = Process.send_after(self(), {:circuit_breaker_timeout, from}, @circuit_breaker_timeout)
+    timer_ref =
+      Process.send_after(self(), {:circuit_breaker_timeout, from}, @circuit_breaker_timeout)
+
     waiting = [{from, timer_ref} | state.waiting_callers]
     {:noreply, %{state | waiting_callers: waiting}}
   end
@@ -109,7 +112,10 @@ defmodule Jalka2026.Leaderboard do
   def handle_call(:recalc_leaderboard, from, state) do
     # No recalculation in progress — start one and wait
     {task_ref, new_state} = start_recalculation(state)
-    timer_ref = Process.send_after(self(), {:circuit_breaker_timeout, from}, @circuit_breaker_timeout)
+
+    timer_ref =
+      Process.send_after(self(), {:circuit_breaker_timeout, from}, @circuit_breaker_timeout)
+
     waiting = [{from, timer_ref} | new_state.waiting_callers]
     {:noreply, %{new_state | task_ref: task_ref, recalculating: true, waiting_callers: waiting}}
   end
@@ -152,7 +158,14 @@ defmodule Jalka2026.Leaderboard do
       GenServer.reply(from, new_leaderboard)
     end)
 
-    {:noreply, %{state | leaderboard: new_leaderboard, recalculating: false, task_ref: nil, waiting_callers: []}}
+    {:noreply,
+     %{
+       state
+       | leaderboard: new_leaderboard,
+         recalculating: false,
+         task_ref: nil,
+         waiting_callers: []
+     }}
   end
 
   def handle_info({ref, {:error, reason}}, %{task_ref: ref} = state) do
@@ -207,31 +220,36 @@ defmodule Jalka2026.Leaderboard do
   end
 
   defp calculate_changes(old_leaderboard, new_leaderboard) do
-    old_map = Map.new(old_leaderboard, fn %Entry{user_id: id, rank: rank, total_points: points} ->
-      {id, {rank, points}}
-    end)
+    old_map =
+      Map.new(old_leaderboard, fn %Entry{user_id: id, rank: rank, total_points: points} ->
+        {id, {rank, points}}
+      end)
 
-    Enum.reduce(new_leaderboard, %{}, fn %Entry{user_id: id, rank: new_rank, total_points: new_points}, acc ->
-      case Map.get(old_map, id) do
-        nil ->
-          Map.put(acc, id, %{rank_change: :new, points_change: new_points})
-
-        {old_rank, old_points} ->
-          rank_change = old_rank - new_rank
-          points_change = new_points - old_points
-
-          if rank_change != 0 or points_change != 0 do
-            Map.put(acc, id, %{rank_change: rank_change, points_change: points_change})
-          else
-            acc
-          end
-      end
+    Enum.reduce(new_leaderboard, %{}, fn %Entry{
+                                           user_id: id,
+                                           rank: new_rank,
+                                           total_points: new_points
+                                         },
+                                         acc ->
+      entry_change(acc, id, new_rank, new_points, Map.get(old_map, id))
     end)
   end
 
+  defp entry_change(acc, id, _new_rank, new_points, nil),
+    do: Map.put(acc, id, %{rank_change: :new, points_change: new_points})
+
+  defp entry_change(acc, id, new_rank, new_points, {old_rank, old_points}) do
+    rank_change = old_rank - new_rank
+    points_change = new_points - old_points
+
+    if rank_change != 0 or points_change != 0,
+      do: Map.put(acc, id, %{rank_change: rank_change, points_change: points_change}),
+      else: acc
+  end
+
   defp recalculate_leaderboard() do
-    {finished_matches, playoff_results, users,
-     all_predictions, all_predictions_by_user, all_playoff_predictions} =
+    {finished_matches, playoff_results, users, all_predictions, all_predictions_by_user,
+     all_playoff_predictions} =
       TelemetryEvents.span_leaderboard_data_load(%{source: :recalculate_leaderboard}, fn ->
         finished_matches = FootballResolver.list_finished_matches()
         playoff_results = FootballResolver.list_playoff_results()
@@ -242,13 +260,19 @@ defmodule Jalka2026.Leaderboard do
         all_predictions_by_user = Football.get_all_predictions_by_user()
         all_playoff_predictions = Football.get_all_playoff_predictions_indexed()
 
-        {finished_matches, playoff_results, users,
-         all_predictions, all_predictions_by_user, all_playoff_predictions}
+        {finished_matches, playoff_results, users, all_predictions, all_predictions_by_user,
+         all_playoff_predictions}
       end)
 
     # Recalculate streaks and badges with shared data to avoid duplicate queries
     streaks = Streak.recalculate_all_streaks(users, finished_matches, all_predictions_by_user)
-    Badges.recalculate_all_badges(users, finished_matches, playoff_results, all_predictions_by_user)
+
+    Badges.recalculate_all_badges(
+      users,
+      finished_matches,
+      playoff_results,
+      all_predictions_by_user
+    )
 
     metadata = %{
       user_count: length(users),
@@ -266,14 +290,19 @@ defmodule Jalka2026.Leaderboard do
     end)
   end
 
-  defp calculate_playoff_points(%{user_id: user_id} = acc, playoff_results, all_playoff_predictions) do
+  defp calculate_playoff_points(
+         %{user_id: user_id} = acc,
+         playoff_results,
+         all_playoff_predictions
+       ) do
     playoff_predictions = Map.get(all_playoff_predictions, user_id, %{})
     playoff_points = Scoring.total_playoff_points(playoff_results, playoff_predictions)
     Map.put(acc, :playoff_points, playoff_points)
   end
 
   defp add_streak_data(%{user_id: user_id, group_points: gp, playoff_points: pp} = acc, streaks) do
-    streak_data = Map.get(streaks, user_id, %{current_streak: 0, longest_streak: 0, bonus_points: 0})
+    streak_data =
+      Map.get(streaks, user_id, %{current_streak: 0, longest_streak: 0, bonus_points: 0})
 
     acc
     |> Map.put(:bonus_points, streak_data.bonus_points)
@@ -295,7 +324,6 @@ defmodule Jalka2026.Leaderboard do
 
     %{user_id: user.id, name: user.name, group_points: points}
   end
-
 
   defp sanitize(nil) do
     nil
@@ -319,11 +347,7 @@ defmodule Jalka2026.Leaderboard do
     |> Enum.with_index(1)
     |> Enum.reduce({[], nil, 1}, fn {row, index}, {acc, prev_points, current_rank} ->
       rank = if row.total_points == prev_points, do: current_rank, else: index
-      entry = Entry.new(
-        row.user_id, rank, row.name,
-        row.group_points, row.playoff_points, row.bonus_points,
-        row.current_streak, row.longest_streak, row.total_points
-      )
+      entry = Entry.new(Map.put(row, :rank, rank))
       {[entry | acc], row.total_points, rank}
     end)
     |> elem(0)

@@ -7,10 +7,12 @@ defmodule Jalka2026.Football.GroupScenarios do
   alias Jalka2026.Repo
   import Ecto.Query
 
-  @valid_groups ~w(A B C D E F G H I J K L)
+  # Local copy for use in guard clauses; derived from canonical source
+  @valid_groups Jalka2026.Football.groups()
 
   @doc """
-  Returns list of valid group letters
+  Returns list of valid group letters.
+  Delegates to `Jalka2026.Football.groups/0`.
   """
   def valid_groups, do: @valid_groups
 
@@ -219,25 +221,8 @@ defmodule Jalka2026.Football.GroupScenarios do
 
     Enum.map(current_standings, fn team_stats ->
       additional_stats =
-        Enum.reduce(match_outcomes, {0, 0, 0, 0, 0}, fn {match, outcome}, {w, d, l, gf, ga} ->
-          cond do
-            match.home_team_id == team_stats.team.id ->
-              case outcome do
-                :home_win -> {w + 1, d, l, gf + 2, ga}
-                :draw -> {w, d + 1, l, gf + 1, ga + 1}
-                :away_win -> {w, d, l + 1, gf, ga + 2}
-              end
-
-            match.away_team_id == team_stats.team.id ->
-              case outcome do
-                :home_win -> {w, d, l + 1, gf, ga + 2}
-                :draw -> {w, d + 1, l, gf + 1, ga + 1}
-                :away_win -> {w + 1, d, l, gf + 2, ga}
-              end
-
-            true ->
-              {w, d, l, gf, ga}
-          end
+        Enum.reduce(match_outcomes, {0, 0, 0, 0, 0}, fn {match, outcome}, acc ->
+          apply_match_outcome(match, outcome, team_stats.team.id, acc)
         end)
 
       {add_won, add_drawn, add_lost, add_gf, add_ga} = additional_stats
@@ -255,6 +240,22 @@ defmodule Jalka2026.Football.GroupScenarios do
       }
     end)
   end
+
+  defp apply_match_outcome(match, outcome, team_id, {w, d, l, gf, ga}) do
+    cond do
+      match.home_team_id == team_id -> apply_home_outcome(outcome, {w, d, l, gf, ga})
+      match.away_team_id == team_id -> apply_away_outcome(outcome, {w, d, l, gf, ga})
+      true -> {w, d, l, gf, ga}
+    end
+  end
+
+  defp apply_home_outcome(:home_win, {w, d, l, gf, ga}), do: {w + 1, d, l, gf + 2, ga}
+  defp apply_home_outcome(:draw, {w, d, l, gf, ga}), do: {w, d + 1, l, gf + 1, ga + 1}
+  defp apply_home_outcome(:away_win, {w, d, l, gf, ga}), do: {w, d, l + 1, gf, ga + 2}
+
+  defp apply_away_outcome(:home_win, {w, d, l, gf, ga}), do: {w, d, l + 1, gf, ga + 2}
+  defp apply_away_outcome(:draw, {w, d, l, gf, ga}), do: {w, d + 1, l, gf + 1, ga + 1}
+  defp apply_away_outcome(:away_win, {w, d, l, gf, ga}), do: {w + 1, d, l, gf + 2, ga}
 
   defp calculate_team_requirements(current_standings, scenarios) do
     Enum.map(current_standings, fn team_stats ->
@@ -379,15 +380,7 @@ defmodule Jalka2026.Football.GroupScenarios do
     |> Enum.flat_map(fn group ->
       group_name = "Alagrupp #{group}"
       matches = Football.get_matches_by_group(group_name)
-
-      predictions =
-        matches
-        |> Enum.map(fn match ->
-          case Football.get_prediction_by_user_match(user_id, match.id) do
-            %{home_score: home_score, away_score: away_score} -> {match, {home_score, away_score}}
-            _ -> {match, {"-", "-"}}
-          end
-        end)
+      predictions = build_group_predictions(matches, user_id)
 
       # Only calculate if all predictions are filled
       all_filled = Enum.all?(predictions, fn {_m, {h, a}} -> h != "-" and a != "-" end)
@@ -400,6 +393,92 @@ defmodule Jalka2026.Football.GroupScenarios do
     end)
   end
 
+  @doc """
+  Returns predicted standings for ALL 12 groups based on a user's group predictions.
+  Returns a map of %{"A" => [standing_1st, standing_2nd, standing_3rd, standing_4th], "B" => [...], ...}.
+  Groups where predictions are not fully filled in are omitted from the result.
+  """
+  def get_all_predicted_standings(user_id) do
+    alias Jalka2026.Football
+
+    @valid_groups
+    |> Enum.reduce(%{}, fn group, acc ->
+      group_name = "Alagrupp #{group}"
+      matches = Football.get_matches_by_group(group_name)
+      predictions = build_group_predictions(matches, user_id)
+
+      all_filled = Enum.all?(predictions, fn {_m, {h, a}} -> h != "-" and a != "-" end)
+
+      if all_filled do
+        standings = calculate_predicted_standings(predictions)
+        Map.put(acc, group, standings)
+      else
+        acc
+      end
+    end)
+  end
+
+  @doc """
+  Returns a list of third-place team standings across all 12 groups for a given user.
+  Each entry is a map with :group, :team, :points, :goal_difference, :goals_for.
+  Groups where predictions are not fully filled in are excluded.
+  Sorted by points desc, goal_difference desc, goals_for desc.
+  """
+  def get_third_place_standings(user_id) do
+    all_standings = get_all_predicted_standings(user_id)
+
+    all_standings
+    |> Enum.map(fn {group, standings} ->
+      case Enum.at(standings, 2) do
+        nil ->
+          nil
+
+        third_place ->
+          %{
+            group: group,
+            team: third_place.team,
+            points: third_place.points,
+            goal_difference: third_place.goal_difference,
+            goals_for: third_place.goals_for
+          }
+      end
+    end)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.sort(fn a, b ->
+      cond do
+        a.points != b.points -> a.points > b.points
+        a.goal_difference != b.goal_difference -> a.goal_difference > b.goal_difference
+        a.goals_for != b.goals_for -> a.goals_for > b.goals_for
+        true -> a.group <= b.group
+      end
+    end)
+  end
+
+  @doc """
+  Returns a list of 8 group letters (strings) whose third-place teams are the best,
+  based on the user's predicted standings. Sorted alphabetically.
+  """
+  def get_best_third_place_groups(user_id) do
+    get_third_place_standings(user_id)
+    |> Enum.take(8)
+    |> Enum.map(& &1.group)
+    |> Enum.sort()
+  end
+
+  defp build_group_predictions(matches, user_id) do
+    alias Jalka2026.Football
+
+    Enum.map(matches, fn match ->
+      match_prediction_tuple(match, Football.get_prediction_by_user_match(user_id, match.id))
+    end)
+  end
+
+  defp match_prediction_tuple(match, %{home_score: home_score, away_score: away_score}),
+    do: {match, {home_score, away_score}}
+
+  defp match_prediction_tuple(match, _no_prediction),
+    do: {match, {"-", "-"}}
+
   defp calculate_predicted_team_stats(team, predictions) do
     # Only count predictions that are filled in (not "-")
     team_predictions =
@@ -409,7 +488,8 @@ defmodule Jalka2026.Football.GroupScenarios do
       end)
 
     {played, won, drawn, lost, goals_for, goals_against} =
-      Enum.reduce(team_predictions, {0, 0, 0, 0, 0, 0}, fn {match, {home_score, away_score}}, {p, w, d, l, gf, ga} ->
+      Enum.reduce(team_predictions, {0, 0, 0, 0, 0, 0}, fn {match, {home_score, away_score}},
+                                                           {p, w, d, l, gf, ga} ->
         is_home = match.home_team_id == team.id
 
         {scored, conceded} =

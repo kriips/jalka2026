@@ -4,8 +4,16 @@ defmodule Jalka2026.FootballFixtures do
   entities via the `Jalka2026.Football` context.
   """
 
+  alias Jalka2026.Football.{
+    Competition,
+    GroupPrediction,
+    Match,
+    PlayoffPrediction,
+    PlayoffResult,
+    Team
+  }
+
   alias Jalka2026.Repo
-  alias Jalka2026.Football.{Team, Match, GroupPrediction, PlayoffPrediction, PlayoffResult, Competition}
 
   @doc """
   Ensures the default competition exists for tests.
@@ -36,6 +44,7 @@ defmodule Jalka2026.FootballFixtures do
   """
   def team_fixture(attrs \\ %{}) do
     ensure_competition_exists()
+
     {:ok, team} =
       %Team{}
       |> Team.changeset(

@@ -1,8 +1,9 @@
 defmodule Jalka2026Web.AdminLive.Results do
   use Jalka2026Web, :live_view
 
+  alias Jalka2026.Football
+  alias Jalka2026.Leaderboard
   alias Jalka2026Web.Resolvers.FootballResolver
-  alias Jalka2026.{Football, Leaderboard}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -22,7 +23,9 @@ defmodule Jalka2026Web.AdminLive.Results do
      |> assign(:groups, groups)
      |> assign(:matches, matches)
      |> assign(:selected_group, selected_group)
-     |> stream(:match_rows, matches_to_stream_items(Map.get(groups, selected_group, [])), reset: true)}
+     |> stream(:match_rows, matches_to_stream_items(Map.get(groups, selected_group, [])),
+       reset: true
+     )}
   end
 
   @impl true
@@ -52,7 +55,9 @@ defmodule Jalka2026Web.AdminLive.Results do
     {:noreply,
      socket
      |> assign(:selected_group, group)
-     |> stream(:match_rows, matches_to_stream_items(Map.get(socket.assigns.groups, group, [])), reset: true)}
+     |> stream(:match_rows, matches_to_stream_items(Map.get(socket.assigns.groups, group, [])),
+       reset: true
+     )}
   end
 
   @impl true
@@ -82,10 +87,15 @@ defmodule Jalka2026Web.AdminLive.Results do
              |> put_flash(:info, "Tulemus salvestatud")
              |> assign(:matches, matches)
              |> assign(:groups, groups)
-             |> stream(:match_rows, matches_to_stream_items(Map.get(groups, socket.assigns.selected_group, [])), reset: true)}
+             |> stream(
+               :match_rows,
+               matches_to_stream_items(Map.get(groups, socket.assigns.selected_group, [])),
+               reset: true
+             )}
 
           {:error, failed_step, reason, _changes} ->
-            {:noreply, put_flash(socket, :error, "Viga sammus #{failed_step}: #{inspect(reason)}")}
+            {:noreply,
+             put_flash(socket, :error, "Viga sammus #{failed_step}: #{inspect(reason)}")}
         end
 
       _ ->
@@ -149,7 +159,6 @@ defmodule Jalka2026Web.AdminLive.Results do
       8 -> "Veerandfinaal (8)"
       4 -> "Poolfinaal (4)"
       2 -> "Finaal (2)"
-      1 -> "Voitja (1)"
       _ -> "Faas #{phase}"
     end
   end

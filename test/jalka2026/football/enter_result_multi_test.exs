@@ -52,7 +52,9 @@ defmodule Jalka2026.Football.EnterResultMultiTest do
     test "recalculates leaderboard as part of the pipeline" do
       user = user_fixture()
       match = match_fixture()
-      _prediction = group_prediction_fixture(%{user: user, match: match, home_score: 2, away_score: 1})
+
+      _prediction =
+        group_prediction_fixture(%{user: user, match: match, home_score: 2, away_score: 1})
 
       {:ok, %{recalc_leaderboard: leaderboard}} = Football.enter_match_result(match.id, 2, 1)
 

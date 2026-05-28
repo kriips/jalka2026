@@ -12,9 +12,15 @@ defmodule Jalka2026Web.Plugs.RateLimiter do
   import Phoenix.Controller, only: [put_flash: 3, redirect: 2]
 
   @rate_limits %{
-    login: {60_000, 5, "/users/log_in", "Liiga palju sisselogimiskatseid. Proovi uuesti 1 minuti pärast."},
-    registration: {300_000, 3, "/users/register", "Liiga palju registreerimiskatseid. Proovi uuesti 5 minuti pärast."},
-    password_reset: {300_000, 3, "/users/reset_password", "Liiga palju parooli taastamise katseid. Proovi uuesti 5 minuti pärast."}
+    login:
+      {60_000, 5, "/users/log_in",
+       "Liiga palju sisselogimiskatseid. Proovi uuesti 1 minuti pärast."},
+    registration:
+      {300_000, 3, "/users/register",
+       "Liiga palju registreerimiskatseid. Proovi uuesti 5 minuti pärast."},
+    password_reset:
+      {300_000, 3, "/users/reset_password",
+       "Liiga palju parooli taastamise katseid. Proovi uuesti 5 minuti pärast."}
   }
 
   def init(action) when is_atom(action), do: action

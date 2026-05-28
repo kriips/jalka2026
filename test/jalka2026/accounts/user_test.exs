@@ -90,13 +90,13 @@ defmodule Jalka2026.Accounts.UserTest do
     test "requires email to change" do
       user = %User{email: "old@example.com"}
       changeset = User.email_changeset(user, %{})
-      assert %{email: ["did not change"]} = errors_on(changeset)
+      assert %{email: ["ei muutunud"]} = errors_on(changeset)
     end
 
     test "validates email format" do
       user = %User{email: "old@example.com"}
       changeset = User.email_changeset(user, %{email: "not valid"})
-      assert %{email: ["must have the @ sign and no spaces"]} = errors_on(changeset)
+      assert %{email: ["peab sisaldama @ märki ja mitte tühikuid"]} = errors_on(changeset)
     end
 
     test "validates email max length" do
@@ -120,7 +120,7 @@ defmodule Jalka2026.Accounts.UserTest do
           password_confirmation: "different"
         })
 
-      assert %{password_confirmation: ["does not match password"]} = errors_on(changeset)
+      assert %{password_confirmation: ["paroolid ei kattu"]} = errors_on(changeset)
     end
   end
 
@@ -156,7 +156,7 @@ defmodule Jalka2026.Accounts.UserTest do
       user = user_fixture()
       changeset = User.password_changeset(user, %{password: "new_password"})
       result = User.validate_current_password(changeset, "wrong")
-      assert %{current_password: ["is not valid"]} = errors_on(result)
+      assert %{current_password: ["on vale"]} = errors_on(result)
     end
 
     test "passes through for valid current password" do

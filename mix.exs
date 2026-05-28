@@ -18,6 +18,10 @@ defmodule Jalka2026.MixProject do
         "coveralls.post": :test,
         "coveralls.html": :test,
         "coveralls.json": :test
+      ],
+      dialyzer: [
+        plt_file: {:no_warn, "priv/plts/dialyzer.plt"},
+        plt_add_apps: [:mix, :ex_unit]
       ]
     ]
   end
@@ -74,7 +78,9 @@ defmodule Jalka2026.MixProject do
       {:libcluster, "~> 3.5"},
       {:timex, "~> 3.7"},
       {:hammer, "~> 6.2"},
-      {:excoveralls, "~> 0.18", only: :test}
+      {:excoveralls, "~> 0.18", only: :test},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end
 

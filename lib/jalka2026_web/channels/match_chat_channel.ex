@@ -1,4 +1,5 @@
 defmodule Jalka2026Web.MatchChatChannel do
+  @moduledoc false
   use Phoenix.Channel
 
   alias Jalka2026.Chat

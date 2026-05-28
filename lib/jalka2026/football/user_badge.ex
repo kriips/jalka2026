@@ -3,11 +3,11 @@ defmodule Jalka2026.Football.UserBadge do
   import Ecto.Changeset
 
   @type t :: %__MODULE__{
-    id: pos_integer() | nil,
-    user_id: pos_integer() | nil,
-    badge_type: String.t() | nil,
-    awarded_at: NaiveDateTime.t() | nil
-  }
+          id: pos_integer() | nil,
+          user_id: pos_integer() | nil,
+          badge_type: String.t() | nil,
+          awarded_at: NaiveDateTime.t() | nil
+        }
 
   schema "user_badges" do
     belongs_to(:user, Jalka2026.Accounts.User)

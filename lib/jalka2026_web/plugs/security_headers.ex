@@ -10,9 +10,15 @@ defmodule Jalka2026Web.Plugs.SecurityHeaders do
   def call(conn, _opts) do
     conn
     |> put_csp_header()
-    |> put_resp_header("strict-transport-security", "max-age=63072000; includeSubDomains; preload")
+    |> put_resp_header(
+      "strict-transport-security",
+      "max-age=63072000; includeSubDomains; preload"
+    )
     |> put_resp_header("referrer-policy", "strict-origin-when-cross-origin")
-    |> put_resp_header("permissions-policy", "camera=(), microphone=(), geolocation=(), payment=()")
+    |> put_resp_header(
+      "permissions-policy",
+      "camera=(), microphone=(), geolocation=(), payment=()"
+    )
     |> put_resp_header("x-download-options", "noopen")
     |> put_resp_header("x-permitted-cross-domain-policies", "none")
   end
@@ -26,7 +32,7 @@ defmodule Jalka2026Web.Plugs.SecurityHeaders do
         "default-src 'self'",
         "script-src 'self' 'nonce-#{nonce}'",
         "style-src 'self' 'unsafe-inline'",
-        "img-src 'self' data: https://flagcdn.com",
+        "img-src 'self' data:",
         "font-src 'self'",
         "connect-src 'self' wss://jalka2026.fly.dev wss://jalka.eys.ee ws://localhost:*",
         "frame-ancestors 'none'",

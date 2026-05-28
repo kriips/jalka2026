@@ -8,7 +8,7 @@ defmodule Jalka2026Web.BracketLive.Bracket do
   @impl true
   def mount(_params, _session, socket) do
     TelemetryHooks.with_mount_telemetry(__MODULE__, socket, fn ->
-      socket = load_bracket_data(socket)
+      socket = socket |> assign(:editing_slot, nil) |> load_bracket_data()
       {:ok, socket}
     end)
   end
@@ -21,6 +21,7 @@ defmodule Jalka2026Web.BracketLive.Bracket do
       if user_id && user_id != to_string(socket.assigns.current_user.id) do
         # Viewing another user's bracket
         viewed_user = Jalka2026.Accounts.get_user!(String.to_integer(user_id))
+
         socket
         |> assign(:viewed_user, viewed_user)
         |> assign(:viewing_own, false)
@@ -35,7 +36,11 @@ defmodule Jalka2026Web.BracketLive.Bracket do
   end
 
   @impl true
-  def handle_event("select-team", %{"round" => round, "position" => position, "team-id" => team_id}, socket) do
+  def handle_event(
+        "select-team",
+        %{"round" => round, "position" => position, "team-id" => team_id},
+        socket
+      ) do
     if socket.assigns.viewing_own && Jalka2026Web.LiveHelpers.predictions_open?() do
       user_id = socket.assigns.current_user.id
       team_id = String.to_integer(team_id)
@@ -48,10 +53,78 @@ defmodule Jalka2026Web.BracketLive.Bracket do
         team_id: team_id
       })
 
-      {:noreply, load_bracket_data(socket)}
+      {:noreply, load_bracket_data(socket) |> refresh_predictions_open()}
     else
-      {:noreply, socket}
+      {:noreply, socket |> refresh_predictions_open()}
     end
+  end
+
+  @impl true
+  def handle_event("swap-team", %{"round" => round, "position" => position}, socket) do
+    if socket.assigns.viewing_own && Jalka2026Web.LiveHelpers.predictions_open?() do
+      position = String.to_integer(position)
+      editing_slot = {round, position}
+
+      # Toggle: if already editing this slot, close it
+      editing_slot =
+        if socket.assigns.editing_slot == editing_slot, do: nil, else: editing_slot
+
+      {:noreply, assign(socket, :editing_slot, editing_slot)}
+    else
+      {:noreply, socket |> refresh_predictions_open()}
+    end
+  end
+
+  @impl true
+  def handle_event(
+        "replace-team",
+        %{"round" => _round, "position" => _position, "team-id" => ""},
+        socket
+      ) do
+    # Ignore selection of placeholder option
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event(
+        "replace-team",
+        %{"round" => round, "position" => position, "team-id" => team_id},
+        socket
+      ) do
+    if socket.assigns.viewing_own && Jalka2026Web.LiveHelpers.predictions_open?() do
+      user_id = socket.assigns.current_user.id
+      new_team_id = String.to_integer(team_id)
+      position = String.to_integer(position)
+
+      # Cascade removal of old team from later rounds
+      case Football.get_bracket_prediction(user_id, round, position) do
+        nil ->
+          :ok
+
+        prediction when not is_nil(prediction.team_id) ->
+          Football.cascade_bracket_removal(user_id, prediction.team_id, round)
+
+        _ ->
+          :ok
+      end
+
+      # Set the new team in this slot
+      Football.set_bracket_prediction(%{
+        user_id: user_id,
+        round: round,
+        position: position,
+        team_id: new_team_id
+      })
+
+      {:noreply, socket |> assign(:editing_slot, nil) |> load_bracket_data() |> refresh_predictions_open()}
+    else
+      {:noreply, socket |> refresh_predictions_open()}
+    end
+  end
+
+  @impl true
+  def handle_event("cancel-swap", _params, socket) do
+    {:noreply, assign(socket, :editing_slot, nil)}
   end
 
   @impl true
@@ -74,9 +147,9 @@ defmodule Jalka2026Web.BracketLive.Bracket do
 
       Football.clear_bracket_prediction(user_id, round, position)
 
-      {:noreply, load_bracket_data(socket)}
+      {:noreply, load_bracket_data(socket) |> refresh_predictions_open()}
     else
-      {:noreply, socket}
+      {:noreply, socket |> refresh_predictions_open()}
     end
   end
 
@@ -87,12 +160,14 @@ defmodule Jalka2026Web.BracketLive.Bracket do
   defp load_bracket_data_for_user(socket, user_id) do
     predictions = Football.get_bracket_predictions_by_round(user_id)
     results = Football.get_bracket_results_by_round()
-    teams = Football.get_teams() |> Enum.map(fn t -> {t.id, t} end) |> Map.new()
+    all_teams_list = Football.get_teams()
+    teams = all_teams_list |> Enum.map(fn t -> {t.id, t} end) |> Map.new()
     accuracy = Football.calculate_bracket_accuracy(user_id)
     points = Football.calculate_bracket_points(user_id)
 
     # Get teams that qualified to Round of 32 from playoffs predictions
     playoff_predictions = Football.get_playoff_predictions_by_user(user_id)
+
     qualified_teams =
       playoff_predictions
       |> Enum.filter(fn p -> p.phase == 32 end)
@@ -102,6 +177,7 @@ defmodule Jalka2026Web.BracketLive.Bracket do
     |> assign(:predictions, predictions)
     |> assign(:results, results)
     |> assign(:teams, teams)
+    |> assign(:all_teams, Enum.sort_by(all_teams_list, & &1.name))
     |> assign(:qualified_teams, qualified_teams)
     |> assign(:accuracy, accuracy)
     |> assign(:points, points)
@@ -109,7 +185,7 @@ defmodule Jalka2026Web.BracketLive.Bracket do
   end
 
   defp build_bracket_structure(predictions, results, _teams) do
-    rounds = ["round_of_32", "round_of_16", "quarter_final", "semi_final", "final", "winner"]
+    rounds = ["round_of_32", "round_of_16", "quarter_final", "semi_final", "final"]
 
     Enum.map(rounds, fn round ->
       positions = BracketPrediction.positions_for_round(round)
@@ -184,7 +260,14 @@ defmodule Jalka2026Web.BracketLive.Bracket do
                         <%= if slot.is_wrong do %>
                           <span class="result-icon wrong" title="Vale">✗</span>
                         <% end %>
-                        <%= if @viewing_own && Jalka2026Web.LiveHelpers.predictions_open?() do %>
+                        <%= if @viewing_own && @predictions_open do %>
+                          <button
+                            class="swap-btn"
+                            phx-click="swap-team"
+                            phx-value-round={round_data.round}
+                            phx-value-position={slot.position}
+                            title="Vaheta"
+                          >&#8644;</button>
                           <button
                             class="clear-btn"
                             phx-click="clear-team"
@@ -194,8 +277,15 @@ defmodule Jalka2026Web.BracketLive.Bracket do
                           >×</button>
                         <% end %>
                       </div>
+                      <%= if @editing_slot == {round_data.round, slot.position} do %>
+                        <.team_replace_selector
+                          round={round_data.round}
+                          position={slot.position}
+                          available_teams={get_replacement_teams(round_data.round, @predictions, @all_teams)}
+                        />
+                      <% end %>
                     <% else %>
-                      <%= if @viewing_own && Jalka2026Web.LiveHelpers.predictions_open?() do %>
+                      <%= if @viewing_own && @predictions_open do %>
                         <.team_selector
                           round={round_data.round}
                           position={slot.position}
@@ -229,7 +319,6 @@ defmodule Jalka2026Web.BracketLive.Bracket do
           <li><strong>Veerandfinaal:</strong> 4 punkti</li>
           <li><strong>Poolfinaal:</strong> 8 punkti</li>
           <li><strong>Finaal:</strong> 16 punkti</li>
-          <li><strong>Võitja:</strong> 32 punkti</li>
         </ul>
       </div>
 
@@ -261,6 +350,25 @@ defmodule Jalka2026Web.BracketLive.Bracket do
     """
   end
 
+  defp team_replace_selector(assigns) do
+    ~H"""
+    <div class="team-selector team-replace-selector">
+      <select
+        phx-change="replace-team"
+        phx-value-round={@round}
+        phx-value-position={@position}
+        name="team-id"
+      >
+        <option value="">Vaheta meeskonnaga...</option>
+        <%= for team <- @available_teams do %>
+          <option value={team.id}><%= team.name %></option>
+        <% end %>
+      </select>
+      <button class="cancel-swap-btn" phx-click="cancel-swap">Tühista</button>
+    </div>
+    """
+  end
+
   defp slot_class(slot) do
     cond do
       slot.is_correct -> "correct"
@@ -284,14 +392,32 @@ defmodule Jalka2026Web.BracketLive.Bracket do
     end
   end
 
+  defp get_replacement_teams(round, predictions, all_teams) do
+    # Get team IDs already placed in this round
+    round_predictions = Map.get(predictions, round, [])
+
+    placed_team_ids =
+      round_predictions
+      |> Enum.map(& &1.team_id)
+      |> Enum.reject(&is_nil/1)
+      |> MapSet.new()
+
+    # Return all teams NOT already in this round
+    all_teams
+    |> Enum.reject(fn team -> MapSet.member?(placed_team_ids, team.id) end)
+  end
+
   defp prev_round(round) do
     case round do
       "round_of_16" -> "round_of_32"
       "quarter_final" -> "round_of_16"
       "semi_final" -> "quarter_final"
       "final" -> "semi_final"
-      "winner" -> "final"
       _ -> nil
     end
+  end
+
+  defp refresh_predictions_open(socket) do
+    assign(socket, :predictions_open, Jalka2026Web.LiveHelpers.predictions_open?())
   end
 end

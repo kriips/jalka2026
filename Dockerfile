@@ -12,14 +12,14 @@
 #   - https://pkgs.org/ - resource for finding needed packages
 #   - Ex: hexpm/elixir:1.14.1-erlang-24.3.4.6-debian-bullseye-20220801-slim
 #
-ARG ELIXIR_VERSION=1.14.1
-ARG OTP_VERSION=24.3.4.6
-ARG DEBIAN_VERSION=bullseye-20220801-slim
+ARG ELIXIR_VERSION=1.18.4
+ARG OTP_VERSION=28.5.0.1
+ARG DEBIAN_VERSION=bookworm-20260518-slim
 
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
 ARG RUNNER_IMAGE="debian:${DEBIAN_VERSION}"
 
-FROM ${BUILDER_IMAGE} as builder
+FROM ${BUILDER_IMAGE} AS builder
 
 # install build dependencies
 RUN apt-get update -y && apt-get install -y build-essential git inotify-tools \
@@ -34,9 +34,6 @@ RUN mix local.hex --force && \
 
 # set build ENV
 ENV MIX_ENV="prod"
-ENV ECTO_IPV6="true"
-ENV DATABASE_URL="postgres://postgres:w35Dsgvssi1tMRF@jalka2026-db.internal:5432"
-ENV SECRET_KEY_BASE="3U8JC5dFuT0k2cZDTb/WVERkDV5E4xqZ4rzfW44vvbeSHVUiMshTHHnhu7BEdJiy"
 
 # install mix dependencies
 COPY mix.exs mix.lock ./
@@ -71,7 +68,7 @@ RUN mix release
 # the compiled release and other runtime necessities
 FROM ${RUNNER_IMAGE}
 
-RUN apt-get update -y && apt-get install -y libstdc++6 openssl libncurses5 locales inotify-tools \
+RUN apt-get update -y && apt-get install -y libstdc++6 openssl libncurses6 locales inotify-tools ca-certificates \
   && apt-get clean && rm -f /var/lib/apt/lists/*_*
 
 # Set the locale

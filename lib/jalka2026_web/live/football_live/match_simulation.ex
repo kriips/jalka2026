@@ -3,8 +3,8 @@ defmodule Jalka2026Web.FootballLive.MatchSimulation do
 
   alias Jalka2026.Football
   alias Jalka2026.Football.MatchSimulation, as: Simulator
-  alias Jalka2026Web.TelemetryHooks
   alias Jalka2026.Telemetry.Events, as: TelemetryEvents
+  alias Jalka2026Web.TelemetryHooks
 
   @impl true
   def mount(_params, _session, socket) do

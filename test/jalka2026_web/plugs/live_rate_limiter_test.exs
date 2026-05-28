@@ -11,11 +11,12 @@ defmodule Jalka2026Web.LiveRateLimiterTest do
 
     test "denies predictions when rate limit is exceeded" do
       user_id = System.unique_integer([:positive])
-      # Exhaust the limit (30 per minute for predictions)
-      for _ <- 1..30 do
+      # Exhaust the limit (60 per minute for predictions)
+      for _ <- 1..60 do
         assert :ok = LiveRateLimiter.check_prediction_rate(user_id)
       end
-      # The 31st attempt should be denied
+
+      # The 61st attempt should be denied
       assert {:error, :rate_limited} = LiveRateLimiter.check_prediction_rate(user_id)
     end
   end
@@ -28,11 +29,12 @@ defmodule Jalka2026Web.LiveRateLimiterTest do
 
     test "denies playoff predictions when rate limit is exceeded" do
       user_id = System.unique_integer([:positive])
-      # Exhaust the limit (20 per minute for playoff predictions)
-      for _ <- 1..20 do
+      # Exhaust the limit (60 per minute for playoff predictions)
+      for _ <- 1..60 do
         assert :ok = LiveRateLimiter.check_playoff_prediction_rate(user_id)
       end
-      # The 21st attempt should be denied
+
+      # The 61st attempt should be denied
       assert {:error, :rate_limited} = LiveRateLimiter.check_playoff_prediction_rate(user_id)
     end
   end
@@ -49,6 +51,7 @@ defmodule Jalka2026Web.LiveRateLimiterTest do
       for _ <- 1..10 do
         assert :ok = LiveRateLimiter.check_chat_rate(user_id)
       end
+
       # The 11th attempt should be denied
       assert {:error, :rate_limited} = LiveRateLimiter.check_chat_rate(user_id)
     end

@@ -51,7 +51,7 @@ defmodule Jalka2026.QueryCounter do
       query_count = :counters.get(counter, 1)
 
       assert query_count <= max,
-        "Expected at most #{max} queries for #{label}, but got #{query_count}"
+             "Expected at most #{max} queries for #{label}, but got #{query_count}"
 
       result
     after

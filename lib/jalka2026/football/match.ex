@@ -2,20 +2,20 @@ defmodule Jalka2026.Football.Match do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias Jalka2026.Football.{Team, Competition}
+  alias Jalka2026.Football.{Competition, Team}
   alias Jalka2026.Repo
 
   @type t :: %__MODULE__{
-    id: pos_integer() | nil,
-    group: String.t() | nil,
-    home_team_id: pos_integer() | nil,
-    away_team_id: pos_integer() | nil,
-    home_score: non_neg_integer() | nil,
-    away_score: non_neg_integer() | nil,
-    result: String.t() | nil,
-    date: NaiveDateTime.t() | nil,
-    finished: boolean()
-  }
+          id: pos_integer() | nil,
+          group: String.t() | nil,
+          home_team_id: pos_integer() | nil,
+          away_team_id: pos_integer() | nil,
+          home_score: non_neg_integer() | nil,
+          away_score: non_neg_integer() | nil,
+          result: String.t() | nil,
+          date: NaiveDateTime.t() | nil,
+          finished: boolean()
+        }
 
   schema "matches" do
     field(:group, :string)
@@ -31,21 +31,6 @@ defmodule Jalka2026.Football.Match do
     timestamps()
   end
 
-  @valid_groups [
-    "Alagrupp A",
-    "Alagrupp B",
-    "Alagrupp C",
-    "Alagrupp D",
-    "Alagrupp E",
-    "Alagrupp F",
-    "Alagrupp G",
-    "Alagrupp H",
-    "Alagrupp I",
-    "Alagrupp J",
-    "Alagrupp K",
-    "Alagrupp L"
-  ]
-
   @doc false
   def changeset(match, attrs) do
     match
@@ -60,10 +45,10 @@ defmodule Jalka2026.Football.Match do
       :finished,
       :competition_id
     ])
-    |> validate_inclusion(:group, @valid_groups)
+    |> validate_inclusion(:group, Jalka2026.Football.match_groups())
   end
 
-  def get_match!(id), do: Repo.get!(Match, id)
+  def get_match!(id), do: Repo.get!(__MODULE__, id)
 
   @doc false
   def create_changeset(match, attrs) do
