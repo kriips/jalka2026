@@ -1,7 +1,7 @@
-<main role="main" class="container" aria-label={"Kasutaja #{@user.name} ennustuste analuutika"}>
+<main role="main" class="container" aria-label={"Kasutaja #{@user.name} ennustuste analüütika"}>
     <div class="prediction-page-header">
         <h1 id="page-title"><%= @user.name %></h1>
-        <p class="page-subtitle">Ennustuste analuutika ja statistika</p>
+        <p class="page-subtitle">Ennustuste analüütika ja statistika</p>
         <%= if @favorite_teams != [] do %>
             <div class="fan-allegiance">
                 <span class="fan-allegiance-label">Toetab:</span>
@@ -27,7 +27,7 @@
                 phx-click="change_tab"
                 phx-value-tab="overview"
             >
-                Ulevaade
+                Ülevaade
             </button>
             <button
                 class={"analytics-tab #{if @selected_tab == "groups", do: "active", else: ""}"}
@@ -188,7 +188,7 @@
                                     </div>
                                     <div class="group-stat-details">
                                         <div class="group-stat-detail">
-                                            <span class="detail-label">Mangud</span>
+                                            <span class="detail-label">Mängud</span>
                                             <span class="detail-value"><%= stats.total %></span>
                                         </div>
                                         <div class="group-stat-detail">
@@ -208,7 +208,7 @@
                             <% end %>
                         </div>
                     <% else %>
-                        <p class="no-data-message">Veel pole alagrupimange loppenud.</p>
+                        <p class="no-data-message">Veel pole alagrupimänge lõppenud.</p>
                     <% end %>
                 </div>
             </div>
@@ -334,7 +334,7 @@
                             <% end %>
                         </div>
                     <% else %>
-                        <p class="no-data-message">Veel pole loppenud mangusid.</p>
+                        <p class="no-data-message">Veel pole lõppenud mängusid.</p>
                     <% end %>
                 </div>
 

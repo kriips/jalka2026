@@ -4190,6 +4190,11 @@ details[open] .historical-matchup-toggle::before {
   font-weight: 500;
   color: #6c757d;
   transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: auto;
+  line-height: 1.4;
 }
 
 .analysis-tab:hover {
@@ -8634,6 +8639,11 @@ details[open] .historical-matchup-toggle::before {
   cursor: pointer;
   border-radius: 8px;
   transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: auto;
+  line-height: 1.4;
 }
 
 .analytics-tab:hover {
