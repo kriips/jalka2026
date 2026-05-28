@@ -99,14 +99,14 @@
 
                 <!-- Accuracy Summary -->
                 <div class="section-card">
-                    <h2 class="section-card-title">Tapsuse kokkuvote</h2>
+                    <h2 class="section-card-title">Täpsuse kokkuvõte</h2>
 
                     <div class="analytics-accuracy-grid">
                         <div class="accuracy-card">
                             <div class="accuracy-circle" style={"--accuracy: #{@analytics.group_stats.result_accuracy}"}>
                                 <span class="accuracy-value"><%= @analytics.group_stats.result_accuracy %>%</span>
                             </div>
-                            <span class="accuracy-label">Oige tulemus</span>
+                            <span class="accuracy-label">Õige tulemus</span>
                             <span class="accuracy-detail"><%= @analytics.group_stats.correct_results %>/<%= @analytics.group_stats.total_finished %></span>
                         </div>
 
@@ -114,7 +114,7 @@
                             <div class="accuracy-circle exact-score" style={"--accuracy: #{@analytics.group_stats.score_accuracy}"}>
                                 <span class="accuracy-value"><%= @analytics.group_stats.score_accuracy %>%</span>
                             </div>
-                            <span class="accuracy-label">Oige skoor</span>
+                            <span class="accuracy-label">Õige skoor</span>
                             <span class="accuracy-detail"><%= @analytics.group_stats.correct_scores %>/<%= @analytics.group_stats.total_finished %></span>
                         </div>
 
@@ -122,7 +122,7 @@
                             <div class="accuracy-circle playoff" style={"--accuracy: #{@analytics.playoff_stats.overall_accuracy}"}>
                                 <span class="accuracy-value"><%= @analytics.playoff_stats.overall_accuracy %>%</span>
                             </div>
-                            <span class="accuracy-label">Playoffi tapsus</span>
+                            <span class="accuracy-label">Playoffi täpsus</span>
                             <span class="accuracy-detail"><%= @analytics.playoff_stats.total_correct %>/<%= @analytics.playoff_stats.total_predictions %></span>
                         </div>
                     </div>
@@ -139,7 +139,7 @@
                                 <span class="highlight-title">Parim alagrupp</span>
                                 <span class="highlight-value"><%= String.replace(@analytics.group_stats.best_group, "Alagrupp ", "") %></span>
                                 <% group_data = @analytics.group_stats.by_group[@analytics.group_stats.best_group] %>
-                                <span class="highlight-detail"><%= group_data.result_accuracy %>% tapsus</span>
+                                <span class="highlight-detail"><%= group_data.result_accuracy %>% täpsus</span>
                             </div>
                         <% end %>
 
@@ -150,7 +150,7 @@
                                 <span class="highlight-value"><%= @analytics.playoff_stats.best_phase %></span>
                                 <% phase_data = @analytics.playoff_stats.by_phase[@analytics.playoff_stats.best_phase] %>
                                 <%= if phase_data do %>
-                                    <span class="highlight-detail"><%= phase_data.accuracy %>% tapsus</span>
+                                    <span class="highlight-detail"><%= phase_data.accuracy %>% täpsus</span>
                                 <% end %>
                             </div>
                         <% end %>
@@ -161,7 +161,7 @@
                                 <span class="highlight-title">Arenguruumi</span>
                                 <span class="highlight-value"><%= String.replace(@analytics.group_stats.worst_group, "Alagrupp ", "") %></span>
                                 <% worst_group_data = @analytics.group_stats.by_group[@analytics.group_stats.worst_group] %>
-                                <span class="highlight-detail"><%= worst_group_data.result_accuracy %>% tapsus</span>
+                                <span class="highlight-detail"><%= worst_group_data.result_accuracy %>% täpsus</span>
                             </div>
                         <% end %>
                     </div>
@@ -192,11 +192,11 @@
                                             <span class="detail-value"><%= stats.total %></span>
                                         </div>
                                         <div class="group-stat-detail">
-                                            <span class="detail-label">Oige tulemus</span>
+                                            <span class="detail-label">Õige tulemus</span>
                                             <span class="detail-value"><%= stats.correct_results %></span>
                                         </div>
                                         <div class="group-stat-detail">
-                                            <span class="detail-label">Oige skoor</span>
+                                            <span class="detail-label">Õige skoor</span>
                                             <span class="detail-value"><%= stats.correct_scores %></span>
                                         </div>
                                         <div class="group-stat-detail">
@@ -227,11 +227,11 @@
                         </div>
                         <div class="playoff-overview-stat">
                             <span class="stat-value"><%= @analytics.playoff_stats.total_correct %></span>
-                            <span class="stat-label">Oigeid ennustusi</span>
+                            <span class="stat-label">Õigeid ennustusi</span>
                         </div>
                         <div class="playoff-overview-stat">
                             <span class="stat-value"><%= @analytics.playoff_stats.overall_accuracy %>%</span>
-                            <span class="stat-label">Tapsus</span>
+                            <span class="stat-label">Täpsus</span>
                         </div>
                     </div>
 
@@ -249,7 +249,7 @@
                                         <div class="phase-accuracy-fill" style={"width: #{phase_data.accuracy}%"}></div>
                                     </div>
                                     <div class="phase-stats-row">
-                                        <span><%= phase_data.correct_predictions %>/<%= phase_data.total_predictions %> oige</span>
+                                        <span><%= phase_data.correct_predictions %>/<%= phase_data.total_predictions %> õige</span>
                                         <span><%= phase_data.points_earned %> punkti</span>
                                     </div>
                                 </div>
@@ -284,7 +284,7 @@
                             <span class="streak-stat-label">
                                 Praegune seeria
                                 <%= if @analytics.trend_data.streak_data.type == :correct do %>
-                                    (oiged)
+                                    (õiged)
                                 <% else %>
                                     (valed)
                                 <% end %>
@@ -293,7 +293,7 @@
                         <div class="streak-stat-card correct">
                             <span class="streak-stat-icon">&#127942;</span>
                             <span class="streak-stat-value"><%= @analytics.trend_data.streak_data.longest_correct %></span>
-                            <span class="streak-stat-label">Pikim oigete seeria</span>
+                            <span class="streak-stat-label">Pikim õigete seeria</span>
                         </div>
                     </div>
                 </div>
@@ -341,7 +341,7 @@
                 <!-- Accuracy Trend Chart (Visual representation) -->
                 <%= if length(@analytics.trend_data.cumulative_accuracy) > 0 do %>
                     <div class="section-card">
-                        <h2 class="section-card-title">Tapsuse trend</h2>
+                        <h2 class="section-card-title">Täpsuse trend</h2>
 
                         <div class="trend-chart">
                             <div class="trend-chart-y-axis">
@@ -368,7 +368,7 @@
                             </div>
                         </div>
                         <p class="trend-chart-caption">
-                            Kumulatiivne tapsus aja jooksul.
+                            Kumulatiivne täpsus aja jooksul.
                             Praegune: <strong><%= List.last(@analytics.trend_data.cumulative_accuracy).accuracy %>%</strong>
                         </p>
                     </div>
