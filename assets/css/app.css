@@ -1,6 +1,10 @@
 /* This file is for your main application css. */
 @import "./phoenix.css";
 
+html {
+  font-size: 75%;
+}
+
 /* ==========================================================================
    THEME VARIABLES
    ========================================================================== */
@@ -9819,7 +9823,7 @@ button.group-accordion-match {
 
 .countdown-label {
   color: rgba(255, 255, 255, 0.9);
-  font-size: 0.85rem;
+  font-size: 1.2rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
