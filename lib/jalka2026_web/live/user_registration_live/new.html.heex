@@ -23,13 +23,6 @@
                     <%= error_tag f, :password %>
                 </div>
 
-                <div class="form-group">
-                    <%= label f, :email, "E-post (valikuline)" %>
-                    <%= email_input f, :email, aria_label: "E-post", placeholder: "sinu@email.ee", phx_debounce: "blur" %>
-                    <%= error_tag f, :email %>
-                    <p class="form-hint">Võid lisada e-posti, et saada tulemuste kohta teateid</p>
-                </div>
-
                 <%= submit "Registreeri", phx_disable_with: "Registreerin...", class: "submit-button" %>
             </.form>
 
