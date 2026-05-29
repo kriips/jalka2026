@@ -7050,6 +7050,10 @@ details[open] .historical-matchup-toggle::before {
   color: #495057;
 }
 
+.rivalry-cta .button {
+  margin-bottom: 0;
+}
+
 /* Modal Styles */
 .modal-overlay {
   position: fixed;
