@@ -223,7 +223,7 @@ defmodule Jalka2026Web.UserLive.Rivalries do
             <h2 class="section-card-title">Sinu rivaalid</h2>
             <button
               type="button"
-              class="button button-small button-main"
+              class="button button-small"
               phx-click="show_add_modal"
             >
               Lisa rivaal
