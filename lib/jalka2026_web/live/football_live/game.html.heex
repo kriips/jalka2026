@@ -98,6 +98,18 @@
             </div>
         </div>
 
+        <!-- Match History Dropdown -->
+        <div class="section-card">
+            <MatchHistory.history_panel
+              expanded={@analysis_expanded}
+              simulating={@simulating}
+              detailed_history={@detailed_history}
+              home_team_name={TeamTranslations.translate(@match.home_team.name)}
+              away_team_name={TeamTranslations.translate(@match.away_team.name)}
+              match_id={@match.id}
+            />
+        </div>
+
         <!-- Match Chat Section -->
         <div class="section-card">
             <.live_component
