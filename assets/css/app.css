@@ -5995,11 +5995,14 @@ details[open] .historical-matchup-toggle::before {
 
 .match-chat-form {
   display: flex;
+  align-items: stretch;
   gap: 0.75rem;
 }
 
 .chat-input {
   flex: 1;
+  height: auto;
+  margin-bottom: 0;
   padding: 0.875rem 1.25rem;
   font-size: 1.3rem;
   border: 2px solid #e8e8e8;
@@ -6019,8 +6022,11 @@ details[open] .historical-matchup-toggle::before {
 }
 
 .chat-submit-btn {
+  height: auto;
+  margin-bottom: 0;
   padding: 0.875rem 1.5rem;
   font-size: 1.3rem;
+  line-height: 1;
   font-weight: 600;
   color: #ffffff;
   background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
