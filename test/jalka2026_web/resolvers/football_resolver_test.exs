@@ -576,6 +576,14 @@ defmodule Jalka2026Web.Resolvers.FootballResolverTest do
       assert trend_data.recent_form == []
       assert trend_data.streak_data.current == 0
 
+      # Regression: the Trends tab always renders streak_data.longest_correct,
+      # so the empty-data fallback must expose the same keys as the populated
+      # case (previously returned %{current: 0, longest: 0, type: nil}, which
+      # crashed the analytics page with a KeyError on longest_correct).
+      assert trend_data.streak_data.longest_correct == 0
+      assert trend_data.streak_data.longest_incorrect == 0
+      assert trend_data.streak_data.type == nil
+
       assert overall_stats.total_points == 0
     end
 

@@ -735,7 +735,7 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
       %{
         cumulative_accuracy: [],
         recent_form: [],
-        streak_data: %{current: 0, longest: 0, type: nil}
+        streak_data: %{current: 0, longest_correct: 0, longest_incorrect: 0, type: nil}
       }
     else
       # Calculate cumulative accuracy over time
@@ -776,7 +776,7 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
     results = Enum.map(sorted_predictions, fn {_, correct_result, _} -> correct_result end)
 
     if results == [] do
-      %{current: 0, longest: 0, type: nil}
+      %{current: 0, longest_correct: 0, longest_incorrect: 0, type: nil}
     else
       # Calculate current streak
       {current_streak, current_type} = calculate_current_streak(Enum.reverse(results))
