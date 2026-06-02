@@ -8312,6 +8312,10 @@ details[open] .historical-matchup-toggle::before {
   color: var(--text-primary);
 }
 
+[data-theme="dark"] .rivalry-cta p {
+  color: var(--text-secondary);
+}
+
 /* Crowd confidence */
 [data-theme="dark"] .crowd-confidence-section {
   background: var(--bg-card-hover);
