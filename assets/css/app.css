@@ -1373,6 +1373,7 @@ fieldset.match-card-inner {
 }
 
 .leaderboard-filters .filter-group label {
+  margin-bottom: 0;
   font-weight: 600;
   color: #495057;
   font-size: 1.4rem;
@@ -1380,6 +1381,8 @@ fieldset.match-card-inner {
 }
 
 .leaderboard-filters .filter-select {
+  margin-bottom: 0;
+  height: auto;
   padding: 0.5rem 2rem 0.5rem 0.75rem;
   font-size: 1.4rem;
   border: 1px solid #ced4da;
