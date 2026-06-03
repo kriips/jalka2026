@@ -75,10 +75,6 @@
                                 <span class="points-value"><%= @leaderboard_entry.playoff_points %></span>
                                 <span class="points-label">Playoffi punktid</span>
                             </div>
-                            <div class="analytics-points-item">
-                                <span class="points-value"><%= @leaderboard_entry.bonus_points %></span>
-                                <span class="points-label">Boonuspunktid</span>
-                            </div>
                         </div>
                         <%= if @leaderboard_entry.current_streak > 0 or @leaderboard_entry.longest_streak > 0 do %>
                             <div class="analytics-streaks">

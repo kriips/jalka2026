@@ -302,13 +302,12 @@ defmodule Jalka2026.Leaderboard do
 
   defp add_streak_data(%{user_id: user_id, group_points: gp, playoff_points: pp} = acc, streaks) do
     streak_data =
-      Map.get(streaks, user_id, %{current_streak: 0, longest_streak: 0, bonus_points: 0})
+      Map.get(streaks, user_id, %{current_streak: 0, longest_streak: 0})
 
     acc
-    |> Map.put(:bonus_points, streak_data.bonus_points)
     |> Map.put(:current_streak, streak_data.current_streak)
     |> Map.put(:longest_streak, streak_data.longest_streak)
-    |> Map.put(:total_points, gp + pp + streak_data.bonus_points)
+    |> Map.put(:total_points, gp + pp)
   end
 
   defp calculate_points(%User{} = user, finished_matches, all_predictions) do

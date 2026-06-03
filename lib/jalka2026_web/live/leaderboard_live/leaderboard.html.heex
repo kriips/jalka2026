@@ -36,7 +36,6 @@
                         <%= if @points_filter == "all" do %>
                             <th scope="col">Grupi punktid</th>
                             <th scope="col">Playoffi punktid</th>
-                            <th scope="col">Boonus</th>
                             <th scope="col" title="Praegune seeria / Pikim seeria">Seeria</th>
                             <th scope="col">Kokku</th>
                         <% else %>
@@ -75,7 +74,6 @@
                         <%= if @points_filter == "all" do %>
                             <td class="points-secondary"><%= row.gpoints %></td>
                             <td class="points-secondary"><%= row.ppoints %></td>
-                            <td class="points-secondary"><%= row.bpoints %></td>
                             <td class="streak-cell">
                                 <span class={"streak-current #{if row.current_streak >= 5, do: "streak-hot", else: ""}"} title="Praegune seeria">
                                     <%= row.current_streak %>

@@ -11,7 +11,6 @@ defmodule Jalka2026Web.LeaderboardLive.Leaderboard do
     {"total", "Kokku punktid"},
     {"group", "Grupi punktid"},
     {"playoff", "Playoffi punktid"},
-    {"bonus", "Boonuspunktid"},
     {"streak", "Praegune seeria"},
     {"name", "Nimi"}
   ]
@@ -86,7 +85,6 @@ defmodule Jalka2026Web.LeaderboardLive.Leaderboard do
         name: entry.name,
         gpoints: entry.group_points,
         ppoints: entry.playoff_points,
-        bpoints: entry.bonus_points,
         current_streak: entry.current_streak,
         longest_streak: entry.longest_streak,
         points: entry.total_points,
@@ -210,10 +208,6 @@ defmodule Jalka2026Web.LeaderboardLive.Leaderboard do
     Enum.sort_by(leaderboard, & &1.playoff_points, :desc)
   end
 
-  defp apply_sort(leaderboard, "bonus") do
-    Enum.sort_by(leaderboard, & &1.bonus_points, :desc)
-  end
-
   defp apply_sort(leaderboard, "streak") do
     Enum.sort_by(leaderboard, & &1.current_streak, :desc)
   end
@@ -277,7 +271,6 @@ defmodule Jalka2026Web.LeaderboardLive.Leaderboard do
              name: entry.name,
              group_points: entry.group_points,
              playoff_points: entry.playoff_points,
-             bonus_points: entry.bonus_points,
              current_streak: entry.current_streak,
              longest_streak: entry.longest_streak,
              total_points: entry.total_points

@@ -6,15 +6,13 @@ defmodule Jalka2026.Football.UserStreak do
           id: pos_integer() | nil,
           user_id: pos_integer() | nil,
           current_streak: non_neg_integer(),
-          longest_streak: non_neg_integer(),
-          bonus_points: non_neg_integer()
+          longest_streak: non_neg_integer()
         }
 
   schema "user_streaks" do
     belongs_to(:user, Jalka2026.Accounts.User)
     field(:current_streak, :integer, default: 0)
     field(:longest_streak, :integer, default: 0)
-    field(:bonus_points, :integer, default: 0)
 
     timestamps()
   end
@@ -22,11 +20,10 @@ defmodule Jalka2026.Football.UserStreak do
   @doc false
   def changeset(user_streak, attrs) do
     user_streak
-    |> cast(attrs, [:user_id, :current_streak, :longest_streak, :bonus_points])
+    |> cast(attrs, [:user_id, :current_streak, :longest_streak])
     |> validate_required([:user_id])
     |> validate_number(:current_streak, greater_than_or_equal_to: 0)
     |> validate_number(:longest_streak, greater_than_or_equal_to: 0)
-    |> validate_number(:bonus_points, greater_than_or_equal_to: 0)
     |> unique_constraint(:user_id)
   end
 end

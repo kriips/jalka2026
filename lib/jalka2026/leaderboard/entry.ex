@@ -8,10 +8,9 @@ defmodule Jalka2026.Leaderboard.Entry do
   - `name` — display name
   - `group_points` — points earned from group-stage predictions
   - `playoff_points` — points earned from playoff predictions
-  - `bonus_points` — streak bonus points
   - `current_streak` — current consecutive correct predictions
   - `longest_streak` — longest streak achieved
-  - `total_points` — sum of group + playoff + bonus points
+  - `total_points` — sum of group + playoff points
   """
 
   @enforce_keys [
@@ -20,7 +19,6 @@ defmodule Jalka2026.Leaderboard.Entry do
     :name,
     :group_points,
     :playoff_points,
-    :bonus_points,
     :current_streak,
     :longest_streak,
     :total_points
@@ -33,7 +31,6 @@ defmodule Jalka2026.Leaderboard.Entry do
             name: String.t(),
             group_points: non_neg_integer(),
             playoff_points: non_neg_integer(),
-            bonus_points: non_neg_integer(),
             current_streak: non_neg_integer(),
             longest_streak: non_neg_integer(),
             total_points: non_neg_integer()
@@ -50,7 +47,6 @@ defmodule Jalka2026.Leaderboard.Entry do
       name: attrs.name,
       group_points: attrs.group_points,
       playoff_points: attrs.playoff_points,
-      bonus_points: attrs.bonus_points,
       current_streak: attrs.current_streak,
       longest_streak: attrs.longest_streak,
       total_points: attrs.total_points

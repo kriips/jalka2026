@@ -487,8 +487,7 @@ defmodule Jalka2026.Football.SchemasTest do
         UserStreak.changeset(%UserStreak{}, %{
           user_id: user.id,
           current_streak: 3,
-          longest_streak: 5,
-          bonus_points: 1
+          longest_streak: 5
         })
 
       assert changeset.valid?

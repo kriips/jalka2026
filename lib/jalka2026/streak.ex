@@ -3,10 +3,6 @@ defmodule Jalka2026.Streak do
   Handles prediction streak tracking and bonus points calculation.
 
   A streak is a consecutive sequence of correct predictions (result only, not exact score).
-  Bonus points are awarded for maintaining streaks of 5+ correct predictions:
-  - Streak of 5: +1 bonus point
-  - Streak of 6: +1 bonus point (total +2)
-  - Streak of 7+: +1 bonus point per additional correct prediction
   """
 
   import Ecto.Query
@@ -18,8 +14,7 @@ defmodule Jalka2026.Streak do
 
   @type streak_stats :: %{
           current_streak: non_neg_integer(),
-          longest_streak: non_neg_integer(),
-          bonus_points: non_neg_integer()
+          longest_streak: non_neg_integer()
         }
   @type streaks_by_user :: %{pos_integer() => streak_stats()}
 
@@ -40,18 +35,17 @@ defmodule Jalka2026.Streak do
 
   @doc """
   Get streak data for a user.
-  Returns %{current_streak: int, longest_streak: int, bonus_points: int}
+  Returns %{current_streak: int, longest_streak: int}
   """
   def get_user_streak(user_id) do
     case Repo.get_by(UserStreak, user_id: user_id) do
       nil ->
-        %{current_streak: 0, longest_streak: 0, bonus_points: 0}
+        %{current_streak: 0, longest_streak: 0}
 
       streak ->
         %{
           current_streak: streak.current_streak,
-          longest_streak: streak.longest_streak,
-          bonus_points: streak.bonus_points
+          longest_streak: streak.longest_streak
         }
     end
   end
@@ -66,8 +60,7 @@ defmodule Jalka2026.Streak do
       {streak.user_id,
        %{
          current_streak: streak.current_streak,
-         longest_streak: streak.longest_streak,
-         bonus_points: streak.bonus_points
+         longest_streak: streak.longest_streak
        }}
     end)
   end
@@ -84,7 +77,7 @@ defmodule Jalka2026.Streak do
     multi =
       Enum.reduce(users, Ecto.Multi.new(), fn user, multi ->
         predictions = get_user_predictions_map(user.id)
-        {current, longest, bonus} = calculate_streak_stats(finished_matches, predictions)
+        {current, longest} = calculate_streak_stats(finished_matches, predictions)
 
         streak = Map.get(existing_streaks, user.id)
 
@@ -92,8 +85,7 @@ defmodule Jalka2026.Streak do
           changeset =
             UserStreak.changeset(streak, %{
               current_streak: current,
-              longest_streak: longest,
-              bonus_points: bonus
+              longest_streak: longest
             })
 
           Ecto.Multi.update(multi, {:update_streak, user.id}, changeset)
@@ -102,8 +94,7 @@ defmodule Jalka2026.Streak do
             UserStreak.changeset(%UserStreak{}, %{
               user_id: user.id,
               current_streak: current,
-              longest_streak: longest,
-              bonus_points: bonus
+              longest_streak: longest
             })
 
           Ecto.Multi.insert(multi, {:insert_streak, user.id}, changeset)
@@ -127,7 +118,7 @@ defmodule Jalka2026.Streak do
     multi =
       Enum.reduce(users, Ecto.Multi.new(), fn user, multi ->
         user_predictions = Map.get(all_predictions_by_user, user.id, %{})
-        {current, longest, bonus} = calculate_streak_stats(finished_matches, user_predictions)
+        {current, longest} = calculate_streak_stats(finished_matches, user_predictions)
 
         streak = Map.get(existing_streaks, user.id)
 
@@ -135,8 +126,7 @@ defmodule Jalka2026.Streak do
           changeset =
             UserStreak.changeset(streak, %{
               current_streak: current,
-              longest_streak: longest,
-              bonus_points: bonus
+              longest_streak: longest
             })
 
           Ecto.Multi.update(multi, {:update_streak, user.id}, changeset)
@@ -145,8 +135,7 @@ defmodule Jalka2026.Streak do
             UserStreak.changeset(%UserStreak{}, %{
               user_id: user.id,
               current_streak: current,
-              longest_streak: longest,
-              bonus_points: bonus
+              longest_streak: longest
             })
 
           Ecto.Multi.insert(multi, {:insert_streak, user.id}, changeset)
@@ -163,24 +152,23 @@ defmodule Jalka2026.Streak do
   """
   def calculate_and_save_streak(user_id, finished_matches) do
     predictions = get_user_predictions_map(user_id)
-    {current, longest, bonus} = calculate_streak_stats(finished_matches, predictions)
+    {current, longest} = calculate_streak_stats(finished_matches, predictions)
 
     streak = get_or_create_streak(user_id)
 
     streak
     |> UserStreak.changeset(%{
       current_streak: current,
-      longest_streak: longest,
-      bonus_points: bonus
+      longest_streak: longest
     })
     |> Repo.update!()
 
-    %{current_streak: current, longest_streak: longest, bonus_points: bonus}
+    %{current_streak: current, longest_streak: longest}
   end
 
   @doc """
   Calculate streak statistics from finished matches and predictions.
-  Returns {current_streak, longest_streak, bonus_points}.
+  Returns {current_streak, longest_streak}.
 
   Delegates to `Jalka2026.Scoring.calculate_streak_stats/2`.
   """

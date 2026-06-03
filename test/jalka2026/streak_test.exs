@@ -7,10 +7,9 @@ defmodule Jalka2026.StreakTest do
 
   describe "calculate_streak_stats/2" do
     test "returns zeros with no finished matches" do
-      {current, longest, bonus} = Streak.calculate_streak_stats([], %{})
+      {current, longest} = Streak.calculate_streak_stats([], %{})
       assert current == 0
       assert longest == 0
-      assert bonus == 0
     end
 
     test "counts consecutive correct predictions" do
@@ -24,12 +23,11 @@ defmodule Jalka2026.StreakTest do
         3 => %{result: "draw"}
       }
 
-      {current, longest, bonus} =
+      {current, longest} =
         Streak.calculate_streak_stats([match1, match2, match3], predictions)
 
       assert current == 3
       assert longest == 3
-      assert bonus == 0
     end
 
     test "resets streak on wrong prediction" do
@@ -44,33 +42,20 @@ defmodule Jalka2026.StreakTest do
         3 => %{result: "draw"}
       }
 
-      {current, longest, bonus} =
+      {current, longest} =
         Streak.calculate_streak_stats([match1, match2, match3], predictions)
 
       assert current == 1
       assert longest == 1
-      assert bonus == 0
-    end
-
-    test "awards bonus points for streaks of 5+" do
-      matches = for i <- 1..7, do: %{id: i, result: "home"}
-      predictions = for i <- 1..7, into: %{}, do: {i, %{result: "home"}}
-
-      {current, longest, bonus} = Streak.calculate_streak_stats(matches, predictions)
-      assert current == 7
-      assert longest == 7
-      # Streak of 5 gets +1, 6 gets +1, 7 gets +1 = 3 total
-      assert bonus == 3
     end
 
     test "handles nil predictions (no prediction for match)" do
       matches = [%{id: 1, result: "home"}, %{id: 2, result: "away"}]
       predictions = %{1 => %{result: "home"}}
 
-      {current, longest, bonus} = Streak.calculate_streak_stats(matches, predictions)
+      {current, longest} = Streak.calculate_streak_stats(matches, predictions)
       assert current == 0
       assert longest == 1
-      assert bonus == 0
     end
 
     test "tracks longest streak even after break" do
@@ -88,7 +73,7 @@ defmodule Jalka2026.StreakTest do
         8 => %{result: "home"}
       }
 
-      {current, longest, _bonus} = Streak.calculate_streak_stats(matches, predictions)
+      {current, longest} = Streak.calculate_streak_stats(matches, predictions)
       assert current == 4
       assert longest == 4
     end
@@ -102,7 +87,6 @@ defmodule Jalka2026.StreakTest do
       assert streak.user_id == user.id
       assert streak.current_streak == 0
       assert streak.longest_streak == 0
-      assert streak.bonus_points == 0
     end
 
     test "returns existing streak" do
@@ -120,7 +104,6 @@ defmodule Jalka2026.StreakTest do
       result = Streak.get_user_streak(user.id)
       assert result.current_streak == 0
       assert result.longest_streak == 0
-      assert result.bonus_points == 0
     end
   end
 
@@ -140,7 +123,6 @@ defmodule Jalka2026.StreakTest do
 
       assert result.current_streak == 0
       assert result.longest_streak == 0
-      assert result.bonus_points == 0
     end
 
     test "calculates and saves correct streak" do
@@ -226,7 +208,6 @@ defmodule Jalka2026.StreakTest do
       assert is_map(result)
       assert Map.has_key?(result, user.id)
       assert result[user.id].current_streak == 0
-      assert result[user.id].bonus_points == 0
     end
 
     test "updates existing streak records" do

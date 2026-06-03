@@ -202,20 +202,6 @@ defmodule Jalka2026.ScoringTest do
     end
   end
 
-  describe "streak_bonus_increment/1" do
-    test "returns 0 for streak < 5" do
-      for i <- 0..4 do
-        assert Scoring.streak_bonus_increment(i) == 0
-      end
-    end
-
-    test "returns 1 for streak >= 5" do
-      for i <- 5..10 do
-        assert Scoring.streak_bonus_increment(i) == 1
-      end
-    end
-  end
-
   describe "prediction_correct?/2" do
     test "returns true for matching result" do
       assert Scoring.prediction_correct?(%{result: "home"}, %{result: "home"})
@@ -232,7 +218,7 @@ defmodule Jalka2026.ScoringTest do
 
   describe "calculate_streak_stats/2" do
     test "returns zeros with no matches" do
-      assert Scoring.calculate_streak_stats([], %{}) == {0, 0, 0}
+      assert Scoring.calculate_streak_stats([], %{}) == {0, 0}
     end
 
     test "counts consecutive correct predictions" do
@@ -248,7 +234,7 @@ defmodule Jalka2026.ScoringTest do
         3 => %{result: "draw"}
       }
 
-      assert Scoring.calculate_streak_stats(matches, predictions) == {3, 3, 0}
+      assert Scoring.calculate_streak_stats(matches, predictions) == {3, 3}
     end
 
     test "resets streak on wrong prediction" do
@@ -265,25 +251,14 @@ defmodule Jalka2026.ScoringTest do
         3 => %{result: "draw"}
       }
 
-      assert Scoring.calculate_streak_stats(matches, predictions) == {1, 1, 0}
-    end
-
-    test "awards bonus points for streaks of 5+" do
-      matches = for i <- 1..7, do: %{id: i, result: "home"}
-      predictions = for i <- 1..7, into: %{}, do: {i, %{result: "home"}}
-
-      {current, longest, bonus} = Scoring.calculate_streak_stats(matches, predictions)
-      assert current == 7
-      assert longest == 7
-      # Streak of 5 gets +1, 6 gets +1, 7 gets +1 = 3 total
-      assert bonus == 3
+      assert Scoring.calculate_streak_stats(matches, predictions) == {1, 1}
     end
 
     test "handles nil predictions (no prediction for match)" do
       matches = [%{id: 1, result: "home"}, %{id: 2, result: "away"}]
       predictions = %{1 => %{result: "home"}}
 
-      assert Scoring.calculate_streak_stats(matches, predictions) == {0, 1, 0}
+      assert Scoring.calculate_streak_stats(matches, predictions) == {0, 1}
     end
 
     test "tracks longest streak even after break" do
@@ -301,50 +276,9 @@ defmodule Jalka2026.ScoringTest do
         8 => %{result: "home"}
       }
 
-      {current, longest, _bonus} = Scoring.calculate_streak_stats(matches, predictions)
+      {current, longest} = Scoring.calculate_streak_stats(matches, predictions)
       assert current == 4
       assert longest == 4
-    end
-
-    test "bonus only counts from threshold onward" do
-      matches = for i <- 1..5, do: %{id: i, result: "home"}
-      predictions = for i <- 1..5, into: %{}, do: {i, %{result: "home"}}
-
-      {_current, _longest, bonus} = Scoring.calculate_streak_stats(matches, predictions)
-      # Only the 5th match triggers bonus
-      assert bonus == 1
-    end
-
-    test "bonus accumulates across long streak" do
-      matches = for i <- 1..10, do: %{id: i, result: "home"}
-      predictions = for i <- 1..10, into: %{}, do: {i, %{result: "home"}}
-
-      {current, longest, bonus} = Scoring.calculate_streak_stats(matches, predictions)
-      assert current == 10
-      assert longest == 10
-      # Matches 5-10 get bonus: 6 bonus points
-      assert bonus == 6
-    end
-
-    test "bonus does not carry over after break" do
-      matches = for i <- 1..12, do: %{id: i, result: "home"}
-
-      predictions =
-        Map.merge(
-          for(i <- 1..6, into: %{}, do: {i, %{result: "home"}}),
-          Map.merge(
-            # Break
-            %{7 => %{result: "away"}},
-            for(i <- 8..12, into: %{}, do: {i, %{result: "home"}})
-          )
-        )
-
-      {current, longest, bonus} = Scoring.calculate_streak_stats(matches, predictions)
-      assert current == 5
-      assert longest == 6
-      # First streak: 5th=+1, 6th=+1 = 2
-      # Second streak: 12th (5th in streak)=+1 = 1
-      assert bonus == 3
     end
   end
 

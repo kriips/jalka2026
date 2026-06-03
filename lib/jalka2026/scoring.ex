@@ -16,9 +16,6 @@ defmodule Jalka2026.Scoring do
   - Quarter-finals (8): 3 points
   - Semi-finals (4): 5 points
   - Final (2): 6 points
-
-  ## Streak bonuses
-  - 5+ consecutive correct results: +1 bonus point per match from the 5th onward
   """
 
   @type match_like :: %{result: String.t(), home_score: integer(), away_score: integer()}
@@ -31,9 +28,6 @@ defmodule Jalka2026.Scoring do
   @group_wrong_points 0
 
   @playoff_points %{32 => 1, 16 => 2, 8 => 3, 4 => 5, 2 => 6}
-
-  @streak_bonus_threshold 5
-  @streak_bonus_value 1
 
   @doc """
   Calculate points for a single group match prediction.
@@ -172,16 +166,6 @@ defmodule Jalka2026.Scoring do
   def calculate(:playoff, phase), do: playoff_phase_points(phase)
 
   @doc """
-  Bonus point increment for the given streak length.
-
-  Returns 1 if streak is >= #{@streak_bonus_threshold}, otherwise 0.
-  """
-  def streak_bonus_increment(streak_length) when streak_length >= @streak_bonus_threshold,
-    do: @streak_bonus_value
-
-  def streak_bonus_increment(_), do: 0
-
-  @doc """
   Check if a prediction result matches the actual match result.
 
   Returns `true` if the prediction result equals the match result, `false` otherwise.
@@ -193,26 +177,25 @@ defmodule Jalka2026.Scoring do
   @doc """
   Calculate streak statistics from an ordered list of finished matches and a predictions map.
 
-  Returns `{current_streak, longest_streak, bonus_points}`.
+  Returns `{current_streak, longest_streak}`.
 
   `finished_matches` must be ordered chronologically.
   `predictions` is a map of `match_id => prediction`.
   """
   def calculate_streak_stats(finished_matches, predictions) do
-    {_current, longest, bonus, final_current} =
-      Enum.reduce(finished_matches, {0, 0, 0, 0}, fn match, {current, longest, bonus, _} ->
+    {_current, longest, final_current} =
+      Enum.reduce(finished_matches, {0, 0, 0}, fn match, {current, longest, _} ->
         prediction = Map.get(predictions, match.id)
 
         if prediction_correct?(match, prediction) do
           new_current = current + 1
           new_longest = max(new_current, longest)
-          new_bonus = bonus + streak_bonus_increment(new_current)
-          {new_current, new_longest, new_bonus, new_current}
+          {new_current, new_longest, new_current}
         else
-          {0, longest, bonus, 0}
+          {0, longest, 0}
         end
       end)
 
-    {final_current, longest, bonus}
+    {final_current, longest}
   end
 end
