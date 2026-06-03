@@ -39,7 +39,7 @@
                 <%= if @current_user.is_admin do %>
                   <li class="navigation-item"><%= link "Admin", to: Routes.admin_dashboard_path(@conn, :index) %></li>
                 <% end %>
-                <li class="navigation-item"><%= @current_user.name %></li>
+                <li class="navigation-item"><%= link @current_user.name, to: Routes.user_settings_path(@conn, :edit) %></li>
                 <li class="navigation-item"><%= link "Välju", to: Routes.user_session_path(@conn, :delete), method: :delete %></li>
                 <li class="navigation-item">
                   <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" data-user-id={@current_user.id}>
