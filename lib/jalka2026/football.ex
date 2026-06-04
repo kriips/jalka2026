@@ -209,20 +209,86 @@ defmodule Jalka2026.Football do
   """
   def get_all_playoff_predictions_indexed() do
     TelemetryEvents.span_prediction_load(%{source: :all_playoff_predictions_indexed}, fn ->
-      Repo.all(PlayoffPrediction)
-      |> Enum.group_by(& &1.user_id)
-      |> Map.new(&index_user_playoff_predictions/1)
+      # Derived from bracket winner picks (side: nil) — the source of truth — NOT the drift-prone
+      # playoff_predictions table. Single query (no preload).
+      from(bp in BracketPrediction,
+        where: is_nil(bp.side),
+        select: {bp.user_id, bp.round, bp.team_id}
+      )
+      |> Repo.all()
+      |> Enum.group_by(fn {user_id, _round, _team_id} -> user_id end)
+      |> Map.new(fn {user_id, rows} -> {user_id, index_bracket_picks(rows)} end)
     end)
   end
 
-  defp index_user_playoff_predictions({user_id, predictions}) do
-    by_phase =
-      Enum.reduce(predictions, %{32 => [], 16 => [], 8 => [], 4 => [], 2 => []}, fn pred,
-                                                                                             acc ->
-        Map.update(acc, pred.phase, [pred.team_id], &[pred.team_id | &1])
-      end)
+  defp index_bracket_picks(rows) do
+    Enum.reduce(rows, %{32 => [], 16 => [], 8 => [], 4 => [], 2 => []}, fn {_uid, round, team_id},
+                                                                          acc ->
+      case BracketPrediction.round_to_phase(round) do
+        nil -> acc
+        phase -> Map.update(acc, phase, [team_id], &[team_id | &1])
+      end
+    end)
+  end
 
-    {user_id, by_phase}
+  @doc """
+  Playoff predictions derived from bracket winner picks (side: nil) for ALL users, as a list of
+  maps `%{phase, team_id, team, user_id, user}`. Source of truth for the playoff overview/scoring
+  display (avoids stale orphans in the playoff_predictions table).
+  """
+  def bracket_playoff_predictions_with_user() do
+    from(bp in BracketPrediction, where: is_nil(bp.side), preload: [:team, :user])
+    |> Repo.all()
+    |> Enum.map(fn bp ->
+      %{
+        phase: BracketPrediction.round_to_phase(bp.round),
+        team_id: bp.team_id,
+        team: bp.team,
+        user_id: bp.user_id,
+        user: bp.user
+      }
+    end)
+  end
+
+  @doc """
+  Playoff predictions derived from a user's bracket winner picks, as a list of maps
+  `%{phase, team_id, team}`.
+  """
+  def bracket_playoff_predictions_by_user(user_id) do
+    from(bp in BracketPrediction, where: bp.user_id == ^user_id and is_nil(bp.side), preload: [:team])
+    |> Repo.all()
+    |> Enum.map(fn bp ->
+      %{phase: BracketPrediction.round_to_phase(bp.round), team_id: bp.team_id, team: bp.team}
+    end)
+  end
+
+  @doc """
+  All group-stage matches for the current competition, grouped by their group string
+  (e.g. `%{"Alagrupp A" => [match, ...]}`), with teams preloaded. Single query — used for bulk
+  predicted-standings computation (avoids per-user, per-group N+1).
+  """
+  def get_group_matches_grouped() do
+    comp_id = competition_id()
+
+    from(m in Match,
+      where: like(m.group, "Alagrupp %") and m.competition_id == ^comp_id,
+      order_by: m.date,
+      preload: [:home_team, :away_team]
+    )
+    |> Repo.all()
+    |> Enum.group_by(& &1.group)
+  end
+
+  @doc """
+  All bracket matchup overrides (rows with a non-nil `side`) for ALL users, grouped as
+  `%{user_id => %{round => [bracket_prediction, ...]}}`, with team preloaded. Single query —
+  used for bulk last-32 computation.
+  """
+  def all_bracket_overrides_by_round() do
+    from(bp in BracketPrediction, where: not is_nil(bp.side), preload: [:team])
+    |> Repo.all()
+    |> Enum.group_by(& &1.user_id)
+    |> Map.new(fn {user_id, rows} -> {user_id, Enum.group_by(rows, & &1.round)} end)
   end
 
   def get_predictions_by_match(match_id) do
@@ -1566,13 +1632,15 @@ defmodule Jalka2026.Football do
   def calculate_bracket_points(user_id) do
     accuracy = calculate_bracket_accuracy(user_id)
 
-    # Points per correct prediction by round
+    # Points per correct winner pick by round. A round's winner advances to the next stage, so the
+    # value matches that stage's points in Scoring.@playoff_points (round_of_32 winner reaches the
+    # last-16 = 2pt ... final winner = champion = 8pt). Kept in sync with the leaderboard scheme.
     points_per_round = %{
-      "round_of_32" => 1,
-      "round_of_16" => 2,
-      "quarter_final" => 4,
-      "semi_final" => 8,
-      "final" => 16
+      "round_of_32" => 2,
+      "round_of_16" => 3,
+      "quarter_final" => 5,
+      "semi_final" => 6,
+      "final" => 8
     }
 
     Enum.reduce(accuracy.by_round, 0, fn round_stat, total ->

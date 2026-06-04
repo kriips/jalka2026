@@ -165,8 +165,8 @@ defmodule Jalka2026Web.BracketLive.Bracket do
     accuracy = Football.calculate_bracket_accuracy(user_id)
     points = Football.calculate_bracket_points(user_id)
 
-    # Get teams that qualified to Round of 32 from playoffs predictions
-    playoff_predictions = Football.get_playoff_predictions_by_user(user_id)
+    # Get teams that qualified to Round of 32 from playoffs predictions (derived from bracket)
+    playoff_predictions = Football.bracket_playoff_predictions_by_user(user_id)
 
     qualified_teams =
       playoff_predictions
@@ -312,13 +312,14 @@ defmodule Jalka2026Web.BracketLive.Bracket do
       </div>
 
       <div class="bracket-legend">
-        <h3>Punktid ringide kaupa</h3>
+        <h3>Punktid</h3>
         <ul>
           <li><strong>32 parimat:</strong> 1 punkt</li>
-          <li><strong>Kaheksandikfinaal:</strong> 2 punkti</li>
-          <li><strong>Veerandfinaal:</strong> 4 punkti</li>
-          <li><strong>Poolfinaal:</strong> 8 punkti</li>
-          <li><strong>Finaal:</strong> 16 punkti</li>
+          <li><strong>Kaheksandikfinalistid:</strong> 2 punkti</li>
+          <li><strong>Veerandfinalistid:</strong> 3 punkti</li>
+          <li><strong>Poolfinalistid:</strong> 5 punkti</li>
+          <li><strong>Finalistid:</strong> 6 punkti</li>
+          <li><strong>Võitja:</strong> 8 punkti</li>
         </ul>
       </div>
 

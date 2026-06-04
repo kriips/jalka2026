@@ -8,11 +8,12 @@
         <div class="section-card">
             <h2 class="section-card-title">
                 <%= case phase do
-                    2 -> "Finalistid"
-                    4 -> "Poolfinalistid"
-                    8 -> "Veerandfinalistid"
-                    16 -> "Kaheksandikfinalistid"
-                    32 -> "32 parimat"
+                    2 -> "Võitja"
+                    4 -> "Finalistid"
+                    8 -> "Poolfinalistid"
+                    16 -> "Veerandfinalistid"
+                    32 -> "Kaheksandikfinalistid"
+                    64 -> "32 parimat"
                     _ -> "Faas #{phase}"
                 end %>
             </h2>

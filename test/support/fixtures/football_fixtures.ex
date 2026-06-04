@@ -154,15 +154,34 @@ defmodule Jalka2026.FootballFixtures do
   def playoff_prediction_fixture(attrs \\ %{}) do
     user = attrs[:user] || Jalka2026.AccountsFixtures.user_fixture()
     team = attrs[:team] || team_fixture()
+    phase = attrs[:phase] || 16
 
     {:ok, prediction} =
       %PlayoffPrediction{}
       |> PlayoffPrediction.create_changeset(%{
         user_id: user.id,
         team_id: team.id,
-        phase: attrs[:phase] || 16
+        phase: phase
       })
       |> Repo.insert()
+
+    # Playoff predictions are now DERIVED from bracket winner picks (the source of truth), so also
+    # create the matching bracket pick. Auto-assign a free position for this user+round.
+    round = Jalka2026.Football.BracketPrediction.phase_to_round(phase)
+
+    if round do
+      used =
+        Jalka2026.Football.get_bracket_predictions_by_round(user.id)
+        |> Map.get(round, [])
+        |> length()
+
+      Jalka2026.Football.set_bracket_prediction(%{
+        user_id: user.id,
+        round: round,
+        position: attrs[:position] || used + 1,
+        team_id: team.id
+      })
+    end
 
     prediction |> Repo.preload([:user, :team])
   end

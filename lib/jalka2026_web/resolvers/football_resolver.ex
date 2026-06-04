@@ -1,6 +1,7 @@
 defmodule Jalka2026Web.Resolvers.FootballResolver do
   @moduledoc false
   alias Jalka2026.Football
+  alias Jalka2026.Football.Qualifiers
   alias Jalka2026.Football.TeamTranslations
   alias Jalka2026.Scoring
 
@@ -115,27 +116,6 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
     })
   end
 
-  def change_playoff_prediction(%{
-        user_id: user_id,
-        team_id: team_id,
-        phase: phase,
-        include: include
-      }) do
-    if include do
-      Football.add_playoff_prediction(%{
-        user_id: user_id,
-        team_id: team_id,
-        phase: phase
-      })
-    else
-      Football.remove_playoff_prediction(%{
-        user_id: user_id,
-        team_id: team_id,
-        phase: phase
-      })
-    end
-  end
-
   def get_teams_by_group() do
     Jalka2026.Football.Cache.get_teams_by_group()
   end
@@ -159,7 +139,7 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
       2 => []
     }
 
-    Football.get_playoff_predictions_by_user(user_id)
+    Football.bracket_playoff_predictions_by_user(user_id)
     |> Enum.reduce(user_playoff_predictions, fn prediction, acc ->
       Map.put(acc, prediction.phase, [prediction.team_id | acc[prediction.phase]])
     end)
@@ -174,7 +154,7 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
       2 => []
     }
 
-    Football.get_playoff_predictions_by_user(user_id)
+    Football.bracket_playoff_predictions_by_user(user_id)
     |> Enum.reduce(user_playoff_predictions, fn prediction, acc ->
       translated_name = TeamTranslations.translate(prediction.team.name)
       Map.put(acc, prediction.phase, [translated_name | acc[prediction.phase]])
@@ -182,12 +162,44 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
   end
 
   def get_playoff_predictions() do
-    Football.get_playoff_predictions()
-    |> group_by_phase()
-    |> group_by_team()
-    |> add_playoff_result()
-    |> sort_by_count()
-    |> sort_by_phase()
+    phase_predictions =
+      Football.bracket_playoff_predictions_with_user()
+      |> group_by_phase()
+      |> group_by_team()
+      |> add_playoff_result()
+      |> sort_by_count()
+      |> sort_by_phase()
+
+    # Prepend the derived "32 parimat" (reach last-32) stage as synthetic phase 64 (sorts first),
+    # aggregating every user's predicted qualifiers (group qualifiers + R32 swaps). Omitted when no
+    # user has completed all 12 group predictions yet.
+    case last_32_aggregate() do
+      [] -> phase_predictions
+      last_32 -> [{64, last_32} | phase_predictions]
+    end
+  end
+
+  # [{translated_team_name, reached_last_32?, [user_name, ...]}] sorted by predictor count desc.
+  # Bulk-loaded (Qualifiers.all_predicted_last_32/0 + a single teams/users load) — no per-user N+1.
+  defp last_32_aggregate do
+    actual = Qualifiers.actual_last_32()
+    user_names = Map.new(Jalka2026.Accounts.list_users(), fn u -> {u.id, u.name} end)
+    teams_by_id = Map.new(Football.get_teams(), fn t -> {t.id, t} end)
+
+    Qualifiers.all_predicted_last_32()
+    |> Enum.reduce(%{}, fn {user_id, team_ids}, acc ->
+      name = Map.get(user_names, user_id)
+
+      Enum.reduce(team_ids, acc, fn team_id, acc2 ->
+        Map.update(acc2, team_id, [name], &[name | &1])
+      end)
+    end)
+    |> Enum.map(fn {team_id, names} ->
+      team = Map.get(teams_by_id, team_id)
+      team_name = if team, do: TeamTranslations.translate(team.name), else: "?"
+      {team_name, MapSet.member?(actual, team_id), Enum.sort(names)}
+    end)
+    |> Enum.sort_by(fn {_name, _reached, names} -> length(names) end, :desc)
   end
 
   def get_predicted_qualifiers(user_id) do
@@ -362,10 +374,22 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
 
     playoff_comparisons = compare_playoff_predictions(user1_playoff, user2_playoff)
 
+    # "32 parimat" stage points (derived, not stored) — keep the comparison total in sync with the
+    # leaderboard, which also adds this bucket. Only non-zero once the group stage is complete.
+    actual_last_32 = Qualifiers.actual_last_32()
+    user1_last_32 = last_32_points_for(user1_id, actual_last_32)
+    user2_last_32 = last_32_points_for(user2_id, actual_last_32)
+
     %{
       group_comparisons: group_comparisons,
       playoff_comparisons: playoff_comparisons,
-      summary: calculate_comparison_summary(group_comparisons, playoff_comparisons)
+      summary:
+        calculate_comparison_summary(
+          group_comparisons,
+          playoff_comparisons,
+          user1_last_32,
+          user2_last_32
+        )
     }
   end
 
@@ -397,11 +421,11 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
     phases = Scoring.phases()
 
     phase_names = %{
-      32 => "32 parimat",
-      16 => "Kaheksandikfinalistid",
-      8 => "Veerandfinalistid",
-      4 => "Poolfinalistid",
-      2 => "Finalistid"
+      32 => "Kaheksandikfinalistid",
+      16 => "Veerandfinalistid",
+      8 => "Poolfinalistid",
+      4 => "Finalistid",
+      2 => "Võitja"
     }
 
     phase_points = Scoring.playoff_phase_points_map()
@@ -448,7 +472,20 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
     end)
   end
 
-  defp calculate_comparison_summary(group_comparisons, playoff_comparisons) do
+  defp last_32_points_for(user_id, actual_last_32) do
+    if MapSet.size(actual_last_32) == 0 do
+      0
+    else
+      Scoring.last_32_points(Qualifiers.predicted_last_32(user_id), actual_last_32)
+    end
+  end
+
+  defp calculate_comparison_summary(
+         group_comparisons,
+         playoff_comparisons,
+         user1_last_32,
+         user2_last_32
+       ) do
     # Only count finished matches for group points
     finished_group_comparisons = Enum.filter(group_comparisons, fn c -> c.match.finished end)
 
@@ -459,10 +496,10 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
       Enum.reduce(finished_group_comparisons, 0, fn c, acc -> acc + c.user2_points end)
 
     user1_playoff_points =
-      Enum.reduce(playoff_comparisons, 0, fn c, acc -> acc + c.user1_points end)
+      Enum.reduce(playoff_comparisons, user1_last_32, fn c, acc -> acc + c.user1_points end)
 
     user2_playoff_points =
-      Enum.reduce(playoff_comparisons, 0, fn c, acc -> acc + c.user2_points end)
+      Enum.reduce(playoff_comparisons, user2_last_32, fn c, acc -> acc + c.user2_points end)
 
     user1_correct_results =
       Enum.count(finished_group_comparisons, fn c -> c.user1_correct_result end)
@@ -514,7 +551,11 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
     predictions_with_correctness = add_correctness(predictions)
 
     playoff_predictions = get_playoff_predictions_with_team_names(user_id)
-    playoff_with_correctness = calculate_playoff_analytics(playoff_predictions)
+
+    # Prepend the derived "32 parimat" (reach last-32) stage so the per-phase breakdown matches the
+    # headline playoff total (which includes it). Tagged phase 64 to avoid colliding with [32..2].
+    playoff_with_correctness =
+      [build_last_32_analytics(user_id) | calculate_playoff_analytics(playoff_predictions)]
 
     group_stats = calculate_group_stats(predictions_with_correctness)
     playoff_stats = calculate_playoff_stats(playoff_with_correctness)
@@ -622,6 +663,37 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
      }}
   end
 
+  # Synthetic analytics entry for the "32 parimat" (reach last-32) stage, mirroring the shape of a
+  # calculate_playoff_analytics/1 entry. Scored from the user's predicted qualifiers (group qualifiers
+  # with R32 swaps) vs the teams that actually reached the round of 32 (1pt each).
+  defp build_last_32_analytics(user_id) do
+    actual = Qualifiers.actual_last_32()
+
+    teams =
+      user_id
+      |> Qualifiers.predicted_last_32()
+      |> Enum.map(&Football.get_team/1)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.map(fn team ->
+        %{team_name: TeamTranslations.translate(team.name), reached_phase: MapSet.member?(actual, team.id)}
+      end)
+      |> Enum.sort_by(& &1.team_name)
+
+    total = length(teams)
+    correct = Enum.count(teams, & &1.reached_phase)
+    points_per_correct = Scoring.reach_last_32_points()
+
+    %{
+      phase: 64,
+      teams: teams,
+      total_predictions: total,
+      correct_predictions: correct,
+      points_earned: correct * points_per_correct,
+      points_per_correct: points_per_correct,
+      accuracy: if(total > 0, do: Float.round(correct / total * 100, 1), else: 0.0)
+    }
+  end
+
   defp calculate_playoff_analytics(playoff_predictions) do
     phases = Scoring.phases()
     phase_points_map = Scoring.playoff_phase_points_map()
@@ -660,11 +732,12 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
 
   defp calculate_playoff_stats(playoff_analytics) do
     phase_names = %{
-      32 => "32 parimat",
-      16 => "Kaheksandikfinaalid",
-      8 => "Veerandfinaalid",
-      4 => "Poolfinaalid",
-      2 => "Finaal"
+      64 => "32 parimat",
+      32 => "Kaheksandikfinalistid",
+      16 => "Veerandfinalistid",
+      8 => "Poolfinalistid",
+      4 => "Finalistid",
+      2 => "Võitja"
     }
 
     total_predictions =

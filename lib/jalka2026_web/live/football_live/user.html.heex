@@ -47,7 +47,7 @@
                         </tr>
                     </thead>
                     <tbody id="user-predictions-body" phx-update="stream">
-                        <tr :for={{dom_id, row} <- @streams.prediction_rows} id={dom_id}>
+                        <tr :for={{dom_id, row} <- @streams.prediction_rows} id={dom_id} class="match-row-clickable" phx-click={JS.navigate(~p"/football/games/#{row.prediction.match.id}")} role="link" tabindex="0" aria-label={"#{TeamTranslations.translate(row.prediction.match.home_team.name)} vs #{TeamTranslations.translate(row.prediction.match.away_team.name)} - vaata detaile"}>
                             <td class="match-teams"><%= TeamTranslations.translate(row.prediction.match.home_team.name) %> - <%= TeamTranslations.translate(row.prediction.match.away_team.name) %></td>
                             <td><span class="prediction-score"><%= row.prediction.home_score %> - <%= row.prediction.away_score %></span></td>
                             <td>
@@ -76,33 +76,40 @@
             <div class="phase-section">
                 <h3 class="phase-title">32 parimat</h3>
                 <div class="teams-grid">
-                    <%= raw(Enum.join(@playoff_predictions[32], ", ")) %>
+                    <%= raw(Enum.join(@predicted_last_32_names, ", ")) %>
                 </div>
             </div>
 
             <div class="phase-section">
                 <h3 class="phase-title">Kaheksandikfinalistid</h3>
                 <div class="teams-grid">
-                    <%= raw(Enum.join(@playoff_predictions[16], ", ")) %>
+                    <%= raw(Enum.join(@playoff_predictions[32], ", ")) %>
                 </div>
             </div>
 
             <div class="phase-section">
                 <h3 class="phase-title">Veerandfinalistid</h3>
                 <div class="teams-grid">
-                    <%= raw(Enum.join(@playoff_predictions[8], ", ")) %>
+                    <%= raw(Enum.join(@playoff_predictions[16], ", ")) %>
                 </div>
             </div>
 
             <div class="phase-section">
                 <h3 class="phase-title">Poolfinalistid</h3>
                 <div class="teams-grid">
-                    <%= raw(Enum.join(@playoff_predictions[4], ", ")) %>
+                    <%= raw(Enum.join(@playoff_predictions[8], ", ")) %>
                 </div>
             </div>
 
             <div class="phase-section">
                 <h3 class="phase-title">Finalistid</h3>
+                <div class="teams-grid">
+                    <%= raw(Enum.join(@playoff_predictions[4], ", ")) %>
+                </div>
+            </div>
+
+            <div class="phase-section">
+                <h3 class="phase-title">Võitja</h3>
                 <div class="teams-grid">
                     <%= raw(Enum.join(@playoff_predictions[2], ", ")) %>
                 </div>

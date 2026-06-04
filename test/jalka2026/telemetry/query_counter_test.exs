@@ -58,6 +58,21 @@ defmodule Jalka2026.Telemetry.QueryCounterTest do
         Football.get_all_predictions_indexed()
       end)
     end
+
+    test "all_predicted_last_32 stays query-bounded regardless of user count (no N+1)" do
+      # Multiple users with group predictions — the per-user last-32 computation must be in-memory,
+      # so the query count must NOT grow with user count (bulk loaders only).
+      for _ <- 1..6 do
+        user = user_fixture()
+        match = finished_match_fixture()
+        group_prediction_fixture(%{user: user, match: match, home_score: 2, away_score: 0})
+      end
+
+      # 3 bulk loads (group matches + 2 preloads) + overrides (+ preload) + predictions ≈ 6.
+      assert_max_queries(:all_predicted_last_32_scale, 8, fn ->
+        Jalka2026.Football.Qualifiers.all_predicted_last_32()
+      end)
+    end
   end
 
   describe "match listing query counts" do

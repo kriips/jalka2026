@@ -9417,13 +9417,16 @@ details[open] .historical-matchup-toggle::before {
   display: block;
 }
 
-.games-table-desktop tr.match-row-clickable {
+.games-table-desktop tr.match-row-clickable,
+#user-predictions-body tr.match-row-clickable {
   cursor: pointer;
   transition: background-color 0.15s ease;
 }
 
 .games-table-desktop tr.match-row-clickable:hover,
-.games-table-desktop tr.match-row-clickable:focus-visible {
+.games-table-desktop tr.match-row-clickable:focus-visible,
+#user-predictions-body tr.match-row-clickable:hover,
+#user-predictions-body tr.match-row-clickable:focus-visible {
   background-color: var(--accent-bg);
   outline: none;
 }

@@ -21,6 +21,7 @@ defmodule Jalka2026.Leaderboard do
   alias Jalka2026.Accounts.User
   alias Jalka2026.Badges
   alias Jalka2026.Football
+  alias Jalka2026.Football.Qualifiers
   alias Jalka2026.Leaderboard.Entry
   alias Jalka2026.Scoring
   alias Jalka2026.Streak
@@ -280,10 +281,27 @@ defmodule Jalka2026.Leaderboard do
       playoff_result_count: length(playoff_results)
     }
 
+    # Teams that actually reached the round of 32 (empty until the group stage is complete).
+    # Scores the "32 parimat" stage against each user's predicted qualifiers + R32 swaps.
+    actual_last_32 = Qualifiers.actual_last_32()
+
+    # Bulk-compute every user's predicted last-32 set ONCE (only once there's an actual last-32 to
+    # score against) — avoids the per-user N+1 in the user loop below.
+    predicted_last_32_by_user =
+      if MapSet.size(actual_last_32) == 0, do: %{}, else: Qualifiers.all_predicted_last_32()
+
     TelemetryEvents.span_leaderboard_calculation(metadata, fn ->
       users
       |> Enum.map(&calculate_points(&1, finished_matches, all_predictions))
-      |> Enum.map(&calculate_playoff_points(&1, playoff_results, all_playoff_predictions))
+      |> Enum.map(
+        &calculate_playoff_points(
+          &1,
+          playoff_results,
+          all_playoff_predictions,
+          actual_last_32,
+          predicted_last_32_by_user
+        )
+      )
       |> Enum.map(&add_streak_data(&1, streaks))
       |> Enum.sort_by(& &1.total_points, :desc)
       |> add_rank()
@@ -293,11 +311,23 @@ defmodule Jalka2026.Leaderboard do
   defp calculate_playoff_points(
          %{user_id: user_id} = acc,
          playoff_results,
-         all_playoff_predictions
+         all_playoff_predictions,
+         actual_last_32,
+         predicted_last_32_by_user
        ) do
     playoff_predictions = Map.get(all_playoff_predictions, user_id, %{})
-    playoff_points = Scoring.total_playoff_points(playoff_results, playoff_predictions)
-    Map.put(acc, :playoff_points, playoff_points)
+    phase_points = Scoring.total_playoff_points(playoff_results, playoff_predictions)
+
+    # "32 parimat" stage: 0 until the group stage completes (no last-32 determined yet).
+    last_32_points =
+      if MapSet.size(actual_last_32) == 0 do
+        0
+      else
+        predicted = Map.get(predicted_last_32_by_user, user_id, MapSet.new())
+        Scoring.last_32_points(predicted, actual_last_32)
+      end
+
+    Map.put(acc, :playoff_points, phase_points + last_32_points)
   end
 
   defp add_streak_data(%{user_id: user_id, group_points: gp, playoff_points: pp} = acc, streaks) do

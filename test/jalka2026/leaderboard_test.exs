@@ -102,7 +102,9 @@ defmodule Jalka2026.LeaderboardTest do
   end
 
   describe "playoff point values" do
-    test "phase 32 correct prediction awards 1 point" do
+    # Stored phases are the round-winner picks, so points are offset one stage from the phase
+    # number: phase 32 = reached last-16 (2pt) ... phase 2 = tournament winner (8pt).
+    test "phase 32 correct prediction awards 2 points" do
       user = user_fixture()
       team = team_fixture()
 
@@ -112,10 +114,10 @@ defmodule Jalka2026.LeaderboardTest do
       leaderboard = Leaderboard.recalc_leaderboard()
       user_entry = Enum.find(leaderboard, fn %Entry{user_id: id} -> id == user.id end)
       assert user_entry != nil
-      assert user_entry.playoff_points == 1, "Phase 32 correct prediction should award 1 point"
+      assert user_entry.playoff_points == 2, "Phase 32 correct prediction should award 2 points"
     end
 
-    test "phase 16 correct prediction awards 2 points" do
+    test "phase 16 correct prediction awards 3 points" do
       user = user_fixture()
       team = team_fixture()
 
@@ -125,10 +127,10 @@ defmodule Jalka2026.LeaderboardTest do
       leaderboard = Leaderboard.recalc_leaderboard()
       user_entry = Enum.find(leaderboard, fn %Entry{user_id: id} -> id == user.id end)
       assert user_entry != nil
-      assert user_entry.playoff_points == 2, "Phase 16 correct prediction should award 2 points"
+      assert user_entry.playoff_points == 3, "Phase 16 correct prediction should award 3 points"
     end
 
-    test "phase 8 correct prediction awards 3 points" do
+    test "phase 8 correct prediction awards 5 points" do
       user = user_fixture()
       team = team_fixture()
 
@@ -138,10 +140,10 @@ defmodule Jalka2026.LeaderboardTest do
       leaderboard = Leaderboard.recalc_leaderboard()
       user_entry = Enum.find(leaderboard, fn %Entry{user_id: id} -> id == user.id end)
       assert user_entry != nil
-      assert user_entry.playoff_points == 3, "Phase 8 correct prediction should award 3 points"
+      assert user_entry.playoff_points == 5, "Phase 8 correct prediction should award 5 points"
     end
 
-    test "phase 4 correct prediction awards 5 points" do
+    test "phase 4 correct prediction awards 6 points" do
       user = user_fixture()
       team = team_fixture()
 
@@ -151,10 +153,10 @@ defmodule Jalka2026.LeaderboardTest do
       leaderboard = Leaderboard.recalc_leaderboard()
       user_entry = Enum.find(leaderboard, fn %Entry{user_id: id} -> id == user.id end)
       assert user_entry != nil
-      assert user_entry.playoff_points == 5, "Phase 4 correct prediction should award 5 points"
+      assert user_entry.playoff_points == 6, "Phase 4 correct prediction should award 6 points"
     end
 
-    test "phase 2 correct prediction awards 6 points" do
+    test "phase 2 correct prediction awards 8 points" do
       user = user_fixture()
       team = team_fixture()
 
@@ -164,7 +166,7 @@ defmodule Jalka2026.LeaderboardTest do
       leaderboard = Leaderboard.recalc_leaderboard()
       user_entry = Enum.find(leaderboard, fn %Entry{user_id: id} -> id == user.id end)
       assert user_entry != nil
-      assert user_entry.playoff_points == 6, "Phase 2 correct prediction should award 6 points"
+      assert user_entry.playoff_points == 8, "Phase 2 correct prediction should award 8 points"
     end
 
     test "incorrect playoff prediction awards 0 playoff points" do

@@ -27,7 +27,15 @@ defmodule Jalka2026.Scoring do
   @group_correct_result_points 1
   @group_wrong_points 0
 
-  @playoff_points %{32 => 1, 16 => 2, 8 => 3, 4 => 5, 2 => 6}
+  # Stored PlayoffPrediction phases are the WINNER picks of each bracket round, so the team
+  # at a phase actually *reached the next stage*. Points are therefore offset by one stage from
+  # the phase number: phase 32 = reached last-16 (2pt) ... phase 2 = the tournament winner (8pt).
+  # The "reached last-32" stage (1pt) is NOT a stored phase — it is scored separately from the
+  # user's predicted group qualifiers (see Jalka2026.Football.Qualifiers / last_32_points/2).
+  @playoff_points %{32 => 2, 16 => 3, 8 => 5, 4 => 6, 2 => 8}
+
+  # Points per correctly-predicted team that reaches the round of 32 (the "32 parimat" stage).
+  @reach_last_32_points 1
 
   @doc """
   Calculate points for a single group match prediction.
@@ -81,12 +89,34 @@ defmodule Jalka2026.Scoring do
   ## Examples
 
       iex> Jalka2026.Scoring.playoff_phase_points(32)
-      1
+      2
       iex> Jalka2026.Scoring.playoff_phase_points(2)
-      6
+      8
   """
   for {phase, points} <- @playoff_points do
     def playoff_phase_points(unquote(phase)), do: unquote(points)
+  end
+
+  @doc """
+  Points awarded per correctly-predicted "reached last-32" team (the "32 parimat" stage).
+  """
+  def reach_last_32_points, do: @reach_last_32_points
+
+  @doc """
+  Total points for the "32 parimat" stage: `@reach_last_32_points` for each team that the user
+  predicted to reach the round of 32 (their group qualifiers, with R32 swap-overrides applied)
+  AND that actually reached it.
+
+  Both arguments are enumerables of team ids. Returns an integer.
+  """
+  def last_32_points(predicted_team_ids, actual_team_ids) do
+    actual = MapSet.new(actual_team_ids)
+
+    predicted_team_ids
+    |> MapSet.new()
+    |> MapSet.intersection(actual)
+    |> MapSet.size()
+    |> Kernel.*(@reach_last_32_points)
   end
 
   @doc """
@@ -140,7 +170,7 @@ defmodule Jalka2026.Scoring do
   ## Example
 
       iex> Jalka2026.Scoring.playoff_phase_points_map()
-      %{32 => 1, 16 => 2, 8 => 3, 4 => 5, 2 => 6}
+      %{32 => 2, 16 => 3, 8 => 5, 4 => 6, 2 => 8}
   """
   def playoff_phase_points_map, do: @playoff_points
 

@@ -75,6 +75,35 @@ defmodule Jalka2026.Football.BracketPrediction do
     end
   end
 
+  @doc """
+  Playoff scoring phase for a round's WINNER pick. A round's winner advances, and is stored/scored
+  at the phase number equal to that round's team count (round_of_32 -> 32 ... final -> 2).
+  This is the canonical round->phase mapping; playoff predictions are derived from bracket winner
+  picks via this function (the `playoff_predictions` table is not the source of truth).
+  """
+  def round_to_phase(round) do
+    case round do
+      "round_of_32" -> 32
+      "round_of_16" -> 16
+      "quarter_final" -> 8
+      "semi_final" -> 4
+      "final" -> 2
+      _ -> nil
+    end
+  end
+
+  @doc "Inverse of round_to_phase/1: the bracket round whose winner picks live at a given phase."
+  def phase_to_round(phase) do
+    case phase do
+      32 -> "round_of_32"
+      16 -> "round_of_16"
+      8 -> "quarter_final"
+      4 -> "semi_final"
+      2 -> "final"
+      _ -> nil
+    end
+  end
+
   @doc "Get the next round after the given round"
   def next_round(round) do
     case round do

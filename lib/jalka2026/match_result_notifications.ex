@@ -165,11 +165,11 @@ defmodule Jalka2026.MatchResultNotifications do
     users = Accounts.list_users()
 
     phase_names = %{
-      32 => "32 parimat",
-      16 => "Kaheksandikfinaalid",
-      8 => "Veerandfinaalid",
-      4 => "Poolfinaalid",
-      2 => "Finaal"
+      32 => "Kaheksandikfinalistid",
+      16 => "Veerandfinalistid",
+      8 => "Poolfinalistid",
+      4 => "Finalistid",
+      2 => "Võitja"
     }
 
     phase_points = Scoring.playoff_phase_points_map()

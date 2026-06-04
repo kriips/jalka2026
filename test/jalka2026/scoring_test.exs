@@ -89,24 +89,26 @@ defmodule Jalka2026.ScoringTest do
   end
 
   describe "playoff_phase_points/1" do
-    test "round of 32 awards 1 point" do
-      assert Scoring.playoff_phase_points(32) == 1
+    # Stored phases are round-winner picks, so points are offset one stage from the phase number:
+    # phase 32 = reached last-16 (2pt), phase 16 = QF (3pt), ... phase 2 = winner (8pt).
+    test "phase 32 (reached last-16) awards 2 points" do
+      assert Scoring.playoff_phase_points(32) == 2
     end
 
-    test "round of 16 awards 2 points" do
-      assert Scoring.playoff_phase_points(16) == 2
+    test "phase 16 (reached quarter-final) awards 3 points" do
+      assert Scoring.playoff_phase_points(16) == 3
     end
 
-    test "quarter-finals award 3 points" do
-      assert Scoring.playoff_phase_points(8) == 3
+    test "phase 8 (reached semi-final) awards 5 points" do
+      assert Scoring.playoff_phase_points(8) == 5
     end
 
-    test "semi-finals award 5 points" do
-      assert Scoring.playoff_phase_points(4) == 5
+    test "phase 4 (finalist) awards 6 points" do
+      assert Scoring.playoff_phase_points(4) == 6
     end
 
-    test "final awards 6 points" do
-      assert Scoring.playoff_phase_points(2) == 6
+    test "phase 2 (winner) awards 8 points" do
+      assert Scoring.playoff_phase_points(2) == 8
     end
   end
 
@@ -127,8 +129,8 @@ defmodule Jalka2026.ScoringTest do
         8 => [103]
       }
 
-      # 1 (phase 32) + 2 (phase 16) = 3
-      assert Scoring.total_playoff_points(playoff_results, predictions) == 3
+      # 2 (phase 32) + 3 (phase 16) = 5
+      assert Scoring.total_playoff_points(playoff_results, predictions) == 5
     end
 
     test "returns 0 with no matching predictions" do
@@ -154,8 +156,8 @@ defmodule Jalka2026.ScoringTest do
       ]
 
       predictions = %{32 => [100, 101]}
-      # 1 + 1 = 2
-      assert Scoring.total_playoff_points(playoff_results, predictions) == 2
+      # 2 + 2 = 4
+      assert Scoring.total_playoff_points(playoff_results, predictions) == 4
     end
 
     test "sums all phases for perfect predictions" do
@@ -175,8 +177,8 @@ defmodule Jalka2026.ScoringTest do
         2 => [1]
       }
 
-      # 1 + 2 + 3 + 5 + 6 = 17
-      assert Scoring.total_playoff_points(playoff_results, predictions) == 17
+      # 2 + 3 + 5 + 6 + 8 = 24
+      assert Scoring.total_playoff_points(playoff_results, predictions) == 24
     end
   end
 
@@ -296,24 +298,44 @@ defmodule Jalka2026.ScoringTest do
     end
 
     test "playoff scoring delegates to playoff_phase_points" do
-      assert Scoring.calculate(:playoff, 32) == 1
-      assert Scoring.calculate(:playoff, 16) == 2
-      assert Scoring.calculate(:playoff, 8) == 3
-      assert Scoring.calculate(:playoff, 4) == 5
-      assert Scoring.calculate(:playoff, 2) == 6
+      assert Scoring.calculate(:playoff, 32) == 2
+      assert Scoring.calculate(:playoff, 16) == 3
+      assert Scoring.calculate(:playoff, 8) == 5
+      assert Scoring.calculate(:playoff, 4) == 6
+      assert Scoring.calculate(:playoff, 2) == 8
     end
   end
 
   describe "playoff_phase_points_map/0" do
     test "returns the complete phase-to-points mapping" do
       map = Scoring.playoff_phase_points_map()
-      assert map == %{32 => 1, 16 => 2, 8 => 3, 4 => 5, 2 => 6}
+      assert map == %{32 => 2, 16 => 3, 8 => 5, 4 => 6, 2 => 8}
     end
 
     test "is consistent with playoff_phase_points/1" do
       for {phase, points} <- Scoring.playoff_phase_points_map() do
         assert Scoring.playoff_phase_points(phase) == points
       end
+    end
+  end
+
+  describe "last_32_points/2" do
+    test "awards 1 point per correctly-predicted last-32 qualifier" do
+      # predicted teams 1,2,3,4; teams 2,3,5 actually reached -> overlap {2,3} = 2 points
+      assert Scoring.last_32_points([1, 2, 3, 4], [2, 3, 5]) == 2
+    end
+
+    test "returns 0 when nothing overlaps" do
+      assert Scoring.last_32_points([1, 2], [3, 4]) == 0
+    end
+
+    test "returns 0 for empty predicted or actual sets" do
+      assert Scoring.last_32_points([], [1, 2]) == 0
+      assert Scoring.last_32_points([1, 2], []) == 0
+    end
+
+    test "accepts MapSet inputs and ignores duplicates" do
+      assert Scoring.last_32_points(MapSet.new([1, 1, 2]), MapSet.new([2, 2, 9])) == 1
     end
   end
 

@@ -3,6 +3,8 @@ defmodule Jalka2026Web.FootballLive.User do
 
   alias Jalka2026.Badges
   alias Jalka2026.Football
+  alias Jalka2026.Football.Qualifiers
+  alias Jalka2026.Football.TeamTranslations
   alias Jalka2026Web.Resolvers.AccountsResolver
   alias Jalka2026Web.Resolvers.FootballResolver
 
@@ -41,8 +43,25 @@ defmodule Jalka2026Web.FootballLive.User do
          |> FootballResolver.add_playoff_correctness(),
        favorite_teams: favorite_teams,
        bias_stats: bias_stats,
-       user_badges: user_badges
+       user_badges: user_badges,
+       predicted_last_32_names: build_predicted_last_32_names(user_id_int)
      )
      |> stream(:prediction_rows, prediction_stream_items)}
+  end
+
+  # "32 parimat" stage: the user's predicted round-of-32 qualifiers (group qualifiers with their
+  # R32 swap-overrides applied), each highlighted green if the team actually reached the round of 32.
+  defp build_predicted_last_32_names(user_id) do
+    actual = Qualifiers.actual_last_32()
+
+    user_id
+    |> Qualifiers.predicted_last_32()
+    |> Enum.map(&Football.get_team/1)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.map(fn team ->
+      name = TeamTranslations.translate(team.name)
+      if MapSet.member?(actual, team.id), do: "<b style=\"color:green\">#{name}</b>", else: name
+    end)
+    |> Enum.sort()
   end
 end

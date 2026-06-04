@@ -186,41 +186,6 @@ defmodule Jalka2026Web.Resolvers.FootballResolverTest do
     end
   end
 
-  describe "change_playoff_prediction/1" do
-    test "adds playoff prediction when include is true" do
-      user = user_fixture()
-      team = team_fixture()
-
-      result =
-        FootballResolver.change_playoff_prediction(%{
-          user_id: user.id,
-          team_id: team.id,
-          phase: 8,
-          include: true
-        })
-
-      assert result.user_id == user.id
-      assert result.team_id == team.id
-      assert result.phase == 8
-    end
-
-    test "removes playoff prediction when include is false" do
-      user = user_fixture()
-      team = team_fixture()
-      _prediction = playoff_prediction_fixture(%{user: user, team: team, phase: 16})
-
-      FootballResolver.change_playoff_prediction(%{
-        user_id: user.id,
-        team_id: team.id,
-        phase: 16,
-        include: false
-      })
-
-      predictions = FootballResolver.get_playoff_predictions(user.id)
-      assert team.id not in predictions[16]
-    end
-  end
-
   describe "get_teams_by_group/0" do
     test "returns teams grouped by their group letter" do
       team_a = team_fixture(%{name: "Team A Test", group: "A"})

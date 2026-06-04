@@ -30,10 +30,10 @@ defmodule Jalka2026Web.BracketLive.BracketTest do
     test "displays bracket legend with point values", %{conn: conn} do
       {:ok, _view, html} = live(conn, "/bracket")
 
-      assert html =~ "Punktid ringide kaupa"
       assert html =~ "32 parimat"
-      assert html =~ "Veerandfinaal"
-      assert html =~ "Finaal"
+      assert html =~ "Veerandfinalistid"
+      assert html =~ "Võitja"
+      assert html =~ "8 punkti"
     end
   end
 end

@@ -156,9 +156,9 @@ defmodule Jalka2026Web.AdminLive.Results do
     case phase do
       32 -> "Kaheksandikfinaal (32)"
       16 -> "Veerandfinaal (16)"
-      8 -> "Veerandfinaal (8)"
-      4 -> "Poolfinaal (4)"
-      2 -> "Finaal (2)"
+      8 -> "Poolfinaal (8)"
+      4 -> "Finaal (4)"
+      2 -> "Võitja (2)"
       _ -> "Faas #{phase}"
     end
   end
