@@ -491,6 +491,10 @@ defmodule Jalka2026Web.UserPredictionLive.Groups do
     {:noreply, socket}
   end
 
+  def handle_info({:prediction_sync, :playoff_bracket_reset, _data}, socket) do
+    {:noreply, socket}
+  end
+
   # Handle async data loading - load all analysis data together
   @impl true
   def handle_info({:load_analysis_data, team1_code, team2_code}, socket) do

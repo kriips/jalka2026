@@ -69,4 +69,19 @@ defmodule Jalka2026.PredictionSync do
       }
     })
   end
+
+  @doc """
+  Broadcast that the user's whole playoff bracket was reset (all picks cleared).
+
+  ## Parameters
+    - user_id: The user whose bracket was reset
+    - source_pid: The PID of the process that made the change (to exclude)
+  """
+  def broadcast_playoff_bracket_reset(user_id, source_pid \\ nil) do
+    Phoenix.PubSub.broadcast(@pubsub, user_topic(user_id), {
+      :prediction_sync,
+      :playoff_bracket_reset,
+      %{source_pid: source_pid}
+    })
+  end
 end

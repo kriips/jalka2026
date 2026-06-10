@@ -196,6 +196,8 @@ defmodule Jalka2026Web.UserPredictionLive.Playoffs do
 
     case Football.reset_playoff_bracket_to_official(user_id) do
       {:ok, _changes} ->
+        PredictionSync.broadcast_playoff_bracket_reset(user_id, self())
+
         {:noreply,
          socket
          |> reload_current_round(user_id)
@@ -337,6 +339,20 @@ defmodule Jalka2026Web.UserPredictionLive.Playoffs do
         {:prediction_sync, :playoff_prediction_changed, %{source_pid: source_pid}},
         socket
       )
+      when source_pid == self() do
+    {:noreply, socket}
+  end
+
+  # Another device reset the playoff bracket — reload to pick up the cleared
+  # picks and the switched seeding version
+  def handle_info({:prediction_sync, :playoff_bracket_reset, %{source_pid: source_pid}}, socket)
+      when source_pid != self() do
+    socket = load_bracket(socket, socket.assigns.current_user.id)
+    current_round = Enum.find(socket.assigns.rounds, &(&1.round == socket.assigns.current_stage))
+    {:noreply, assign(socket, current_round: current_round, swap_slot: nil)}
+  end
+
+  def handle_info({:prediction_sync, :playoff_bracket_reset, %{source_pid: source_pid}}, socket)
       when source_pid == self() do
     {:noreply, socket}
   end

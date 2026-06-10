@@ -60,6 +60,31 @@ defmodule Jalka2026Web.UserPredictionLive.PlayoffsTest do
     assert Football.get_playoff_predictions_by_user(user.id) == []
   end
 
+  test "reset is synced to the user's other connected devices", %{conn: conn, user: user} do
+    mark_legacy(user)
+    conn = log_in_user(conn, user)
+    team = team_fixture()
+
+    {:ok, _prediction} =
+      Football.set_bracket_prediction(%{
+        user_id: user.id,
+        round: "round_of_16",
+        position: 1,
+        team_id: team.id
+      })
+
+    {:ok, view, _html} = live(conn, "/football/predict/playoffs")
+    {:ok, other_device, _html} = live(conn, "/football/predict/playoffs")
+
+    assert render(other_device) =~ "kasutab varasemat asetust"
+
+    view
+    |> element("button", "Lähtesta ametlikule asetusele")
+    |> render_click()
+
+    refute render(other_device) =~ "kasutab varasemat asetust"
+  end
+
   defp mark_legacy(user) do
     user
     |> Ecto.Changeset.change(playoff_bracket_version: "legacy_2026")
