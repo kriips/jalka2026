@@ -14,7 +14,7 @@ defmodule Jalka2026Web.FootballLive.Analytics do
     user_id_int = String.to_integer(user_id)
 
     user = AccountsResolver.get_user(user_id)
-    analytics = FootballResolver.get_prediction_analytics(user_id)
+    analytics = FootballResolver.get_prediction_analytics(user_id_int)
     favorite_teams = Football.get_user_favorite_teams(user_id_int)
     user_badges = Badges.get_user_badges(user_id_int)
 

@@ -39,9 +39,13 @@ jobs:
       - run: mix deps.get
       - run: mix compile --warnings-as-errors
 
+      - name: Fetch base branch for Credo diff
+        if: github.event_name == 'pull_request'
+        run: git fetch origin +refs/heads/${{ github.base_ref }}:refs/heads/credo-base
+
       - name: Credo (new issues only on PRs)
         if: github.event_name == 'pull_request'
-        run: mix credo diff origin/${{ github.base_ref }} --strict
+        run: mix credo diff credo-base --strict
 
       # Full check on master - currently non-blocking while existing issues are fixed.
       # Remove continue-on-error once all existing violations are resolved.
@@ -63,6 +67,10 @@ jobs:
           elixir-version: ${{ env.ELIXIR_VERSION }}
           otp-version: ${{ env.OTP_VERSION }}
 
+      - name: Capture ERTS version
+        id: beam_version
+        run: echo "erts=$(erl -noshell -eval 'io:format(\"~s\", [erlang:system_info(version)]), halt().')" >> "$GITHUB_OUTPUT"
+
       - name: Restore deps cache
         uses: actions/cache@v4
         with:
@@ -78,9 +86,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: priv/plts
-          key: plt-${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ hashFiles('mix.lock') }}
-          restore-keys: |
-            plt-${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-
+          key: plt-v2-${{ runner.os }}-${{ env.ELIXIR_VERSION }}-${{ env.OTP_VERSION }}-${{ steps.beam_version.outputs.erts }}-${{ hashFiles('mix.exs', 'mix.lock') }}
 
       - run: mix deps.get
       - run: mix compile

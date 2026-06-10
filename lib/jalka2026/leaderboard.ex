@@ -285,10 +285,10 @@ defmodule Jalka2026.Leaderboard do
     # Scores the "32 parimat" stage against each user's predicted qualifiers + R32 swaps.
     actual_last_32 = Qualifiers.actual_last_32()
 
-    # Bulk-compute every user's predicted last-32 set ONCE (only once there's an actual last-32 to
+    # Bulk-compute every user's predicted last-32 list ONCE (only once there's an actual last-32 to
     # score against) — avoids the per-user N+1 in the user loop below.
     predicted_last_32_by_user =
-      if MapSet.size(actual_last_32) == 0, do: %{}, else: Qualifiers.all_predicted_last_32()
+      if actual_last_32 == [], do: %{}, else: Qualifiers.all_predicted_last_32()
 
     TelemetryEvents.span_leaderboard_calculation(metadata, fn ->
       users
@@ -320,10 +320,10 @@ defmodule Jalka2026.Leaderboard do
 
     # "32 parimat" stage: 0 until the group stage completes (no last-32 determined yet).
     last_32_points =
-      if MapSet.size(actual_last_32) == 0 do
+      if actual_last_32 == [] do
         0
       else
-        predicted = Map.get(predicted_last_32_by_user, user_id, MapSet.new())
+        predicted = Map.get(predicted_last_32_by_user, user_id, [])
         Scoring.last_32_points(predicted, actual_last_32)
       end
 

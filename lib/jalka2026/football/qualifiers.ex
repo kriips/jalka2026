@@ -14,7 +14,7 @@ defmodule Jalka2026.Football.Qualifiers do
     * `actual_last_32/0` — the teams that actually reached the round of 32, derived from the
       finished group results (empty until the group stage is complete).
 
-  All return `MapSet`s of team ids; `Jalka2026.Scoring.last_32_points/2` scores the overlap.
+  All return unique lists of team ids; `Jalka2026.Scoring.last_32_points/2` scores the overlap.
   """
 
   alias Jalka2026.Football
@@ -23,10 +23,15 @@ defmodule Jalka2026.Football.Qualifiers do
 
   @groups ~w(A B C D E F G H I J K L)
 
+  @type team_id :: term()
+  @type team_ids :: [team_id()]
+  @type user_id :: pos_integer()
+
   @doc """
-  MapSet of team ids the user predicts to reach the round of 32 — their predicted group
+  List of team ids the user predicts to reach the round of 32 — their predicted group
   qualifiers with round-of-32 swap-overrides applied. Empty until all 12 groups are predicted.
   """
+  @spec predicted_last_32(user_id()) :: team_ids()
   def predicted_last_32(user_id) do
     standings = GroupScenarios.get_all_predicted_standings(user_id)
     overrides = Map.get(Football.get_bracket_overrides_by_round(user_id), "round_of_32", [])
@@ -36,10 +41,11 @@ defmodule Jalka2026.Football.Qualifiers do
   end
 
   @doc """
-  `%{user_id => MapSet(team_id)}` of predicted round-of-32 teams for ALL users, bulk-loaded:
+  `%{user_id => [team_id]}` of predicted round-of-32 teams for ALL users, bulk-loaded:
   one query for group matches, one for all group predictions, one for all overrides — then computed
   in memory. Equivalent to calling `predicted_last_32/1` per user, without the per-user N+1.
   """
+  @spec all_predicted_last_32() :: %{optional(user_id()) => team_ids()}
   def all_predicted_last_32 do
     matches_by_group = Football.get_group_matches_grouped()
     overrides_by_user = Football.all_bracket_overrides_by_round()
@@ -56,9 +62,10 @@ defmodule Jalka2026.Football.Qualifiers do
   end
 
   @doc """
-  MapSet of team ids that actually reached the round of 32, from finished group results.
+  List of team ids that actually reached the round of 32, from finished group results.
   Empty until the group stage is complete (last-32 is only determined once groups end).
   """
+  @spec actual_last_32() :: team_ids()
   def actual_last_32 do
     if group_stage_complete?() do
       standings = Map.new(@groups, fn g -> {g, GroupScenarios.get_group_standings(g)} end)
@@ -68,15 +75,16 @@ defmodule Jalka2026.Football.Qualifiers do
       |> standings_team_map()
       |> BracketSeeding.resolve_r32_matchups(third_groups)
       |> Enum.flat_map(fn {_pos, home, away} -> [home, away] end)
-      |> team_id_set()
+      |> unique_team_ids()
     else
-      MapSet.new()
+      []
     end
   end
 
   # Derive the round-of-32 team-id set from a per-group standings map (keyed by group letter) and a
   # user's round_of_32 matchup overrides. Shared by predicted_last_32/1 and all_predicted_last_32/0
   # so the two paths can never diverge. Empty unless all 12 groups are present (bracket unresolvable).
+  @spec last_32_from_standings(map(), list(), String.t()) :: team_ids()
   defp last_32_from_standings(standings, round_of_32_overrides, bracket_version) do
     if map_size(standings) == length(@groups) do
       third_groups = best_third_groups(standings)
@@ -88,9 +96,9 @@ defmodule Jalka2026.Football.Qualifiers do
       |> Enum.flat_map(fn {pos, home, away} ->
         [Map.get(ov, {pos, "a"}) || home, Map.get(ov, {pos, "b"}) || away]
       end)
-      |> team_id_set()
+      |> unique_team_ids()
     else
-      MapSet.new()
+      []
     end
   end
 
@@ -127,11 +135,13 @@ defmodule Jalka2026.Football.Qualifiers do
     Map.new(standings, fn {group, ranked} -> {group, Enum.map(ranked, & &1.team)} end)
   end
 
-  defp team_id_set(teams) do
+  @spec unique_team_ids(Enumerable.t()) :: team_ids()
+  defp unique_team_ids(teams) do
     teams
     |> Enum.reject(&is_nil/1)
     |> Enum.map(& &1.id)
     |> MapSet.new()
+    |> MapSet.to_list()
   end
 
   # The 8 best third-placed groups from a standings map (same tiebreakers for predicted and actual).

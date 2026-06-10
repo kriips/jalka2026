@@ -197,7 +197,7 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
     |> Enum.map(fn {team_id, names} ->
       team = Map.get(teams_by_id, team_id)
       team_name = if team, do: TeamTranslations.translate(team.name), else: "?"
-      {team_name, MapSet.member?(actual, team_id), Enum.sort(names)}
+      {team_name, team_id in actual, Enum.sort(names)}
     end)
     |> Enum.sort_by(fn {_name, _reached, names} -> length(names) end, :desc)
   end
@@ -266,7 +266,11 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
       translated_name = TeamTranslations.translate(prediction.team.name)
 
       Map.put(acc, prediction.phase, [
-        %{team_name: translated_name, team_id: prediction.team.id, user_name: prediction.user.name}
+        %{
+          team_name: translated_name,
+          team_id: prediction.team.id,
+          user_name: prediction.user.name
+        }
         | acc[prediction.phase]
       ])
     end)
@@ -473,7 +477,7 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
   end
 
   defp last_32_points_for(user_id, actual_last_32) do
-    if MapSet.size(actual_last_32) == 0 do
+    if actual_last_32 == [] do
       0
     else
       Scoring.last_32_points(Qualifiers.predicted_last_32(user_id), actual_last_32)
@@ -675,7 +679,7 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
       |> Enum.map(&Football.get_team/1)
       |> Enum.reject(&is_nil/1)
       |> Enum.map(fn team ->
-        %{team_name: TeamTranslations.translate(team.name), reached_phase: MapSet.member?(actual, team.id)}
+        %{team_name: TeamTranslations.translate(team.name), reached_phase: team.id in actual}
       end)
       |> Enum.sort_by(& &1.team_name)
 
@@ -837,7 +841,8 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
 
     data_point = %{
       date: pred.match.date,
-      match: "#{TeamTranslations.translate(pred.match.home_team.name)} vs #{TeamTranslations.translate(pred.match.away_team.name)}",
+      match:
+        "#{TeamTranslations.translate(pred.match.home_team.name)} vs #{TeamTranslations.translate(pred.match.away_team.name)}",
       accuracy: accuracy,
       correct: correct_result
     }

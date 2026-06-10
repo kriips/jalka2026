@@ -60,7 +60,7 @@ defmodule Jalka2026Web.FootballLive.User do
     |> Enum.reject(&is_nil/1)
     |> Enum.map(fn team ->
       name = TeamTranslations.translate(team.name)
-      if MapSet.member?(actual, team.id), do: "<b style=\"color:green\">#{name}</b>", else: name
+      if team.id in actual, do: "<b style=\"color:green\">#{name}</b>", else: name
     end)
     |> Enum.sort()
   end

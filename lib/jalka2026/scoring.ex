@@ -21,6 +21,7 @@ defmodule Jalka2026.Scoring do
   @type match_like :: %{result: String.t(), home_score: integer(), away_score: integer()}
   @type prediction_like ::
           %{result: String.t(), home_score: integer(), away_score: integer()} | nil
+  @type team_ids :: Enumerable.t()
 
   # --- Named constants (single source of truth) ---
   @group_exact_score_points 2
@@ -100,6 +101,7 @@ defmodule Jalka2026.Scoring do
   @doc """
   Points awarded per correctly-predicted "reached last-32" team (the "32 parimat" stage).
   """
+  @spec reach_last_32_points() :: pos_integer()
   def reach_last_32_points, do: @reach_last_32_points
 
   @doc """
@@ -109,6 +111,7 @@ defmodule Jalka2026.Scoring do
 
   Both arguments are enumerables of team ids. Returns an integer.
   """
+  @spec last_32_points(team_ids(), team_ids()) :: non_neg_integer()
   def last_32_points(predicted_team_ids, actual_team_ids) do
     actual = MapSet.new(actual_team_ids)
 
