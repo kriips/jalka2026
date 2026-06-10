@@ -41,7 +41,7 @@ jobs:
 
       - name: Credo (new issues only on PRs)
         if: github.event_name == 'pull_request'
-        run: mix credo diff master --strict
+        run: mix credo diff origin/${{ github.base_ref }} --strict
 
       # Full check on master - currently non-blocking while existing issues are fixed.
       # Remove continue-on-error once all existing violations are resolved.
