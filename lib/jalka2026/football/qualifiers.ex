@@ -30,7 +30,9 @@ defmodule Jalka2026.Football.Qualifiers do
   def predicted_last_32(user_id) do
     standings = GroupScenarios.get_all_predicted_standings(user_id)
     overrides = Map.get(Football.get_bracket_overrides_by_round(user_id), "round_of_32", [])
-    last_32_from_standings(standings, overrides)
+    version = Football.get_playoff_bracket_version(user_id)
+
+    last_32_from_standings(standings, overrides, version)
   end
 
   @doc """
@@ -41,12 +43,15 @@ defmodule Jalka2026.Football.Qualifiers do
   def all_predicted_last_32 do
     matches_by_group = Football.get_group_matches_grouped()
     overrides_by_user = Football.all_bracket_overrides_by_round()
+    bracket_versions_by_user = Football.get_all_playoff_bracket_versions()
 
     Football.get_all_predictions_by_user()
     |> Map.new(fn {user_id, preds_by_match} ->
       standings = bulk_standings(matches_by_group, preds_by_match)
       overrides = Map.get(overrides_by_user, user_id, %{}) |> Map.get("round_of_32", [])
-      {user_id, last_32_from_standings(standings, overrides)}
+      version = Map.get(bracket_versions_by_user, user_id, BracketSeeding.official_version())
+
+      {user_id, last_32_from_standings(standings, overrides, version)}
     end)
   end
 
@@ -72,14 +77,14 @@ defmodule Jalka2026.Football.Qualifiers do
   # Derive the round-of-32 team-id set from a per-group standings map (keyed by group letter) and a
   # user's round_of_32 matchup overrides. Shared by predicted_last_32/1 and all_predicted_last_32/0
   # so the two paths can never diverge. Empty unless all 12 groups are present (bracket unresolvable).
-  defp last_32_from_standings(standings, round_of_32_overrides) do
+  defp last_32_from_standings(standings, round_of_32_overrides, bracket_version) do
     if map_size(standings) == length(@groups) do
       third_groups = best_third_groups(standings)
       ov = Map.new(round_of_32_overrides, fn o -> {{o.position, o.side}, o.team} end)
 
       standings
       |> standings_team_map()
-      |> BracketSeeding.resolve_r32_matchups(third_groups)
+      |> BracketSeeding.resolve_r32_matchups(third_groups, bracket_version)
       |> Enum.flat_map(fn {pos, home, away} ->
         [Map.get(ov, {pos, "a"}) || home, Map.get(ov, {pos, "b"}) || away]
       end)
@@ -126,8 +131,11 @@ defmodule Jalka2026.Football.Qualifiers do
     standings
     |> Enum.map(fn {group, ranked} ->
       case Enum.at(ranked, 2) do
-        nil -> nil
-        third -> %{group: group, points: third.points, gd: third.goal_difference, gf: third.goals_for}
+        nil ->
+          nil
+
+        third ->
+          %{group: group, points: third.points, gd: third.goal_difference, gf: third.goals_for}
       end
     end)
     |> Enum.reject(&is_nil/1)

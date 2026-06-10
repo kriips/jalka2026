@@ -416,6 +416,39 @@ defmodule Jalka2026.FootballContextExtendedTest do
       assert Football.get_bracket_prediction(user.id, "quarter_final", 1) == nil
       # round_of_16 should still exist (cascade is from after the round)
     end
+
+    test "reset_playoff_bracket_to_official/1 clears playoff picks and switches version" do
+      user = user_fixture()
+      team = team_fixture()
+
+      user
+      |> Ecto.Changeset.change(playoff_bracket_version: "legacy_2026")
+      |> Repo.update!()
+
+      {:ok, _} =
+        Football.set_bracket_prediction(%{
+          user_id: user.id,
+          round: "round_of_16",
+          position: 1,
+          team_id: team.id
+        })
+
+      Football.add_playoff_prediction(%{
+        user_id: user.id,
+        team_id: team.id,
+        phase: 16
+      })
+
+      assert Football.legacy_playoff_bracket?(user.id)
+      assert Football.get_bracket_predictions_by_user(user.id) != []
+      assert Football.get_playoff_predictions_by_user(user.id) != []
+
+      assert {:ok, _changes} = Football.reset_playoff_bracket_to_official(user.id)
+
+      assert Football.get_playoff_bracket_version(user.id) == "official_2026"
+      assert Football.get_bracket_predictions_by_user(user.id) == []
+      assert Football.get_playoff_predictions_by_user(user.id) == []
+    end
   end
 
   describe "bracket accuracy and points" do
