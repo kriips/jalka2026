@@ -162,47 +162,9 @@ defmodule Jalka2026Web.UserPredictionLive.Groups do
     match_id = String.to_integer(match_id_str)
 
     if socket.assigns.expanded_match_id == match_id do
-      # Close the dropdown - re-insert stream item to remove the panel
-      {match, scores} = Enum.find(socket.assigns.predictions, fn {m, _} -> m.id == match_id end)
-
-      {:noreply,
-       socket
-       |> assign(
-         expanded_match_id: nil,
-         simulation_data: nil,
-         detailed_history: nil,
-         simulating: false
-       )
-       |> stream_insert(:prediction_items, %{id: "match-#{match.id}", match: match, scores: scores})}
+      {:noreply, close_analysis_panel(socket, match_id)}
     else
-      # Open the dropdown and load all data
-      {match, scores} = Enum.find(socket.assigns.predictions, fn {m, _} -> m.id == match_id end)
-      send(self(), {:load_analysis_data, match.home_team.code, match.away_team.code})
-
-      # Also re-insert the previously expanded match to close its panel
-      socket =
-        if socket.assigns.expanded_match_id do
-          prev_id = socket.assigns.expanded_match_id
-          {prev_match, prev_scores} = Enum.find(socket.assigns.predictions, fn {m, _} -> m.id == prev_id end)
-
-          stream_insert(socket, :prediction_items, %{
-            id: "match-#{prev_match.id}",
-            match: prev_match,
-            scores: prev_scores
-          })
-        else
-          socket
-        end
-
-      {:noreply,
-       socket
-       |> assign(
-         expanded_match_id: match_id,
-         simulation_data: nil,
-         detailed_history: nil,
-         simulating: true
-       )
-       |> stream_insert(:prediction_items, %{id: "match-#{match.id}", match: match, scores: scores})}
+      {:noreply, open_analysis_panel(socket, match_id)}
     end
   end
 
@@ -211,7 +173,9 @@ defmodule Jalka2026Web.UserPredictionLive.Groups do
     socket =
       if socket.assigns.expanded_match_id do
         prev_id = socket.assigns.expanded_match_id
-        {prev_match, prev_scores} = Enum.find(socket.assigns.predictions, fn {m, _} -> m.id == prev_id end)
+
+        {prev_match, prev_scores} =
+          Enum.find(socket.assigns.predictions, fn {m, _} -> m.id == prev_id end)
 
         stream_insert(socket, :prediction_items, %{
           id: "match-#{prev_match.id}",
@@ -276,6 +240,50 @@ defmodule Jalka2026Web.UserPredictionLive.Groups do
        |> put_flash(:error, "Ennustamine on suletud - turniir on alanud")
        |> redirect(to: "/")}
     end
+  end
+
+  defp close_analysis_panel(socket, match_id) do
+    {match, scores} = find_prediction(socket, match_id)
+
+    socket
+    |> assign(
+      expanded_match_id: nil,
+      simulation_data: nil,
+      detailed_history: nil,
+      simulating: false
+    )
+    |> stream_insert(:prediction_items, %{id: "match-#{match.id}", match: match, scores: scores})
+  end
+
+  defp open_analysis_panel(socket, match_id) do
+    {match, scores} = find_prediction(socket, match_id)
+    send(self(), {:load_analysis_data, match.home_team.code, match.away_team.code})
+
+    socket
+    |> close_previous_analysis_panel()
+    |> assign(
+      expanded_match_id: match_id,
+      simulation_data: nil,
+      detailed_history: nil,
+      simulating: true
+    )
+    |> stream_insert(:prediction_items, %{id: "match-#{match.id}", match: match, scores: scores})
+  end
+
+  defp close_previous_analysis_panel(%{assigns: %{expanded_match_id: nil}} = socket), do: socket
+
+  defp close_previous_analysis_panel(socket) do
+    {prev_match, prev_scores} = find_prediction(socket, socket.assigns.expanded_match_id)
+
+    stream_insert(socket, :prediction_items, %{
+      id: "match-#{prev_match.id}",
+      match: prev_match,
+      scores: prev_scores
+    })
+  end
+
+  defp find_prediction(socket, match_id) do
+    Enum.find(socket.assigns.predictions, fn {match, _scores} -> match.id == match_id end)
   end
 
   # Toggle predicted standings visibility (always visible, kept for potential future use)
@@ -480,6 +488,10 @@ defmodule Jalka2026Web.UserPredictionLive.Groups do
 
   # Ignore playoff sync messages in Groups view (they're handled in Playoffs view)
   def handle_info({:prediction_sync, :playoff_prediction_changed, _data}, socket) do
+    {:noreply, socket}
+  end
+
+  def handle_info({:prediction_sync, :playoff_bracket_reset, _data}, socket) do
     {:noreply, socket}
   end
 

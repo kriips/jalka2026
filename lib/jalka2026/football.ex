@@ -10,9 +10,9 @@ defmodule Jalka2026.Football do
   require Logger
 
   import Ecto.Query, warn: false
-  alias Jalka2026.Repo
-
+  alias Jalka2026.Accounts.User
   alias Jalka2026.Competitions
+  alias Jalka2026.Repo
 
   alias Jalka2026.Football.{
     BracketPrediction,
@@ -35,6 +35,9 @@ defmodule Jalka2026.Football do
   @type match :: Match.t()
   @type prediction :: GroupPrediction.t()
   @type team :: Jalka2026.Football.Team.t()
+
+  @official_playoff_bracket_version "official_2026"
+  @legacy_playoff_bracket_version "legacy_2026"
 
   ## Canonical Group List
 
@@ -162,7 +165,7 @@ defmodule Jalka2026.Football do
         )
 
       Repo.all(query)
-      |> Enum.map(fn match ->
+      |> Enum.map(fn %Match{} = match ->
         %Match{match | date: Timex.shift(match.date, hours: +2)}
       end)
     end)
@@ -223,7 +226,7 @@ defmodule Jalka2026.Football do
 
   defp index_bracket_picks(rows) do
     Enum.reduce(rows, %{32 => [], 16 => [], 8 => [], 4 => [], 2 => []}, fn {_uid, round, team_id},
-                                                                          acc ->
+                                                                           acc ->
       case BracketPrediction.round_to_phase(round) do
         nil -> acc
         phase -> Map.update(acc, phase, [team_id], &[team_id | &1])
@@ -255,7 +258,10 @@ defmodule Jalka2026.Football do
   `%{phase, team_id, team}`.
   """
   def bracket_playoff_predictions_by_user(user_id) do
-    from(bp in BracketPrediction, where: bp.user_id == ^user_id and is_nil(bp.side), preload: [:team])
+    from(bp in BracketPrediction,
+      where: bp.user_id == ^user_id and is_nil(bp.side),
+      preload: [:team]
+    )
     |> Repo.all()
     |> Enum.map(fn bp ->
       %{phase: BracketPrediction.round_to_phase(bp.round), team_id: bp.team_id, team: bp.team}
@@ -1357,6 +1363,56 @@ defmodule Jalka2026.Football do
 
   ## Bracket Predictions
 
+  @doc "Returns the user's playoff bracket seeding version."
+  def get_playoff_bracket_version(user_id) do
+    case Repo.get(User, user_id) do
+      %User{playoff_bracket_version: version} when is_binary(version) ->
+        version
+
+      _ ->
+        @official_playoff_bracket_version
+    end
+  end
+
+  @doc "Returns `%{user_id => playoff_bracket_version}` for all users."
+  def get_all_playoff_bracket_versions do
+    from(u in User, select: {u.id, u.playoff_bracket_version})
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @doc "Returns true when the user is still using the legacy playoff bracket path."
+  def legacy_playoff_bracket?(user_id) do
+    get_playoff_bracket_version(user_id) == @legacy_playoff_bracket_version
+  end
+
+  @doc """
+  Clears a user's playoff bracket picks and switches them to the corrected official 2026 seeding.
+
+  Group-stage predictions are intentionally left untouched; they are used to refill the fresh
+  Round of 32 bracket after reset.
+  """
+  def reset_playoff_bracket_to_official(user_id) do
+    Ecto.Multi.new()
+    |> Ecto.Multi.delete_all(
+      :bracket_predictions,
+      from(bp in BracketPrediction, where: bp.user_id == ^user_id)
+    )
+    |> Ecto.Multi.delete_all(
+      :playoff_predictions,
+      from(pp in PlayoffPrediction, where: pp.user_id == ^user_id)
+    )
+    |> Ecto.Multi.update_all(
+      :user,
+      from(u in User, where: u.id == ^user_id),
+      set: [
+        playoff_bracket_version: @official_playoff_bracket_version,
+        updated_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+      ]
+    )
+    |> Repo.transaction()
+  end
+
   @doc """
   Get all bracket predictions (winner predictions only, side IS NULL) for a user.
   """
@@ -1401,7 +1457,9 @@ defmodule Jalka2026.Football do
   """
   def get_bracket_prediction(user_id, round, position) do
     from(bp in BracketPrediction,
-      where: bp.user_id == ^user_id and bp.round == ^round and bp.position == ^position and is_nil(bp.side)
+      where:
+        bp.user_id == ^user_id and bp.round == ^round and bp.position == ^position and
+          is_nil(bp.side)
     )
     |> Repo.one()
     |> Repo.preload(:team)
@@ -1412,7 +1470,9 @@ defmodule Jalka2026.Football do
   """
   def get_bracket_override(user_id, round, position, side) do
     from(bp in BracketPrediction,
-      where: bp.user_id == ^user_id and bp.round == ^round and bp.position == ^position and bp.side == ^side
+      where:
+        bp.user_id == ^user_id and bp.round == ^round and bp.position == ^position and
+          bp.side == ^side
     )
     |> Repo.one()
     |> Repo.preload(:team)

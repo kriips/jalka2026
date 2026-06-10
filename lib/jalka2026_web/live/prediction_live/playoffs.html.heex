@@ -35,6 +35,25 @@
         </div>
         <% end %>
 
+        <%= if @legacy_playoff_bracket do %>
+        <div class="alert alert-warning" role="alert">
+            <p>
+                Sinu play-off'i tabel kasutab varasemat asetust. Senised valikud jäävad alles, kui sa neid ei lähtesta.
+                Parandatud ametliku asetuse kasutamiseks lähtesta play-off'i tabel ja tee play-off'i valikud uuesti.
+            </p>
+            <%= if @predictions_open do %>
+                <button
+                    type="button"
+                    class="button button-outline"
+                    phx-click="reset-playoff-bracket-seeding"
+                    data-confirm="See kustutab sinu senised play-off'i tabeli valikud. Alagrupiennustused jäävad alles. Kas soovid jätkata?"
+                >
+                    Lähtesta ametlikule asetusele
+                </button>
+            <% end %>
+        </div>
+        <% end %>
+
         <div class="bracket-progress-bar">
             <div class="progress-info">
                 <span class="progress-label">Täidetud</span>

@@ -10,6 +10,7 @@ defmodule Jalka2026.Accounts.User do
           is_admin: boolean(),
           competition_id: String.t(),
           theme: String.t(),
+          playoff_bracket_version: String.t(),
           confirmed_at: NaiveDateTime.t() | nil,
           inserted_at: NaiveDateTime.t() | nil,
           updated_at: NaiveDateTime.t() | nil
@@ -25,6 +26,7 @@ defmodule Jalka2026.Accounts.User do
     field(:is_admin, :boolean, default: false)
     field(:competition_id, :string, default: Jalka2026.Competitions.current_id())
     field(:theme, :string, default: "light")
+    field(:playoff_bracket_version, :string, default: "official_2026")
 
     timestamps()
   end
