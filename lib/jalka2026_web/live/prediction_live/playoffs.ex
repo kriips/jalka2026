@@ -76,37 +76,10 @@ defmodule Jalka2026Web.UserPredictionLive.Playoffs do
 
   @impl true
   def handle_event("reset-playoff-bracket-seeding", _params, socket) do
-    if Jalka2026Web.LiveHelpers.predictions_open?() do
-      user_id = socket.assigns.current_user.id
-
-      case Football.reset_playoff_bracket_to_official(user_id) do
-        {:ok, _changes} ->
-          socket = load_bracket(socket, user_id)
-
-          current_round =
-            Enum.find(socket.assigns.rounds, &(&1.round == socket.assigns.current_stage))
-
-          {:noreply,
-           socket
-           |> assign(current_round: current_round, swap_slot: nil)
-           |> Phoenix.LiveView.put_flash(
-             :info,
-             "Play-off'i tabel lähtestati ametliku asetuse järgi. Tee play-off'i valikud uuesti."
-           )}
-
-        {:error, _step, _reason, _changes} ->
-          {:noreply,
-           socket
-           |> Phoenix.LiveView.put_flash(
-             :error,
-             "Play-off'i tabeli lähtestamine ebaõnnestus. Proovi uuesti."
-           )}
-      end
+    with :ok <- ensure_predictions_open() do
+      reset_playoff_bracket(socket)
     else
-      {:noreply,
-       socket
-       |> Phoenix.LiveView.put_flash(:error, "Ennustamine on suletud - turniir on alanud")
-       |> Phoenix.LiveView.redirect(to: "/")}
+      :closed -> predictions_closed_reply(socket)
     end
   end
 
@@ -116,60 +89,18 @@ defmodule Jalka2026Web.UserPredictionLive.Playoffs do
         %{"round" => round, "position" => pos, "team-id" => team_id_str},
         socket
       ) do
-    if Jalka2026Web.LiveHelpers.predictions_open?() do
-      case Jalka2026Web.LiveRateLimiter.check_playoff_prediction_rate(
-             socket.assigns.current_user.id
-           ) do
-        :ok ->
-          user_id = socket.assigns.current_user.id
-          team_id = String.to_integer(team_id_str)
-          position = String.to_integer(pos)
+    with :ok <- ensure_predictions_open(),
+         :ok <- check_playoff_prediction_rate(socket) do
+      user_id = socket.assigns.current_user.id
+      team_id = String.to_integer(team_id_str)
+      position = String.to_integer(pos)
 
-          # If switching from a different team, cascade-remove the old team first
-          case Football.get_bracket_prediction(user_id, round, position) do
-            %{team_id: old_team_id} when not is_nil(old_team_id) and old_team_id != team_id ->
-              Football.cascade_bracket_removal(user_id, old_team_id, round)
-              sync_to_playoff_prediction(user_id, old_team_id, round, false)
+      set_winner_pick(user_id, round, position, team_id)
 
-            _ ->
-              :ok
-          end
-
-          Football.set_bracket_prediction(%{
-            user_id: user_id,
-            round: round,
-            position: position,
-            team_id: team_id
-          })
-
-          # Also sync to playoff_predictions for backward compatibility
-          sync_to_playoff_prediction(user_id, team_id, round, true)
-
-          PredictionSync.broadcast_playoff_prediction(
-            user_id,
-            team_id,
-            round_to_phase(round),
-            true,
-            self()
-          )
-
-          socket = load_bracket(socket, user_id)
-
-          current_round =
-            Enum.find(socket.assigns.rounds, &(&1.round == socket.assigns.current_stage))
-
-          {:noreply, assign(socket, current_round: current_round, swap_slot: nil)}
-
-        {:error, :rate_limited} ->
-          {:noreply,
-           socket
-           |> Phoenix.LiveView.put_flash(:error, "Liiga palju muudatusi. Oota veidi.")}
-      end
+      {:noreply, reload_current_round(socket, user_id)}
     else
-      {:noreply,
-       socket
-       |> Phoenix.LiveView.put_flash(:error, "Ennustamine on suletud - turniir on alanud")
-       |> Phoenix.LiveView.redirect(to: "/")}
+      :closed -> predictions_closed_reply(socket)
+      {:error, :rate_limited} -> rate_limited_reply(socket)
     end
   end
 
@@ -202,91 +133,18 @@ defmodule Jalka2026Web.UserPredictionLive.Playoffs do
         %{"round" => round, "position" => pos, "team-id" => team_id_str} = params,
         socket
       ) do
-    if Jalka2026Web.LiveHelpers.predictions_open?() do
-      case Jalka2026Web.LiveRateLimiter.check_playoff_prediction_rate(
-             socket.assigns.current_user.id
-           ) do
-        :ok ->
-          user_id = socket.assigns.current_user.id
-          team_id = String.to_integer(team_id_str)
-          position = String.to_integer(pos)
-          side = Map.get(params, "side")
+    with :ok <- ensure_predictions_open(),
+         :ok <- check_playoff_prediction_rate(socket) do
+      user_id = socket.assigns.current_user.id
+      team_id = String.to_integer(team_id_str)
+      position = String.to_integer(pos)
 
-          if side do
-            # Store a matchup override — replaces team_a or team_b display without selecting a winner
-            # Find the old team currently displayed at this side
-            slot = Enum.find(socket.assigns.current_round.slots, &(&1.position == position))
-            old_team = if side == "a", do: slot && slot.team_a, else: slot && slot.team_b
-            old_team_id = old_team && old_team.id
+      swap_team(socket, user_id, round, position, team_id, Map.get(params, "side"))
 
-            # Clear winner if it was the team being swapped out
-            if old_team_id do
-              case Football.get_bracket_prediction(user_id, round, position) do
-                %{team_id: ^old_team_id} ->
-                  Football.cascade_bracket_removal(user_id, old_team_id, round)
-                  sync_to_playoff_prediction(user_id, old_team_id, round, false)
-                  Football.clear_bracket_prediction(user_id, round, position)
-
-                _ ->
-                  :ok
-              end
-            end
-
-            # Set the matchup override
-            Football.set_bracket_override(%{
-              user_id: user_id,
-              round: round,
-              position: position,
-              side: side,
-              team_id: team_id
-            })
-          else
-            # Winner slot swap (no side): set as winner directly
-            case Football.get_bracket_prediction(user_id, round, position) do
-              %{team_id: old_team_id} when not is_nil(old_team_id) and old_team_id != team_id ->
-                Football.cascade_bracket_removal(user_id, old_team_id, round)
-                sync_to_playoff_prediction(user_id, old_team_id, round, false)
-
-              _ ->
-                :ok
-            end
-
-            Football.set_bracket_prediction(%{
-              user_id: user_id,
-              round: round,
-              position: position,
-              team_id: team_id
-            })
-
-            sync_to_playoff_prediction(user_id, team_id, round, true)
-
-            PredictionSync.broadcast_playoff_prediction(
-              user_id,
-              team_id,
-              round_to_phase(round),
-              true,
-              self()
-            )
-          end
-
-          socket = load_bracket(socket, user_id)
-
-          current_round =
-            Enum.find(socket.assigns.rounds, &(&1.round == socket.assigns.current_stage))
-
-          {:noreply, assign(socket, current_round: current_round, swap_slot: nil)}
-
-        {:error, :rate_limited} ->
-          {:noreply,
-           socket
-           |> Phoenix.LiveView.put_flash(:error, "Liiga palju muudatusi. Oota veidi.")
-           |> assign(swap_slot: nil)}
-      end
+      {:noreply, reload_current_round(socket, user_id)}
     else
-      {:noreply,
-       socket
-       |> Phoenix.LiveView.put_flash(:error, "Ennustamine on suletud - turniir on alanud")
-       |> Phoenix.LiveView.redirect(to: "/")}
+      :closed -> predictions_closed_reply(socket)
+      {:error, :rate_limited} -> rate_limited_reply(socket, clear_swap: true)
     end
   end
 
@@ -323,6 +181,144 @@ defmodule Jalka2026Web.UserPredictionLive.Playoffs do
        |> Phoenix.LiveView.put_flash(:error, "Ennustamine on suletud - turniir on alanud")
        |> Phoenix.LiveView.redirect(to: "/")}
     end
+  end
+
+  defp ensure_predictions_open do
+    if Jalka2026Web.LiveHelpers.predictions_open?(), do: :ok, else: :closed
+  end
+
+  defp check_playoff_prediction_rate(socket) do
+    Jalka2026Web.LiveRateLimiter.check_playoff_prediction_rate(socket.assigns.current_user.id)
+  end
+
+  defp reset_playoff_bracket(socket) do
+    user_id = socket.assigns.current_user.id
+
+    case Football.reset_playoff_bracket_to_official(user_id) do
+      {:ok, _changes} ->
+        {:noreply,
+         socket
+         |> reload_current_round(user_id)
+         |> Phoenix.LiveView.put_flash(
+           :info,
+           "Play-off'i tabel lähtestati ametliku asetuse järgi. Tee play-off'i valikud uuesti."
+         )}
+
+      {:error, _step, _reason, _changes} ->
+        {:noreply,
+         socket
+         |> Phoenix.LiveView.put_flash(
+           :error,
+           "Play-off'i tabeli lähtestamine ebaõnnestus. Proovi uuesti."
+         )}
+    end
+  end
+
+  defp set_winner_pick(user_id, round, position, team_id) do
+    maybe_remove_replaced_winner(user_id, round, position, team_id)
+
+    Football.set_bracket_prediction(%{
+      user_id: user_id,
+      round: round,
+      position: position,
+      team_id: team_id
+    })
+
+    sync_to_playoff_prediction(user_id, team_id, round, true)
+    broadcast_playoff_prediction(user_id, team_id, round, true)
+  end
+
+  defp maybe_remove_replaced_winner(user_id, round, position, new_team_id) do
+    case Football.get_bracket_prediction(user_id, round, position) do
+      %{team_id: old_team_id} when not is_nil(old_team_id) and old_team_id != new_team_id ->
+        Football.cascade_bracket_removal(user_id, old_team_id, round)
+        sync_to_playoff_prediction(user_id, old_team_id, round, false)
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp swap_team(socket, user_id, round, position, team_id, nil) do
+    set_winner_pick(user_id, round, position, team_id)
+    socket
+  end
+
+  defp swap_team(socket, user_id, round, position, team_id, side) do
+    old_team_id = current_slot_team_id(socket, position, side)
+    maybe_clear_swapped_out_winner(user_id, round, position, old_team_id)
+
+    Football.set_bracket_override(%{
+      user_id: user_id,
+      round: round,
+      position: position,
+      side: side,
+      team_id: team_id
+    })
+
+    socket
+  end
+
+  defp current_slot_team_id(socket, position, side) do
+    case Enum.find(socket.assigns.current_round.slots, &(&1.position == position)) do
+      nil ->
+        nil
+
+      slot ->
+        team = if side == "a", do: slot.team_a, else: slot.team_b
+        team && team.id
+    end
+  end
+
+  defp maybe_clear_swapped_out_winner(_user_id, _round, _position, nil), do: :ok
+
+  defp maybe_clear_swapped_out_winner(user_id, round, position, old_team_id) do
+    case Football.get_bracket_prediction(user_id, round, position) do
+      %{team_id: ^old_team_id} ->
+        Football.cascade_bracket_removal(user_id, old_team_id, round)
+        sync_to_playoff_prediction(user_id, old_team_id, round, false)
+        Football.clear_bracket_prediction(user_id, round, position)
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp broadcast_playoff_prediction(user_id, team_id, round, include) do
+    PredictionSync.broadcast_playoff_prediction(
+      user_id,
+      team_id,
+      round_to_phase(round),
+      include,
+      self()
+    )
+  end
+
+  defp reload_current_round(socket, user_id) do
+    socket = load_bracket(socket, user_id)
+    current_round = Enum.find(socket.assigns.rounds, &(&1.round == socket.assigns.current_stage))
+
+    assign(socket, current_round: current_round, swap_slot: nil)
+  end
+
+  defp predictions_closed_reply(socket) do
+    {:noreply,
+     socket
+     |> Phoenix.LiveView.put_flash(:error, "Ennustamine on suletud - turniir on alanud")
+     |> Phoenix.LiveView.redirect(to: "/")}
+  end
+
+  defp rate_limited_reply(socket, opts \\ []) do
+    socket = Phoenix.LiveView.put_flash(socket, :error, "Liiga palju muudatusi. Oota veidi.")
+
+    socket =
+      if Keyword.get(opts, :clear_swap, false) do
+        assign(socket, swap_slot: nil)
+      else
+        socket
+      end
+
+    {:noreply, socket}
   end
 
   # Handle prediction sync from other devices
@@ -571,54 +567,28 @@ defmodule Jalka2026Web.UserPredictionLive.Playoffs do
       # Get the pool of teams available for swapping into this round
       swap_pool = get_swap_pool(round, r32_matchups, predictions_by_round, all_tournament_teams)
 
-      # Collect ALL teams displayed on this stage (all matchup teams across all positions)
-      all_displayed_team_ids =
-        Enum.reduce(1..positions, MapSet.new(), fn pos, acc ->
-          {team_a, team_b} =
-            get_matchup_teams(
-              round,
-              pos,
-              r32_matchups,
-              predictions_by_round,
-              round_overrides,
-              playoff_bracket_version
-            )
+      matchup_context = %{
+        round: round,
+        r32_matchups: r32_matchups,
+        predictions_by_round: predictions_by_round,
+        round_overrides: round_overrides,
+        playoff_bracket_version: playoff_bracket_version
+      }
 
-          acc
-          |> then(fn s -> if team_a, do: MapSet.put(s, team_a.id), else: s end)
-          |> then(fn s -> if team_b, do: MapSet.put(s, team_b.id), else: s end)
-        end)
+      all_displayed_team_ids =
+        displayed_team_ids(positions, matchup_context)
         |> MapSet.union(placed_team_ids)
+
+      slot_context =
+        Map.merge(matchup_context, %{
+          round_predictions: round_predictions,
+          swap_pool: swap_pool,
+          all_displayed_team_ids: all_displayed_team_ids
+        })
 
       slots =
         Enum.map(1..positions, fn pos ->
-          prediction = Enum.find(round_predictions, &(&1.position == pos))
-
-          # Determine the two teams in this matchup (with overrides applied)
-          {team_a, team_b} =
-            get_matchup_teams(
-              round,
-              pos,
-              r32_matchups,
-              predictions_by_round,
-              round_overrides,
-              playoff_bracket_version
-            )
-
-          # Swap candidates: teams from the pool not already displayed on this stage
-          swap_candidates =
-            swap_pool
-            |> Enum.reject(fn team ->
-              MapSet.member?(all_displayed_team_ids, team.id)
-            end)
-
-          %{
-            position: pos,
-            predicted_team: prediction && prediction.team,
-            team_a: team_a,
-            team_b: team_b,
-            swap_candidates: swap_candidates
-          }
+          build_slot(pos, slot_context)
         end)
 
       %{
@@ -627,6 +597,55 @@ defmodule Jalka2026Web.UserPredictionLive.Playoffs do
         slots: slots,
         slot_count: positions
       }
+    end)
+  end
+
+  defp displayed_team_ids(positions, context) do
+    Enum.reduce(1..positions, MapSet.new(), fn pos, acc ->
+      {team_a, team_b} =
+        get_matchup_teams(
+          context.round,
+          pos,
+          context.r32_matchups,
+          context.predictions_by_round,
+          context.round_overrides,
+          context.playoff_bracket_version
+        )
+
+      acc
+      |> put_team_id(team_a)
+      |> put_team_id(team_b)
+    end)
+  end
+
+  defp put_team_id(team_ids, nil), do: team_ids
+  defp put_team_id(team_ids, team), do: MapSet.put(team_ids, team.id)
+
+  defp build_slot(pos, context) do
+    prediction = Enum.find(context.round_predictions, &(&1.position == pos))
+
+    {team_a, team_b} =
+      get_matchup_teams(
+        context.round,
+        pos,
+        context.r32_matchups,
+        context.predictions_by_round,
+        context.round_overrides,
+        context.playoff_bracket_version
+      )
+
+    %{
+      position: pos,
+      predicted_team: prediction && prediction.team,
+      team_a: team_a,
+      team_b: team_b,
+      swap_candidates: swap_candidates(context.swap_pool, context.all_displayed_team_ids)
+    }
+  end
+
+  defp swap_candidates(swap_pool, all_displayed_team_ids) do
+    Enum.reject(swap_pool, fn team ->
+      MapSet.member?(all_displayed_team_ids, team.id)
     end)
   end
 

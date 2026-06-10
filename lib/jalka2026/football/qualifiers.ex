@@ -99,15 +99,23 @@ defmodule Jalka2026.Football.Qualifiers do
   # matches are predicted, matching GroupScenarios.get_all_predicted_standings/1.
   defp bulk_standings(matches_by_group, preds_by_match) do
     Enum.reduce(@groups, %{}, fn letter, acc ->
-      matches = Map.get(matches_by_group, "Alagrupp #{letter}", [])
-      group_preds = Enum.map(matches, fn m -> match_tuple(m, Map.get(preds_by_match, m.id)) end)
-
-      if matches != [] and Enum.all?(group_preds, fn {_m, {h, a}} -> h != "-" and a != "-" end) do
-        Map.put(acc, letter, GroupScenarios.calculate_predicted_standings(group_preds))
-      else
-        acc
-      end
+      put_bulk_standing(acc, letter, matches_by_group, preds_by_match)
     end)
+  end
+
+  defp put_bulk_standing(acc, letter, matches_by_group, preds_by_match) do
+    matches = Map.get(matches_by_group, "Alagrupp #{letter}", [])
+    group_preds = Enum.map(matches, fn m -> match_tuple(m, Map.get(preds_by_match, m.id)) end)
+
+    if complete_group_predictions?(matches, group_preds) do
+      Map.put(acc, letter, GroupScenarios.calculate_predicted_standings(group_preds))
+    else
+      acc
+    end
+  end
+
+  defp complete_group_predictions?(matches, group_preds) do
+    matches != [] and Enum.all?(group_preds, fn {_m, {h, a}} -> h != "-" and a != "-" end)
   end
 
   defp match_tuple(match, %{home_score: home_score, away_score: away_score}),

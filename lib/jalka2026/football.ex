@@ -10,10 +10,9 @@ defmodule Jalka2026.Football do
   require Logger
 
   import Ecto.Query, warn: false
-  alias Jalka2026.Repo
-
-  alias Jalka2026.Competitions
   alias Jalka2026.Accounts.User
+  alias Jalka2026.Competitions
+  alias Jalka2026.Repo
 
   alias Jalka2026.Football.{
     BracketPrediction,
