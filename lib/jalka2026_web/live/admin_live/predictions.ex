@@ -45,8 +45,11 @@ defmodule Jalka2026Web.AdminLive.Predictions do
         2 => length(Map.get(playoff_predictions, 2, []))
       }
 
-      # Expected counts per phase
-      expected_counts = %{32 => 16, 16 => 16, 8 => 8, 4 => 4, 2 => 2}
+      # Expected counts per phase. Predictions are derived from bracket winner
+      # picks, so phase P holds the winners picked in that round: 16 in the
+      # round of 32, 8 in the round of 16, 4 in the QFs, 2 in the SFs and the
+      # single champion at phase 2.
+      expected_counts = %{32 => 16, 16 => 8, 8 => 4, 4 => 2, 2 => 1}
 
       # Validate
       group_valid = group_count == 72

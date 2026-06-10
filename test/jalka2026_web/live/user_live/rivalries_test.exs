@@ -56,4 +56,37 @@ defmodule Jalka2026Web.UserLive.RivalriesTest do
       assert html =~ "Kasutajaid ei leitud" || html =~ "Lisa rivaal"
     end
   end
+
+  describe "UserLive.Rivalries (with a rival)" do
+    setup :register_and_log_in_user
+
+    setup %{user: user} do
+      rival = Jalka2026.AccountsFixtures.user_fixture()
+      {:ok, _} = Jalka2026.Football.add_rival(user.id, rival.id)
+      %{rival: rival}
+    end
+
+    test "view_rivalry opens the details modal", %{conn: conn, rival: rival} do
+      {:ok, view, _html} = live(conn, "/users/rivalries")
+
+      html = render_click(view, "view_rivalry", %{"rival_id" => to_string(rival.id)})
+
+      assert html =~ "Rivaalitsus: #{rival.name}"
+      assert html =~ "Sinu punktid"
+    end
+
+    test "does not render a notifications toggle", %{conn: conn} do
+      {:ok, _view, html} = live(conn, "/users/rivalries")
+
+      refute html =~ "Teavitused"
+    end
+
+    test "rivalry_created broadcast does not crash an open LiveView", %{conn: conn, rival: rival} do
+      {:ok, view, _html} = live(conn, "/users/rivalries")
+
+      send(view.pid, {:rivalry_created, %{from_user_id: rival.id}})
+
+      assert render(view) =~ "Rivaalid"
+    end
+  end
 end

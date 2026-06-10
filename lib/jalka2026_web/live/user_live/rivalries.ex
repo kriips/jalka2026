@@ -90,21 +90,6 @@ defmodule Jalka2026Web.UserLive.Rivalries do
   end
 
   @impl true
-  def handle_event("toggle_notifications", %{"rival_id" => rival_id}, socket) do
-    user = socket.assigns.current_user
-    rival_id = String.to_integer(rival_id)
-
-    case Football.toggle_rivalry_notifications(user.id, rival_id) do
-      {:ok, _} ->
-        rivalries_with_stats = Football.get_user_rivalries_with_stats(user.id)
-        {:noreply, assign(socket, rivalries: rivalries_with_stats)}
-
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Viga teavituste muutmisel")}
-    end
-  end
-
-  @impl true
   def handle_event("view_rivalry", %{"rival_id" => rival_id}, socket) do
     rival_id = String.to_integer(rival_id)
 
@@ -117,7 +102,8 @@ defmodule Jalka2026Web.UserLive.Rivalries do
       user_id = socket.assigns.current_user.id
       differing = Football.get_differing_predictions(user_id, rival_id)
 
-      {:noreply, assign(socket, selected_rivalry: %{rivalry | differing_predictions: differing})}
+      {:noreply,
+       assign(socket, selected_rivalry: Map.put(rivalry, :differing_predictions, differing))}
     else
       {:noreply, socket}
     end
@@ -144,6 +130,13 @@ defmodule Jalka2026Web.UserLive.Rivalries do
     user = socket.assigns.current_user
     rivalries_with_stats = Football.get_user_rivalries_with_stats(user.id)
     {:noreply, assign(socket, rivalries: rivalries_with_stats)}
+  end
+
+  @impl true
+  def handle_info({:rivalry_created, _data}, socket) do
+    # Someone added us as a rival; our own list is unaffected (rivalries are
+    # one-directional) but the broadcast must not crash an open LiveView.
+    {:noreply, socket}
   end
 
   defp get_users_for_dropdown(leaderboard, current_user_id, rivalries) do
@@ -275,19 +268,6 @@ defmodule Jalka2026Web.UserLive.Rivalries do
                       phx-value-rival_id={rivalry.rival_id}
                     >
                       Vaata detaile
-                    </button>
-                    <button
-                      type="button"
-                      class={"button button-small #{if rivalry.notifications_enabled, do: "button-outline", else: "button-muted"}"}
-                      phx-click="toggle_notifications"
-                      phx-value-rival_id={rivalry.rival_id}
-                      title={if rivalry.notifications_enabled, do: "Teavitused sees", else: "Teavitused väljas"}
-                    >
-                      <%= if rivalry.notifications_enabled do %>
-                        Teavitused sees
-                      <% else %>
-                        Teavitused väljas
-                      <% end %>
                     </button>
                     <.link
                       navigate={Routes.football_compare_path(@socket, :view, user1: @current_user.id, user2: rivalry.rival_id)}
