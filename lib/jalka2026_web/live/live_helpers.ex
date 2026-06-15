@@ -1,4 +1,7 @@
 defmodule Jalka2026Web.LiveHelpers do
+  @estonian_time_zone "Europe/Tallinn"
+  @utc_time_zone "Etc/UTC"
+
   @moduledoc """
   Shared helpers imported into every LiveView via `use Jalka2026Web, :live_view`.
 
@@ -17,13 +20,21 @@ defmodule Jalka2026Web.LiveHelpers do
   end
 
   @doc """
-  Formats a match date+time as `DD.MM.YYYY HH:MM` (no seconds).
+  Formats a match date+time in Estonian local time as `DD.MM.YYYY HH:MM` (no seconds).
   """
   def format_match_time(nil), do: ""
 
   def format_match_time(%NaiveDateTime{} = dt),
-    do: Calendar.strftime(dt, "%d.%m.%Y %H:%M")
+    do: dt |> match_time_in_estonia() |> format_datetime()
 
   def format_match_time(%DateTime{} = dt),
-    do: Calendar.strftime(dt, "%d.%m.%Y %H:%M")
+    do: dt |> Timex.Timezone.convert(@estonian_time_zone) |> format_datetime()
+
+  defp match_time_in_estonia(%NaiveDateTime{} = dt) do
+    dt
+    |> Timex.to_datetime(@utc_time_zone)
+    |> Timex.Timezone.convert(@estonian_time_zone)
+  end
+
+  defp format_datetime(dt), do: Calendar.strftime(dt, "%d.%m.%Y %H:%M")
 end

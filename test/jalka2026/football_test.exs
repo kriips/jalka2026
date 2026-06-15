@@ -51,6 +51,15 @@ defmodule Jalka2026.FootballTest do
       assert match_result.home_team != nil
       assert match_result.away_team != nil
     end
+
+    test "returns stored UTC match dates without a fixed offset" do
+      match = match_fixture(%{date: ~N[2026-06-11 19:00:00]})
+
+      result = Football.get_matches()
+
+      match_result = Enum.find(result, &(&1.id == match.id))
+      assert match_result.date == ~N[2026-06-11 19:00:00]
+    end
   end
 
   describe "get_match/1" do

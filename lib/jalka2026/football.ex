@@ -165,9 +165,6 @@ defmodule Jalka2026.Football do
         )
 
       Repo.all(query)
-      |> Enum.map(fn %Match{} = match ->
-        %Match{match | date: Timex.shift(match.date, hours: +2)}
-      end)
     end)
   end
 

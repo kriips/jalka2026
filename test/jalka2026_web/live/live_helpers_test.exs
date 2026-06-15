@@ -38,4 +38,22 @@ defmodule Jalka2026Web.LiveHelpersTest do
       assert LiveHelpers.predictions_open?() == false
     end
   end
+
+  describe "format_match_time/1" do
+    test "returns an empty string for nil" do
+      assert LiveHelpers.format_match_time(nil) == ""
+    end
+
+    test "formats UTC naive match times as Estonian summer time" do
+      assert LiveHelpers.format_match_time(~N[2026-06-11 19:00:00]) == "11.06.2026 22:00"
+    end
+
+    test "formats UTC naive match times as Estonian winter time" do
+      assert LiveHelpers.format_match_time(~N[2026-12-11 19:00:00]) == "11.12.2026 21:00"
+    end
+
+    test "formats UTC datetime match times as Estonian time" do
+      assert LiveHelpers.format_match_time(~U[2026-06-11 19:00:00Z]) == "11.06.2026 22:00"
+    end
+  end
 end

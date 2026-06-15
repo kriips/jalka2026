@@ -19,6 +19,14 @@ defmodule Jalka2026Web.FootballLive.GamesTest do
       assert html =~ "Alagrupp"
     end
 
+    test "renders match times in Estonian local time", %{conn: conn} do
+      match_fixture(%{date: ~N[2026-06-11 19:00:00]})
+
+      {:ok, _view, html} = live(conn, "/football/games")
+
+      assert html =~ "11.06.2026 22:00"
+    end
+
     test "toggle_group event expands and collapses group", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/football/games")
 
