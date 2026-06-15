@@ -1,6 +1,7 @@
 defmodule Jalka2026Web.FootballLive.Games do
   use Jalka2026Web, :live_view
 
+  alias Jalka2026.Chat
   alias Jalka2026.Football.TeamTranslations
   alias Jalka2026Web.Resolvers.FootballResolver
 
@@ -17,7 +18,8 @@ defmodule Jalka2026Web.FootballLive.Games do
      assign(socket,
        matches: matches,
        grouped_matches: grouped_matches,
-       expanded_groups: MapSet.new()
+       expanded_groups: MapSet.new(),
+       comment_counts: Chat.comment_counts_by_match()
      )}
   end
 

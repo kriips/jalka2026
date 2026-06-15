@@ -15,6 +15,7 @@
                             <th scope="col">Grupp</th>
                             <th scope="col">Võistkonnad</th>
                             <th scope="col">Tulemus</th>
+                            <th scope="col"><span aria-hidden="true">💬</span><span class="sr-only">Kommentaare</span></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -24,6 +25,7 @@
                             <td><span class="group-badge"><%= String.replace(group, "Alagrupp ", "") %></span></td>
                             <td class="match-teams"><%= TeamTranslations.translate(home_team.name) %> - <%= TeamTranslations.translate(away_team.name) %></td>
                             <td class="match-score"><%= home_score %> - <%= away_score %></td>
+                            <td class="match-comments"><% count = Map.get(@comment_counts, id, 0) %><span class="comment-count" aria-label={"#{count} kommentaari"}><span aria-hidden="true">💬</span> <%= count %></span></td>
                         </tr>
                         <% end %>
                     </tbody>
@@ -64,7 +66,13 @@
                                         <span class="accordion-match-score"><%= home_score %> - <%= away_score %></span>
                                         <span class="accordion-match-away"><%= TeamTranslations.translate(away_team.name) %></span>
                                     </div>
-                                    <div class="accordion-match-date"><%= format_match_time(date) %></div>
+                                    <div class="accordion-match-date">
+                                        <%= format_match_time(date) %>
+                                        <% count = Map.get(@comment_counts, id, 0) %>
+                                        <%= if count > 0 do %>
+                                            <span class="comment-count" aria-label={"#{count} kommentaari"}><span aria-hidden="true">💬</span> <%= count %></span>
+                                        <% end %>
+                                    </div>
                                 </.link>
                             <% end %>
                         </div>

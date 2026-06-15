@@ -31,6 +31,19 @@ defmodule Jalka2026.Chat do
   end
 
   @doc """
+  Returns a map of match_id => comment count, covering every match that has
+  at least one comment. Single query — used by match listings to show counts
+  without an N+1.
+  """
+  def comment_counts_by_match do
+    Comment
+    |> group_by([c], c.match_id)
+    |> select([c], {c.match_id, count(c.id)})
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @doc """
   Gets a single comment.
   """
   def get_comment!(id), do: Repo.get!(Comment, id) |> Repo.preload(:user)

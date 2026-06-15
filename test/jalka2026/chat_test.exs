@@ -82,6 +82,25 @@ defmodule Jalka2026.ChatTest do
     end
   end
 
+  describe "comment_counts_by_match/0" do
+    test "returns counts grouped by match, omitting matches without comments" do
+      user = user_fixture()
+      match1 = match_fixture()
+      match2 = match_fixture()
+      match3 = match_fixture()
+
+      {:ok, _} = Chat.create_comment(%{content: "a", user_id: user.id, match_id: match1.id})
+      {:ok, _} = Chat.create_comment(%{content: "b", user_id: user.id, match_id: match1.id})
+      {:ok, _} = Chat.create_comment(%{content: "c", user_id: user.id, match_id: match2.id})
+
+      counts = Chat.comment_counts_by_match()
+
+      assert counts[match1.id] == 2
+      assert counts[match2.id] == 1
+      refute Map.has_key?(counts, match3.id)
+    end
+  end
+
   describe "get_comment!/1" do
     test "returns comment with preloaded user" do
       user = user_fixture()
