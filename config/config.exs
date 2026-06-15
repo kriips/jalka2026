@@ -34,6 +34,11 @@ config :jalka2026, compile_env: Mix.env()
 # World Cup 2026 starts June 11, 2026 at 19:00:00 UTC
 config :jalka2026, :prediction_deadline, ~U[2026-06-11 19:00:00Z]
 
+# Minimum number of group-stage predictions a user needs to appear on the
+# leaderboard. The World Cup 2026 group stage has 72 matches, so users who
+# didn't finish their group predictions before the deadline are not ranked.
+config :jalka2026, :leaderboard_required_predictions, 72
+
 # Competition ID - identifies the active tournament for this deployment
 # Each parallel competition should have a unique COMPETITION_ID env var
 # Format: "type-year" e.g., "wc-2026" for World Cup 2026, "euros-2028" for Euros 2028

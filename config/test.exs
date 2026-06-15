@@ -25,3 +25,8 @@ config :jalka2026, Jalka2026Web.Endpoint,
 config :logger, level: :warning
 
 config :jalka2026, :environment, :test
+
+# Tests build small fixture datasets, so don't require complete group
+# predictions for leaderboard inclusion (overridden per-test where the
+# filter itself is under test).
+config :jalka2026, :leaderboard_required_predictions, 0

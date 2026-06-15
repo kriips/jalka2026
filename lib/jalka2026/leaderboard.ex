@@ -220,6 +220,13 @@ defmodule Jalka2026.Leaderboard do
     Phoenix.PubSub.broadcast(@pubsub, @topic, {:leaderboard_updated, leaderboard, changes})
   end
 
+  # A failed badge write must never take down the leaderboard server.
+  defp award_rank_badges(new_leaderboard, old_leaderboard) do
+    Badges.award_rank_badges(new_leaderboard, old_leaderboard)
+  rescue
+    error -> Logger.warning("Rank badge award failed: #{inspect(error)}")
+  end
+
   defp calculate_changes(old_leaderboard, new_leaderboard) do
     old_map =
       Map.new(old_leaderboard, fn %Entry{user_id: id, rank: rank, total_points: points} ->
@@ -249,6 +256,10 @@ defmodule Jalka2026.Leaderboard do
   end
 
   defp recalculate_leaderboard() do
+    # The currently-cached leaderboard is the previous ranking — used to detect
+    # rank climbs for the "climber" badge below.
+    previous_leaderboard = get_leaderboard()
+
     {finished_matches, playoff_results, users, all_predictions, all_predictions_by_user,
      all_playoff_predictions} =
       TelemetryEvents.span_leaderboard_data_load(%{source: :recalculate_leaderboard}, fn ->
@@ -275,8 +286,14 @@ defmodule Jalka2026.Leaderboard do
       all_predictions_by_user
     )
 
+    # Users who didn't finish their group-stage predictions before the
+    # competition started are not ranked. Streaks and badges above are still
+    # recalculated for everyone so their profile stats keep working.
+    eligible_users =
+      Enum.filter(users, &group_predictions_complete?(&1, all_predictions_by_user))
+
     metadata = %{
-      user_count: length(users),
+      user_count: length(eligible_users),
       match_count: length(finished_matches),
       playoff_result_count: length(playoff_results)
     }
@@ -290,22 +307,37 @@ defmodule Jalka2026.Leaderboard do
     predicted_last_32_by_user =
       if actual_last_32 == [], do: %{}, else: Qualifiers.all_predicted_last_32()
 
-    TelemetryEvents.span_leaderboard_calculation(metadata, fn ->
-      users
-      |> Enum.map(&calculate_points(&1, finished_matches, all_predictions))
-      |> Enum.map(
-        &calculate_playoff_points(
-          &1,
-          playoff_results,
-          all_playoff_predictions,
-          actual_last_32,
-          predicted_last_32_by_user
+    new_leaderboard =
+      TelemetryEvents.span_leaderboard_calculation(metadata, fn ->
+        eligible_users
+        |> Enum.map(&calculate_points(&1, finished_matches, all_predictions))
+        |> Enum.map(
+          &calculate_playoff_points(
+            &1,
+            playoff_results,
+            all_playoff_predictions,
+            actual_last_32,
+            predicted_last_32_by_user
+          )
         )
-      )
-      |> Enum.map(&add_streak_data(&1, streaks))
-      |> Enum.sort_by(& &1.total_points, :desc)
-      |> add_rank()
-    end)
+        |> Enum.map(&add_streak_data(&1, streaks))
+        |> Enum.sort_by(& &1.total_points, :desc)
+        |> add_rank()
+      end)
+
+    # Rank-based badges run here (inside the recalc task, alongside the other
+    # badge writes) so the DB work shares the same process and never races the
+    # GenServer's reply handling.
+    award_rank_badges(new_leaderboard, previous_leaderboard)
+
+    new_leaderboard
+  end
+
+  # A user has finished the group stage when they predicted every group match
+  # (72 in production, configured via :leaderboard_required_predictions).
+  defp group_predictions_complete?(%User{id: user_id}, all_predictions_by_user) do
+    required = Application.get_env(:jalka2026, :leaderboard_required_predictions, 0)
+    map_size(Map.get(all_predictions_by_user, user_id, %{})) >= required
   end
 
   defp calculate_playoff_points(

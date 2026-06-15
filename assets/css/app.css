@@ -8019,6 +8019,46 @@ details[open] .historical-matchup-toggle::before {
   border-color: #007bff;
 }
 
+.achievement-badge-sniper {
+  background: linear-gradient(135deg, #e2e3e5, #c8ccd0);
+  border-color: #6c757d;
+}
+
+.achievement-badge-chaos_master {
+  background: linear-gradient(135deg, #d6d8db, #adb1b6);
+  border-color: #495057;
+}
+
+.achievement-badge-cold_blood {
+  background: linear-gradient(135deg, #d7f0fb, #b8e6f7);
+  border-color: #0dcaf0;
+}
+
+.achievement-badge-goal_machine {
+  background: linear-gradient(135deg, #d4edda, #a3d9b1);
+  border-color: #198754;
+}
+
+.achievement-badge-draw_master {
+  background: linear-gradient(135deg, #f1f3f5, #dcdfe3);
+  border-color: #adb5bd;
+}
+
+.achievement-badge-bracket_master {
+  background: linear-gradient(135deg, #fff3cd, #ffe69c);
+  border-color: #ffca2c;
+}
+
+.achievement-badge-leader {
+  background: linear-gradient(135deg, #fff8e1, #ffe082);
+  border-color: #ffc107;
+}
+
+.achievement-badge-climber {
+  background: linear-gradient(135deg, #ffe5d0, #ffc8a2);
+  border-color: #fd7e14;
+}
+
 /* Leaderboard badge icons (compact) */
 .leaderboard-badge-icon {
   font-size: 0.8rem;

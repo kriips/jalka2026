@@ -37,7 +37,15 @@ defmodule Jalka2026.Football.UserBadge do
       "streak_master",
       "group_guru",
       "playoff_oracle",
-      "first_blood"
+      "first_blood",
+      "sniper",
+      "chaos_master",
+      "cold_blood",
+      "goal_machine",
+      "draw_master",
+      "bracket_master",
+      "leader",
+      "climber"
     ]
   end
 
@@ -64,6 +72,30 @@ defmodule Jalka2026.Football.UserBadge do
 
   def badge_info("first_blood"),
     do: %{name: "Esimene Veri", description: "Esimene õige ennustus", icon: "💫"}
+
+  def badge_info("sniper"),
+    do: %{name: "Snaiper", description: "Ennustas 5+ täpset skoori", icon: "🏹"}
+
+  def badge_info("chaos_master"),
+    do: %{name: "Kaosemeister", description: "Ennustas 6+ üllatust õigesti", icon: "🌪️"}
+
+  def badge_info("cold_blood"),
+    do: %{name: "Külm veri", description: "10+ mängu järjest õigesti", icon: "❄️"}
+
+  def badge_info("goal_machine"),
+    do: %{name: "Väravakütt", description: "Ennustas täpselt 5+ väravaga mängu", icon: "🥅"}
+
+  def badge_info("draw_master"),
+    do: %{name: "Viigimees", description: "Ennustas 3+ viiki õigesti", icon: "🤝"}
+
+  def badge_info("bracket_master"),
+    do: %{name: "Bracket-meister", description: "Kõik 4 poolfinalisti õiged", icon: "🎓"}
+
+  def badge_info("leader"),
+    do: %{name: "Liider", description: "Tõusis edetabeli tippu", icon: "👑"}
+
+  def badge_info("climber"),
+    do: %{name: "Tõusja", description: "Tõusis 5+ kohta edetabelis", icon: "🚀"}
 
   def badge_info(_), do: %{name: "Tundmatu", description: "", icon: "❓"}
 end

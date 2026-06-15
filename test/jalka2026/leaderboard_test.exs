@@ -215,6 +215,68 @@ defmodule Jalka2026.LeaderboardTest do
     end
   end
 
+  describe "incomplete group prediction filter" do
+    setup do
+      original = Application.get_env(:jalka2026, :leaderboard_required_predictions)
+
+      on_exit(fn ->
+        Application.put_env(:jalka2026, :leaderboard_required_predictions, original)
+      end)
+
+      :ok
+    end
+
+    test "users below the required prediction count are removed from the leaderboard" do
+      Application.put_env(:jalka2026, :leaderboard_required_predictions, 2)
+
+      complete_user = user_fixture()
+      incomplete_user = user_fixture()
+
+      match1 = finished_match_fixture(%{home_score: 2, away_score: 1})
+      match2 = finished_match_fixture(%{home_score: 1, away_score: 1})
+
+      group_prediction_fixture(%{
+        user: complete_user,
+        match: match1,
+        home_score: 2,
+        away_score: 1
+      })
+
+      group_prediction_fixture(%{
+        user: complete_user,
+        match: match2,
+        home_score: 1,
+        away_score: 1
+      })
+
+      group_prediction_fixture(%{
+        user: incomplete_user,
+        match: match1,
+        home_score: 2,
+        away_score: 1
+      })
+
+      leaderboard = Leaderboard.recalc_leaderboard()
+
+      assert Enum.find(leaderboard, fn %Entry{user_id: id} -> id == complete_user.id end),
+             "User with all required predictions should appear in leaderboard"
+
+      refute Enum.find(leaderboard, fn %Entry{user_id: id} -> id == incomplete_user.id end),
+             "User with incomplete group predictions should not appear in leaderboard"
+    end
+
+    test "users with no predictions are removed from the leaderboard" do
+      Application.put_env(:jalka2026, :leaderboard_required_predictions, 1)
+
+      user = user_fixture()
+
+      leaderboard = Leaderboard.recalc_leaderboard()
+
+      refute Enum.find(leaderboard, fn %Entry{user_id: id} -> id == user.id end),
+             "User with no predictions should not appear in leaderboard"
+    end
+  end
+
   describe "GenServer interface" do
     test "subscribe/0 subscribes to leaderboard updates" do
       assert :ok = Leaderboard.subscribe()
