@@ -9500,6 +9500,9 @@ details[open] .historical-matchup-toggle::before {
   background: linear-gradient(145deg, #f8f9fa 0%, #e9ecef 100%);
   border: 1px solid #d0d8e0;
   border-radius: 12px;
+  /* Override Milligram's default white button text so collapsed-state
+     labels stay readable on the light gradient (expanded state sets white). */
+  color: var(--text-primary);
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: left;
