@@ -41,7 +41,8 @@ defmodule Jalka2026Web.AdminLive.Results do
      |> assign(:teams, teams)
      |> assign(:teams_by_group, teams_by_group)
      |> assign(:playoff_results, playoff_results)
-     |> assign(:selected_phase, 32)
+     |> assign(:phases, playoff_phases())
+     |> assign(:selected_phase, Jalka2026.Scoring.last_32_phase())
      |> stream(:match_rows, [], reset: true)}
   end
 
@@ -152,14 +153,19 @@ defmodule Jalka2026Web.AdminLive.Results do
 
   defp parse_score(_), do: :error
 
+  # Phases the admin can mark, in tournament order. The leading phase is the "32 parimat"
+  # (reached round of 32) stage; the rest are the bracket winner-pick phases.
+  def playoff_phases, do: [Jalka2026.Scoring.last_32_phase(), 32, 16, 8, 4, 2]
+
   def phase_name(phase) do
-    case phase do
-      32 -> "Kaheksandikfinaal (32)"
-      16 -> "Veerandfinaal (16)"
-      8 -> "Poolfinaal (8)"
-      4 -> "Finaal (4)"
-      2 -> "Võitja (2)"
-      _ -> "Faas #{phase}"
+    cond do
+      phase == Jalka2026.Scoring.last_32_phase() -> "32 parimat"
+      phase == 32 -> "Kaheksandikfinaal (32)"
+      phase == 16 -> "Veerandfinaal (16)"
+      phase == 8 -> "Poolfinaal (8)"
+      phase == 4 -> "Finaal (4)"
+      phase == 2 -> "Võitja (2)"
+      true -> "Faas #{phase}"
     end
   end
 

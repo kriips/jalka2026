@@ -31,12 +31,20 @@ defmodule Jalka2026.Scoring do
   # Stored PlayoffPrediction phases are the WINNER picks of each bracket round, so the team
   # at a phase actually *reached the next stage*. Points are therefore offset by one stage from
   # the phase number: phase 32 = reached last-16 (2pt) ... phase 2 = the tournament winner (8pt).
-  # The "reached last-32" stage (1pt) is NOT a stored phase — it is scored separately from the
+  # The "reached last-32" stage (1pt) is NOT one of these phases — it is scored separately from the
   # user's predicted group qualifiers (see Jalka2026.Football.Qualifiers / last_32_points/2).
   @playoff_points %{32 => 2, 16 => 3, 8 => 5, 4 => 6, 2 => 8}
 
   # Points per correctly-predicted team that reaches the round of 32 (the "32 parimat" stage).
   @reach_last_32_points 1
+
+  # Dedicated PlayoffResult phase under which the admin explicitly marks the teams that reached the
+  # round of 32 (the "32 parimat" stage). It is intentionally NOT one of @playoff_points so that
+  # total_playoff_points/2 never scores it — last-32 points are awarded only via last_32_points/2,
+  # comparing each user's predicted qualifiers against the marked teams. Until the admin marks teams
+  # at this phase, no last-32 points are awarded (previously they were auto-derived from the finished
+  # group results the moment the group stage completed).
+  @last_32_phase 64
 
   @doc """
   Calculate points for a single group match prediction.
@@ -103,6 +111,14 @@ defmodule Jalka2026.Scoring do
   """
   @spec reach_last_32_points() :: pos_integer()
   def reach_last_32_points, do: @reach_last_32_points
+
+  @doc """
+  The `PlayoffResult` phase under which the teams that reached the round of 32 (the "32 parimat"
+  stage) are explicitly marked by the admin. Distinct from the bracket winner-pick phases
+  (32/16/8/4/2) so it never collides with `total_playoff_points/2`.
+  """
+  @spec last_32_phase() :: pos_integer()
+  def last_32_phase, do: @last_32_phase
 
   @doc """
   Total points for the "32 parimat" stage: `@reach_last_32_points` for each team that the user

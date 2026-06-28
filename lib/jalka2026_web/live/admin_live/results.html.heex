@@ -75,7 +75,7 @@
             <div class="info-card">
                 <h2 class="info-card-title">Vali faas</h2>
                 <div class="phase-selector">
-                    <%= for phase <- [32, 16, 8, 4, 2] do %>
+                    <%= for phase <- @phases do %>
                         <button
                             type="button"
                             class={"phase-btn " <> if @selected_phase == phase, do: "active", else: ""}
@@ -91,7 +91,13 @@
             <!-- Teams for selected phase -->
             <div class="info-card">
                 <h2 class="info-card-title"><%= phase_name(@selected_phase) %></h2>
-                <p class="info-note">Kliki tiimil, et lisada/eemaldada see sellest faasist</p>
+                <p class="info-note">
+                    <%= if @selected_phase == Jalka2026.Scoring.last_32_phase() do %>
+                        Märgi siin 32 tiimi, kes pääsesid 32 parima sekka. Punkte antakse alles siis, kui tiimid on märgitud.
+                    <% else %>
+                        Kliki tiimil, et lisada/eemaldada see sellest faasist
+                    <% end %>
+                </p>
                 <div class="teams-grid">
                     <%= for {group, teams} <- Enum.sort(@teams_by_group) do %>
                         <div class="team-group">
