@@ -24,6 +24,7 @@ defmodule Jalka2026.Football do
     Match,
     PlayoffPrediction,
     PlayoffResult,
+    Team,
     TournamentStanding,
     UserFavoriteTeam,
     UserRivalry
@@ -492,6 +493,59 @@ defmodule Jalka2026.Football do
         case get_team_by_name(team_name) do
           [team | _] -> {:ok, team}
           [] -> {:error, :team_not_found}
+        end
+      end)
+      |> Ecto.Multi.run(:toggle_playoff_result, fn _repo, %{resolve_team: team} ->
+        case get_playoff_result_by_phase_team(phase_int, team.id) do
+          %PlayoffResult{} = result ->
+            Repo.delete(result)
+
+          nil ->
+            %PlayoffResult{}
+            |> PlayoffResult.create_changeset(%{
+              phase: phase_int,
+              team_id: team.id,
+              competition_id: competition_id()
+            })
+            |> Repo.insert()
+        end
+      end)
+      |> Repo.transaction()
+
+    case multi_result do
+      {:ok, %{resolve_team: team} = changes} ->
+        # Side effects run only after a successful commit
+        leaderboard = Jalka2026.Leaderboard.recalc_leaderboard()
+        Jalka2026.MatchResultNotifications.send_playoff_notifications(phase_int, team.id, %{})
+
+        {:ok, Map.merge(changes, %{recalc_leaderboard: leaderboard, send_notifications: :sent})}
+
+      error ->
+        error
+    end
+  end
+
+  @doc """
+  Enters a playoff result by team ID using an Ecto.Multi pipeline.
+
+  Identical to `enter_playoff_result/2` but resolves the team by its ID
+  instead of by name. The admin UI displays translated (Estonian) team
+  names, so resolving by the displayed name would fail for any translated
+  team; using the unambiguous team ID avoids that mismatch.
+
+  Returns `{:ok, %{toggle_playoff_result: result, ...}}`
+  or `{:error, failed_step, reason, changes_so_far}`.
+  """
+  def enter_playoff_result_by_id(team_id, phase) do
+    team_id_int = if is_binary(team_id), do: String.to_integer(team_id), else: team_id
+    phase_int = if is_binary(phase), do: String.to_integer(phase), else: phase
+
+    multi_result =
+      Ecto.Multi.new()
+      |> Ecto.Multi.run(:resolve_team, fn _repo, _changes ->
+        case get_team(team_id_int) do
+          %Team{} = team -> {:ok, team}
+          nil -> {:error, :team_not_found}
         end
       end)
       |> Ecto.Multi.run(:toggle_playoff_result, fn _repo, %{resolve_team: team} ->

@@ -105,4 +105,50 @@ defmodule Jalka2026.Football.EnterResultMultiTest do
       assert {:ok, _results} = Football.enter_playoff_result(team.name, "16")
     end
   end
+
+  describe "enter_playoff_result_by_id/2" do
+    test "returns {:ok, results} with named steps on success" do
+      team = team_fixture(%{name: "By Id Team #{System.unique_integer([:positive])}"})
+
+      assert {:ok, results} = Football.enter_playoff_result_by_id(team.id, 32)
+
+      assert Map.has_key?(results, :resolve_team)
+      assert Map.has_key?(results, :toggle_playoff_result)
+      assert Map.has_key?(results, :recalc_leaderboard)
+      assert Map.has_key?(results, :send_notifications)
+    end
+
+    test "resolves a team whose displayed name is translated" do
+      # "Germany" is displayed as "Saksamaa" in the UI; resolving by name
+      # would fail, but resolving by id works regardless of translation.
+      team = team_fixture(%{name: "Germany"})
+
+      {:ok, %{toggle_playoff_result: result}} = Football.enter_playoff_result_by_id(team.id, 16)
+
+      assert result.team_id == team.id
+      assert result.phase == 16
+    end
+
+    test "deletes playoff result when one already exists (toggle)" do
+      team = team_fixture(%{name: "Toggle By Id Team #{System.unique_integer([:positive])}"})
+      _existing = playoff_result_fixture(%{team: team, phase: 8})
+
+      {:ok, %{toggle_playoff_result: deleted}} = Football.enter_playoff_result_by_id(team.id, 8)
+
+      assert deleted.team_id == team.id
+      assert Football.get_playoff_result_by_phase_team(8, team.id) == nil
+    end
+
+    test "returns {:error, :resolve_team, ...} for unknown team id" do
+      assert {:error, :resolve_team, :team_not_found, %{}} =
+               Football.enter_playoff_result_by_id(999_999_999, 32)
+    end
+
+    test "accepts string team_id and phase parameters" do
+      team = team_fixture(%{name: "String Id Team #{System.unique_integer([:positive])}"})
+
+      assert {:ok, _results} =
+               Football.enter_playoff_result_by_id(to_string(team.id), "16")
+    end
+  end
 end

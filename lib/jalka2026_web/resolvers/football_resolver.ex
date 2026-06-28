@@ -39,6 +39,10 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
     )
   end
 
+  def update_playoff_result(%{"team_id" => team_id, "phase" => phase}) do
+    Football.enter_playoff_result_by_id(team_id, phase)
+  end
+
   def update_playoff_result(%{"team_name" => team_name, "phase" => phase}) do
     Football.enter_playoff_result(team_name, phase)
   end
