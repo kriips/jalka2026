@@ -144,6 +144,9 @@ defmodule Jalka2026.Scoring do
   `playoff_results` is a list of structs/maps with `:team_id` and `:phase`.
   `user_playoff_predictions` is a map of `phase => [team_id, ...]` for the user.
 
+  Results at a phase that is not a scoring phase (e.g. the dedicated last-32 marking phase,
+  `last_32_phase/0`) are ignored — those are scored separately via `last_32_points/2`.
+
   Returns an integer total.
   """
   def total_playoff_points(playoff_results, user_playoff_predictions) do
@@ -151,7 +154,8 @@ defmodule Jalka2026.Scoring do
     predictions = Map.merge(empty_phases, user_playoff_predictions || %{})
 
     Enum.reduce(playoff_results, 0, fn result, acc ->
-      if result.team_id in Map.get(predictions, result.phase, []) do
+      if Map.has_key?(@playoff_points, result.phase) and
+           result.team_id in Map.get(predictions, result.phase, []) do
         acc + playoff_phase_points(result.phase)
       else
         acc
