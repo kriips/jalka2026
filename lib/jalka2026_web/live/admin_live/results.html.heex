@@ -102,7 +102,7 @@
                                         type="button"
                                         class={"team-btn " <> if team_in_phase?(@playoff_results, team_id, @selected_phase), do: "selected", else: ""}
                                         phx-click="save_playoff_result"
-                                        phx-value-team_name={team_name}
+                                        phx-value-team_id={team_id}
                                         phx-value-phase={@selected_phase}
                                     >
                                         <%= team_name %>

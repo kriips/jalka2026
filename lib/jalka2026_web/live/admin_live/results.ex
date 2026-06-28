@@ -104,9 +104,9 @@ defmodule Jalka2026Web.AdminLive.Results do
   end
 
   @impl true
-  def handle_event("save_playoff_result", %{"team_name" => team_name, "phase" => phase}, socket) do
+  def handle_event("save_playoff_result", %{"team_id" => team_id, "phase" => phase}, socket) do
     case FootballResolver.update_playoff_result(%{
-           "team_name" => team_name,
+           "team_id" => team_id,
            "phase" => phase
          }) do
       {:ok, _results} ->
