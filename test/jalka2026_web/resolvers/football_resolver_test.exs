@@ -460,9 +460,27 @@ defmodule Jalka2026Web.Resolvers.FootballResolverTest do
       input = %{16 => ["Correct Team"], 8 => []}
       result = FootballResolver.add_playoff_correctness(input)
 
-      # The team name should be wrapped in bold green HTML
-      assert hd(result[16]) =~ "green"
-      assert hd(result[16]) =~ "Correct Team"
+      assert hd(result[16]) == %{name: "Correct Team", correct: true}
+      assert result[8] == []
+    end
+
+    test "marks a translated team name as correct when it reached the phase" do
+      # Teams are stored under their English name but display lists carry the Estonian translation;
+      # correctness must still resolve via the translated name.
+      team = team_fixture(%{name: "Germany"})
+      _result = playoff_result_fixture(%{team: team, phase: 16})
+
+      input = %{16 => ["Saksamaa"], 8 => []}
+      result = FootballResolver.add_playoff_correctness(input)
+
+      assert hd(result[16]) == %{name: "Saksamaa", correct: true}
+    end
+
+    test "does not mark teams that did not reach the phase" do
+      input = %{16 => ["Saksamaa"], 8 => []}
+      result = FootballResolver.add_playoff_correctness(input)
+
+      assert hd(result[16]) == %{name: "Saksamaa", correct: false}
     end
   end
 

@@ -50,7 +50,8 @@ defmodule Jalka2026Web.FootballLive.User do
   end
 
   # "32 parimat" stage: the user's predicted round-of-32 qualifiers (group qualifiers with their
-  # R32 swap-overrides applied), each highlighted green if the team actually reached the round of 32.
+  # R32 swap-overrides applied). Returns `[%{name, correct}]` where `correct` is true if the team
+  # actually reached the round of 32, so the view can highlight the correct picks.
   defp build_predicted_last_32_names(user_id) do
     actual = Qualifiers.actual_last_32()
 
@@ -59,9 +60,8 @@ defmodule Jalka2026Web.FootballLive.User do
     |> Enum.map(&Football.get_team/1)
     |> Enum.reject(&is_nil/1)
     |> Enum.map(fn team ->
-      name = TeamTranslations.translate(team.name)
-      if team.id in actual, do: "<b style=\"color:green\">#{name}</b>", else: name
+      %{name: TeamTranslations.translate(team.name), correct: team.id in actual}
     end)
-    |> Enum.sort()
+    |> Enum.sort_by(& &1.name)
   end
 end

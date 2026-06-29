@@ -4,22 +4,38 @@
         <p class="page-subtitle">Kõigi ennustajate playoff valikud</p>
     </div>
     <div class="container" id="main-content">
-        <%= for {phase, teams_predictions} <- @predictions do %>
+        <div class="analytics-tabs" role="tablist" aria-label="Playoff faasid">
+            <%= for {phase, _teams_predictions} <- @predictions do %>
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={to_string(@selected_phase == phase)}
+                    class={"analytics-tab #{if @selected_phase == phase, do: "active", else: ""}"}
+                    phx-click="select_phase"
+                    phx-value-phase={phase}
+                >
+                    <%= Jalka2026Web.FootballLive.Playoffs.phase_name(phase) %>
+                </button>
+            <% end %>
+        </div>
+
+        <%= for {phase, teams_predictions} <- @predictions, phase == @selected_phase do %>
         <div class="section-card">
             <h2 class="section-card-title">
-                <%= case phase do
-                    2 -> "Võitja"
-                    4 -> "Finalistid"
-                    8 -> "Poolfinalistid"
-                    16 -> "Veerandfinalistid"
-                    32 -> "Kaheksandikfinalistid"
-                    64 -> "32 parimat"
-                    _ -> "Faas #{phase}"
-                end %>
+                <%= Jalka2026Web.FootballLive.Playoffs.phase_name(phase) %>
             </h2>
+            <p class="section-description">Vajuta võistkonnale, et näha ennustajaid.</p>
             <div class="playoff-teams-list">
-                <%= for {team_name, reached_phase, users} <- teams_predictions do %>
-                <div class={"team-prediction-card #{if reached_phase, do: "correct", else: ""}"}>
+                <%= for {{team_name, reached_phase, users}, idx} <- Enum.with_index(teams_predictions) do %>
+                <% predictors_id = "predictors-#{phase}-#{idx}" %>
+                <div
+                    class={"team-prediction-card team-prediction-card-toggle #{if reached_phase, do: "correct", else: ""}"}
+                    phx-click={JS.toggle(to: "##{predictors_id}")}
+                    role="button"
+                    tabindex="0"
+                    aria-controls={predictors_id}
+                    aria-label={"#{team_name} - näita ennustajaid"}
+                >
                     <div class="team-prediction-header">
                         <span class={"team-name-badge #{if reached_phase, do: "correct", else: ""}"}>
                             <%= team_name %>
@@ -28,7 +44,7 @@
                             <%= Enum.count(users) %> <%= if Enum.count(users) == 1, do: "ennustaja", else: "ennustajat" %>
                         </span>
                     </div>
-                    <div class="team-predictors">
+                    <div class="team-predictors" id={predictors_id} style="display: none;">
                         <%= Enum.join(users, ", ") %>
                     </div>
                 </div>

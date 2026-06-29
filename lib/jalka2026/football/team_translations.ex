@@ -134,6 +134,33 @@ defmodule Jalka2026.Football.TeamTranslations do
 
   def translate(nil), do: nil
 
+  # Estonian name -> [English source name, ...]. Built once at compile time. Some Estonian names map
+  # back to several English variants (e.g. "Tšehhi" <- "Czechia"/"Czech Republic"), so values are lists.
+  @reverse_translations Enum.reduce(@translations, %{}, fn {en, et}, acc ->
+                          Map.update(acc, et, [en], &[en | &1])
+                        end)
+
+  @doc """
+  Returns the English source name(s) for an Estonian (translated) team name.
+
+  A team's stored name is English, but display lists carry the translated name; use this to map a
+  translated name back so it can be looked up by its canonical name. Returns `[]` when the name has
+  no known translation (e.g. it is already English).
+
+  ## Examples
+
+      iex> TeamTranslations.untranslate("Saksamaa")
+      ["Germany"]
+
+      iex> TeamTranslations.untranslate("Germany")
+      []
+  """
+  def untranslate(name) when is_binary(name) do
+    Map.get(@reverse_translations, name, [])
+  end
+
+  def untranslate(nil), do: []
+
   @doc """
   Returns the full translations map.
   """

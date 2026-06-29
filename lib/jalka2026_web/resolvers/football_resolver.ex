@@ -235,20 +235,23 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
     end)
   end
 
+  @doc """
+  Annotates each predicted playoff team with whether it actually reached that phase.
+
+  Takes the `phase => [team_name, ...]` map from `get_playoff_predictions_with_team_names/1` and
+  returns `phase => [%{name: team_name, correct: boolean}, ...]` so the view can render each team as
+  its own element (and highlight the correct ones) rather than a single joined string.
+  """
   def add_playoff_correctness(user_playoff_predictions) do
     user_playoff_predictions
     |> Enum.reduce(%{}, fn {phase, team_names}, acc ->
-      modified_team_names = Enum.map(team_names, &highlight_if_reached(&1, phase))
-      Map.put(acc, phase, modified_team_names)
-    end)
-  end
+      annotated =
+        Enum.map(team_names, fn name ->
+          %{name: name, correct: team_name_reached_phase(name, phase)}
+        end)
 
-  defp highlight_if_reached(team_name, phase) do
-    if team_name_reached_phase(team_name, phase) do
-      "<b style=\"color:green\">" <> team_name <> "</b>"
-    else
-      team_name
-    end
+      Map.put(acc, phase, annotated)
+    end)
   end
 
   defp group_by_result(predictions) do
@@ -309,11 +312,22 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
     Football.get_playoff_result_by_phase_team(phase, team_id) != nil
   end
 
+  # Display lists carry the *translated* team name, but teams are stored under their English name, so
+  # we try the name as-is first and then fall back to its English source(s). Without the fallback any
+  # team whose Estonian name differs from its English name was never recognised as having reached the
+  # phase (and so never highlighted green).
   defp team_name_reached_phase(team_name, phase) do
-    case Football.get_team_by_name(team_name) do
-      [team | _] -> Football.get_playoff_result_by_phase_team(phase, team.id) != nil
-      _ -> false
-    end
+    [team_name | TeamTranslations.untranslate(team_name)]
+    |> Enum.uniq()
+    |> Enum.find_value(false, fn name ->
+      case Football.get_team_by_name(name) do
+        [team | _] ->
+          if Football.get_playoff_result_by_phase_team(phase, team.id) != nil, do: true
+
+        _ ->
+          nil
+      end
+    end)
   end
 
   defp sort_by_count(predictions) do
@@ -732,10 +746,8 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
   end
 
   defp team_reached_phase_for_analytics(team_name, phase) do
-    case Football.get_team_by_name(team_name) do
-      [team | _] -> Football.get_playoff_result_by_phase_team(phase, team.id) != nil
-      [] -> false
-    end
+    # Same translated-name lookup as the predictions page — delegate so both resolve correctly.
+    team_name_reached_phase(team_name, phase)
   end
 
   defp calculate_playoff_stats(playoff_analytics) do

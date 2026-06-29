@@ -59,6 +59,28 @@ defmodule Jalka2026.Football.TeamTranslationsTest do
     end
   end
 
+  describe "untranslate/1" do
+    test "maps an Estonian name back to its English source" do
+      assert TeamTranslations.untranslate("Saksamaa") == ["Germany"]
+      assert "France" in TeamTranslations.untranslate("Prantsusmaa")
+    end
+
+    test "round-trips every translation" do
+      for {english, estonian} <- TeamTranslations.translations() do
+        assert english in TeamTranslations.untranslate(estonian)
+      end
+    end
+
+    test "returns an empty list for names that are not translations" do
+      assert TeamTranslations.untranslate("Germany") == []
+      assert TeamTranslations.untranslate("Unknown Country") == []
+    end
+
+    test "returns an empty list for nil" do
+      assert TeamTranslations.untranslate(nil) == []
+    end
+  end
+
   describe "translations/0" do
     test "returns the full translations map" do
       translations = TeamTranslations.translations()
