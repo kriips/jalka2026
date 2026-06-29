@@ -319,14 +319,9 @@ defmodule Jalka2026Web.Resolvers.FootballResolver do
   defp team_name_reached_phase(team_name, phase) do
     [team_name | TeamTranslations.untranslate(team_name)]
     |> Enum.uniq()
-    |> Enum.find_value(false, fn name ->
-      case Football.get_team_by_name(name) do
-        [team | _] ->
-          if Football.get_playoff_result_by_phase_team(phase, team.id) != nil, do: true
-
-        _ ->
-          nil
-      end
+    |> Enum.flat_map(&Football.get_team_by_name/1)
+    |> Enum.any?(fn team ->
+      Football.get_playoff_result_by_phase_team(phase, team.id) != nil
     end)
   end
 
