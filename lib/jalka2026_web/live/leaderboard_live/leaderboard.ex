@@ -189,11 +189,18 @@ defmodule Jalka2026Web.LeaderboardLive.Leaderboard do
     end
   end
 
-  # Apply filtering and sorting to the leaderboard
-  defp apply_filters_and_sort(leaderboard, sort_by, points_filter) do
+  @doc """
+  Apply filtering and sorting to the leaderboard.
+
+  Rank is computed from the points relevant to the active filter (so rank 1 is
+  always the top scorer for that view), while the visible row order follows the
+  user's chosen `sort_by`. These are deliberately independent: sorting by name,
+  for example, lists rows alphabetically but each row still shows its true rank.
+  """
+  def apply_filters_and_sort(leaderboard, sort_by, points_filter) do
     leaderboard
+    |> assign_display_rank(points_filter)
     |> apply_sort(sort_by)
-    |> recalculate_display_points(points_filter)
   end
 
   defp apply_sort(leaderboard, "total") do
@@ -218,21 +225,23 @@ defmodule Jalka2026Web.LeaderboardLive.Leaderboard do
 
   defp apply_sort(leaderboard, _), do: leaderboard
 
-  # Recalculate display ranks based on the filtered points
-  defp recalculate_display_points(leaderboard, "group") do
+  # Assign each entry's display rank based on the points relevant to the active
+  # filter. Ranking is independent of `sort_by`, so reordering the rows afterwards
+  # (e.g. alphabetically) leaves each entry's rank intact.
+  defp assign_display_rank(leaderboard, "group") do
     leaderboard
     |> Enum.sort_by(& &1.group_points, :desc)
     |> add_display_rank(& &1.group_points)
   end
 
-  defp recalculate_display_points(leaderboard, "playoff") do
+  defp assign_display_rank(leaderboard, "playoff") do
     leaderboard
     |> Enum.sort_by(& &1.playoff_points, :desc)
     |> add_display_rank(& &1.playoff_points)
   end
 
-  defp recalculate_display_points(leaderboard, _) do
-    # For "all", recalculate ranks based on total points after sort
+  defp assign_display_rank(leaderboard, _) do
+    # For "all", rank by total points.
     leaderboard
     |> Enum.sort_by(& &1.total_points, :desc)
     |> add_display_rank(& &1.total_points)
