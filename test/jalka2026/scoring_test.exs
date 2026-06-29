@@ -344,4 +344,20 @@ defmodule Jalka2026.ScoringTest do
       assert Scoring.phases() == [32, 16, 8, 4, 2]
     end
   end
+
+  describe "last_32_phase/0" do
+    test "is a dedicated phase distinct from the bracket winner-pick phases" do
+      refute Scoring.last_32_phase() in Scoring.phases()
+      refute Map.has_key?(Scoring.playoff_phase_points_map(), Scoring.last_32_phase())
+    end
+
+    test "results stored at the last-32 phase never contribute bracket phase points" do
+      # A marked last-32 result must be ignored by total_playoff_points/2 (it is scored only via
+      # last_32_points/2), so the predicted-qualifier and bracket-phase paths never double-count.
+      playoff_results = [%{team_id: 100, phase: Scoring.last_32_phase()}]
+      predictions = %{Scoring.last_32_phase() => [100]}
+
+      assert Scoring.total_playoff_points(playoff_results, predictions) == 0
+    end
+  end
 end

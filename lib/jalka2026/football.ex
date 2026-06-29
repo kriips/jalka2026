@@ -154,6 +154,23 @@ defmodule Jalka2026.Football do
     Repo.all(query)
   end
 
+  @doc """
+  Team ids the admin has marked as reaching the round of 32 (the "32 parimat" stage), for the
+  current competition. Empty until the admin marks teams at `Jalka2026.Scoring.last_32_phase/0`.
+  Used by `Jalka2026.Football.Qualifiers.actual_last_32/0` to score the last-32 stage.
+  """
+  def get_last_32_result_team_ids() do
+    comp_id = competition_id()
+    phase = Jalka2026.Scoring.last_32_phase()
+
+    from(pr in PlayoffResult,
+      where: pr.competition_id == ^comp_id and pr.phase == ^phase,
+      select: pr.team_id
+    )
+    |> Repo.all()
+    |> Enum.uniq()
+  end
+
   def get_matches() do
     TelemetryEvents.span_match_listing(%{source: :all_matches}, fn ->
       comp_id = competition_id()
@@ -516,12 +533,22 @@ defmodule Jalka2026.Football do
       {:ok, %{resolve_team: team} = changes} ->
         # Side effects run only after a successful commit
         leaderboard = Jalka2026.Leaderboard.recalc_leaderboard()
-        Jalka2026.MatchResultNotifications.send_playoff_notifications(phase_int, team.id, %{})
+        maybe_send_playoff_notifications(phase_int, team.id)
 
         {:ok, Map.merge(changes, %{recalc_leaderboard: leaderboard, send_notifications: :sent})}
 
       error ->
         error
+    end
+  end
+
+  # The "32 parimat" (last-32) stage has no per-phase prediction or notification template — it is
+  # scored against group qualifiers — so marking those teams must not fire playoff notifications.
+  defp maybe_send_playoff_notifications(phase, team_id) do
+    if phase == Jalka2026.Scoring.last_32_phase() do
+      :skipped
+    else
+      Jalka2026.MatchResultNotifications.send_playoff_notifications(phase, team_id, %{})
     end
   end
 
@@ -569,7 +596,7 @@ defmodule Jalka2026.Football do
       {:ok, %{resolve_team: team} = changes} ->
         # Side effects run only after a successful commit
         leaderboard = Jalka2026.Leaderboard.recalc_leaderboard()
-        Jalka2026.MatchResultNotifications.send_playoff_notifications(phase_int, team.id, %{})
+        maybe_send_playoff_notifications(phase_int, team.id)
 
         {:ok, Map.merge(changes, %{recalc_leaderboard: leaderboard, send_notifications: :sent})}
 

@@ -11,8 +11,8 @@ defmodule Jalka2026.Football.Qualifiers do
       round-of-32 swap-overrides applied. This is why last-32 bracket swaps now affect scoring.
     * `all_predicted_last_32/0` — the same, for ALL users at once, bulk-loaded (a constant handful
       of queries instead of ~85 per user). Used by the leaderboard recalc and the playoff overview.
-    * `actual_last_32/0` — the teams that actually reached the round of 32, derived from the
-      finished group results (empty until the group stage is complete).
+    * `actual_last_32/0` — the teams that actually reached the round of 32, as explicitly marked by
+      the admin (empty until they are marked).
 
   All return unique lists of team ids; `Jalka2026.Scoring.last_32_points/2` scores the overlap.
   """
@@ -62,23 +62,15 @@ defmodule Jalka2026.Football.Qualifiers do
   end
 
   @doc """
-  List of team ids that actually reached the round of 32, from finished group results.
-  Empty until the group stage is complete (last-32 is only determined once groups end).
+  List of team ids that actually reached the round of 32 (the "32 parimat" stage), as explicitly
+  marked by the admin (`PlayoffResult` rows at `Jalka2026.Scoring.last_32_phase/0`).
+
+  Empty until the admin marks those teams — so last-32 points are awarded only once the reaching
+  teams are confirmed, never auto-derived from the finished group results.
   """
   @spec actual_last_32() :: team_ids()
   def actual_last_32 do
-    if group_stage_complete?() do
-      standings = Map.new(@groups, fn g -> {g, GroupScenarios.get_group_standings(g)} end)
-      third_groups = best_third_groups(standings)
-
-      standings
-      |> standings_team_map()
-      |> BracketSeeding.resolve_r32_matchups(third_groups)
-      |> Enum.flat_map(fn {_pos, home, away} -> [home, away] end)
-      |> unique_team_ids()
-    else
-      []
-    end
+    Football.get_last_32_result_team_ids()
   end
 
   # Derive the round-of-32 team-id set from a per-group standings map (keyed by group letter) and a
@@ -168,9 +160,5 @@ defmodule Jalka2026.Football.Qualifiers do
     |> Enum.take(8)
     |> Enum.map(& &1.group)
     |> Enum.sort()
-  end
-
-  defp group_stage_complete? do
-    Enum.all?(@groups, fn g -> GroupScenarios.get_remaining_matches(g) == [] end)
   end
 end
