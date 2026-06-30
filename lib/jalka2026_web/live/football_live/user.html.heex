@@ -75,43 +75,55 @@
 
             <div class="phase-section">
                 <h3 class="phase-title">32 parimat</h3>
-                <div class="teams-grid">
-                    <%= raw(Enum.join(@predicted_last_32_names, ", ")) %>
+                <div class="phase-teams">
+                    <%= for team <- @predicted_last_32_names do %>
+                        <span class={"team-chip #{if team.correct, do: "correct", else: ""}"}><%= team.name %></span>
+                    <% end %>
                 </div>
             </div>
 
             <div class="phase-section">
                 <h3 class="phase-title">Kaheksandikfinalistid</h3>
-                <div class="teams-grid">
-                    <%= raw(Enum.join(@playoff_predictions[32], ", ")) %>
+                <div class="phase-teams">
+                    <%= for team <- @playoff_predictions[32] do %>
+                        <span class={"team-chip #{if team.correct, do: "correct", else: ""}"}><%= team.name %></span>
+                    <% end %>
                 </div>
             </div>
 
             <div class="phase-section">
                 <h3 class="phase-title">Veerandfinalistid</h3>
-                <div class="teams-grid">
-                    <%= raw(Enum.join(@playoff_predictions[16], ", ")) %>
+                <div class="phase-teams">
+                    <%= for team <- @playoff_predictions[16] do %>
+                        <span class={"team-chip #{if team.correct, do: "correct", else: ""}"}><%= team.name %></span>
+                    <% end %>
                 </div>
             </div>
 
             <div class="phase-section">
                 <h3 class="phase-title">Poolfinalistid</h3>
-                <div class="teams-grid">
-                    <%= raw(Enum.join(@playoff_predictions[8], ", ")) %>
+                <div class="phase-teams">
+                    <%= for team <- @playoff_predictions[8] do %>
+                        <span class={"team-chip #{if team.correct, do: "correct", else: ""}"}><%= team.name %></span>
+                    <% end %>
                 </div>
             </div>
 
             <div class="phase-section">
                 <h3 class="phase-title">Finalistid</h3>
-                <div class="teams-grid">
-                    <%= raw(Enum.join(@playoff_predictions[4], ", ")) %>
+                <div class="phase-teams">
+                    <%= for team <- @playoff_predictions[4] do %>
+                        <span class={"team-chip #{if team.correct, do: "correct", else: ""}"}><%= team.name %></span>
+                    <% end %>
                 </div>
             </div>
 
             <div class="phase-section">
                 <h3 class="phase-title">Võitja</h3>
-                <div class="teams-grid">
-                    <%= raw(Enum.join(@playoff_predictions[2], ", ")) %>
+                <div class="phase-teams">
+                    <%= for team <- @playoff_predictions[2] do %>
+                        <span class={"team-chip #{if team.correct, do: "correct", else: ""}"}><%= team.name %></span>
+                    <% end %>
                 </div>
             </div>
         </div>

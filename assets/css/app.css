@@ -1951,6 +1951,19 @@ fieldset.match-card-inner {
   background: linear-gradient(145deg, #d4edda 0%, #c3e6cb 100%);
 }
 
+.team-prediction-card-toggle {
+  cursor: pointer;
+}
+
+.team-prediction-card-toggle:hover {
+  filter: brightness(0.98);
+}
+
+.team-prediction-card-toggle:focus-visible {
+  outline: 2px solid var(--accent-primary, #4c6ef5);
+  outline-offset: 2px;
+}
+
 .team-prediction-header {
   display: flex;
   align-items: center;
