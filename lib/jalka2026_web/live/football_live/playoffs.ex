@@ -31,4 +31,17 @@ defmodule Jalka2026Web.FootballLive.Playoffs do
   def phase_name(32), do: "Kaheksandikfinalistid"
   def phase_name(64), do: "32 parimat"
   def phase_name(phase), do: "Faas #{phase}"
+
+  @doc """
+  Short tab label for a playoff phase. The full descriptive name (`phase_name/1`) is long and
+  unbreakable (e.g. "Kaheksandikfinalistid"), so the tabs use these compact labels and the selected
+  round's heading shows the full name.
+  """
+  def phase_tab_label(2), do: "Võitja"
+  def phase_tab_label(4), do: "Finaal"
+  def phase_tab_label(8), do: "1/2"
+  def phase_tab_label(16), do: "1/4"
+  def phase_tab_label(32), do: "1/8"
+  def phase_tab_label(64), do: "1/16"
+  def phase_tab_label(phase), do: "Faas #{phase}"
 end
