@@ -39,9 +39,9 @@ defmodule Jalka2026Web.FootballLive.Playoffs do
   """
   def phase_tab_label(2), do: "Võitja"
   def phase_tab_label(4), do: "Finaal"
-  def phase_tab_label(8), do: "1/2 finaal"
-  def phase_tab_label(16), do: "1/4 finaal"
-  def phase_tab_label(32), do: "1/8 finaal"
-  def phase_tab_label(64), do: "32 parimat"
+  def phase_tab_label(8), do: "1/2"
+  def phase_tab_label(16), do: "1/4"
+  def phase_tab_label(32), do: "1/8"
+  def phase_tab_label(64), do: "1/16"
   def phase_tab_label(phase), do: "Faas #{phase}"
 end
